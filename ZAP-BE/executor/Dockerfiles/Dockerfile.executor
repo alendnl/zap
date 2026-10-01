@@ -1,0 +1,23 @@
+# Multi-language Sandbox Runner Image
+FROM alpine:3.20
+
+# Install minimal compilers and runtimes
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    nodejs \
+    openjdk21-jre-headless \
+    openjdk21 \
+    g++ \
+    bash
+
+# Create non-root runner user
+RUN addgroup -S runnergroup && adduser -S runneruser -G runnergroup -h /home/runneruser
+
+# Set working directory with non-root ownership
+WORKDIR /work
+RUN chown -R runneruser:runnergroup /work
+
+USER runneruser
+
+CMD ["bash"]
