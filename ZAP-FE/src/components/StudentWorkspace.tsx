@@ -157,10 +157,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
   const statusKey =
     currentSubmission?.verdict || currentSubmission?.status || "IDLE";
   const verdictStyle = VERDICT_STYLES[statusKey] || VERDICT_STYLES["IDLE"];
-  const statusLabel =
-    currentSubmission && currentSubmission.status !== "IDLE"
-      ? currentSubmission.status
-      : undefined;
+  const statusLabel = currentSubmission?.status;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950">

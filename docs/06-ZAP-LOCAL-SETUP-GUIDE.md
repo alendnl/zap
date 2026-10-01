@@ -149,12 +149,18 @@ npm install
 
 ### Step 4.2: Configure Environment Variables
 
-Create `.env.local` inside `ZAP-FE/`:
+Inside the `ZAP-FE/` directory, create `.env.local`:
 
 ```bash
-cat << 'EOF' > ZAP-FE/.env.local
+# If you are already inside ZAP-FE/:
+cat << 'EOF' > .env.local
 NEXT_PUBLIC_API_URL=http://localhost:8000
 EOF
+
+# Or from the project root:
+# cat << 'EOF' > ZAP-FE/.env.local
+# NEXT_PUBLIC_API_URL=http://localhost:8000
+# EOF
 ```
 
 ### Step 4.3: Start the Next.js Development Server
