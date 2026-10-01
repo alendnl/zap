@@ -1,0 +1,51 @@
+name: ZAP CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend Tests & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ZAP-BE/requirements.txt
+
+      - name: Run Pytest
+        run: |
+          pytest -v
+
+  frontend-tests:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ZAP-FE/package.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./ZAP-FE
+        run: npm ci || npm install
+
+      - name: Run Frontend Tests
+        working-directory: ./ZAP-FE
+        run: npm test
