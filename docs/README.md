@@ -26,6 +26,14 @@ ZAP is a DSA and technical-interview preparation platform. The first major produ
    - Practical phased build plan for another AI/developer.
    - Build the smallest correct system first; do not introduce unnecessary infrastructure.
 
+6. `06-ZAP-LOCAL-SETUP-GUIDE.md`
+   - Step-by-step local development setup for `ZAP-BE` and `ZAP-FE`.
+   - Virtualenv, dependencies, mocked MongoDB, hot reloading, and testing.
+
+7. `07-ZAP-PRODUCTION-AND-CLOUD-SETUP-GUIDE.md`
+   - Production cloud deployment topology (GCP Cloud Run, Artifact Registry, MongoDB Atlas, Secret Manager).
+   - Scale-to-zero containerization, sandbox security hardening, and load testing.
+
 ## Core implementation rule
 
 The **question system and compiler/execution system must be loosely coupled**.
