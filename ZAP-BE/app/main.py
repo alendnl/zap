@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.questions.router import router as questions_router
+from app.submissions.router import router as submissions_router
 
 settings = get_settings()
 
@@ -30,5 +31,6 @@ def health_check():
         "environment": settings.ENVIRONMENT
     }
 
-# Include Question CRUD router
+# Include Question CRUD and Submission routers
 app.include_router(questions_router)
+app.include_router(submissions_router)
