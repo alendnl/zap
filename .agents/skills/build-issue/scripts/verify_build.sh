@@ -16,9 +16,20 @@ ERRORS=0
 # Check Python / FastAPI Backend if present
 if [ -d "ZAP-BE" ] || [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
     echo "🔍 Checking Python backend..."
+    PYTEST_BIN=""
     if command -v pytest >/dev/null 2>&1; then
-        echo "🏃 Running pytest..."
-        pytest || ERRORS=$((ERRORS + 1))
+        PYTEST_BIN="pytest"
+    elif [ -f "$REPO_ROOT/.venv/bin/pytest" ]; then
+        PYTEST_BIN="$REPO_ROOT/.venv/bin/pytest"
+    elif [ -f "$REPO_ROOT/../../.venv/bin/pytest" ]; then
+        PYTEST_BIN="$REPO_ROOT/../../.venv/bin/pytest"
+    elif [ -f "/Users/apilav068@apac.comcast.com/zap/.venv/bin/pytest" ]; then
+        PYTEST_BIN="/Users/apilav068@apac.comcast.com/zap/.venv/bin/pytest"
+    fi
+
+    if [ -n "$PYTEST_BIN" ]; then
+        echo "🏃 Running pytest using $PYTEST_BIN..."
+        $PYTEST_BIN || ERRORS=$((ERRORS + 1))
     else
         echo "⚠️ pytest not found, skipping python tests."
     fi
