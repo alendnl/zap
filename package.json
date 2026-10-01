@@ -1,0 +1,7 @@
+{
+  "name": "zap-root",
+  "private": true,
+  "scripts": {
+    "test": "npm test --prefix ZAP-FE --if-present"
+  }
+}
