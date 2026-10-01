@@ -1,20 +1,15 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import { QuestionPane, QuestionData } from "./QuestionPane";
 import { EditorPane } from "./EditorPane";
-
-type SubmissionStatus = "IDLE" | "QUEUED" | "RUNNING" | "ACCEPTED" | "WRONG_ANSWER" | "COMPILE_ERROR" | "RUNTIME_ERROR" | "TIME_LIMIT_EXCEEDED";
-
-interface SubmissionResult {
-  status: SubmissionStatus;
-  verdict?: string;
-  output?: string;
-  error?: string;
-  testsPassed?: number;
-  testsTotal?: number;
-  executionTimeMs?: number;
-}
+import {
+  submissionsApi,
+  Submission,
+  isTerminalStatus,
+  SubmissionMode,
+} from "@/services/submissionsApi";
 
 interface StudentWorkspaceProps {
   question: QuestionData;
@@ -24,19 +19,20 @@ const DEFAULT_CODE: Record<string, string> = {
   python: `import sys
 
 def solution():
-    # Read input
+    # Read input from standard input
     data = sys.stdin.read().split()
-    # Your solution here
+    # Write your solution here
     pass
 
-solution()
+if __name__ == "__main__":
+    solution()
 `,
   java: `import java.util.Scanner;
 
 public class Solution {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        // Your solution here
+        // Write your solution here
     }
 }
 `,
@@ -46,12 +42,14 @@ using namespace std;
 int main() {
     ios_base::sync_with_stdio(false);
     cin.tie(NULL);
-    // Your solution here
+    // Write your solution here
     return 0;
 }
 `,
-  node: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
-// Your solution here
+  node: `const fs = require("fs");
+const input = fs.readFileSync("/dev/stdin", "utf-8").trim().split("\\n");
+
+// Write your solution here
 `,
 };
 
@@ -61,65 +59,108 @@ const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string 
   COMPILE_ERROR: { bg: "bg-orange-950/60", text: "text-orange-400", border: "border-orange-700/50" },
   RUNTIME_ERROR: { bg: "bg-red-950/60", text: "text-red-400", border: "border-red-700/50" },
   TIME_LIMIT_EXCEEDED: { bg: "bg-amber-950/60", text: "text-amber-400", border: "border-amber-700/50" },
+  MEMORY_LIMIT_EXCEEDED: { bg: "bg-amber-950/60", text: "text-amber-400", border: "border-amber-700/50" },
+  OUTPUT_LIMIT_EXCEEDED: { bg: "bg-amber-950/60", text: "text-amber-400", border: "border-amber-700/50" },
+  SYSTEM_ERROR: { bg: "bg-rose-950/80", text: "text-rose-400", border: "border-rose-700/60" },
   QUEUED: { bg: "bg-sky-950/60", text: "text-sky-400", border: "border-sky-700/50" },
   RUNNING: { bg: "bg-sky-950/60", text: "text-sky-400", border: "border-sky-700/50" },
   IDLE: { bg: "bg-slate-900/40", text: "text-slate-400", border: "border-slate-700/30" },
 };
 
-function simulateMockedSubmission(
-  onStatusChange: (s: SubmissionResult) => void
-) {
-  onStatusChange({ status: "QUEUED" });
-  setTimeout(() => onStatusChange({ status: "RUNNING" }), 600);
-  setTimeout(() => {
-    // Randomly simulate success or failure for demo purposes
-    const outcomes: SubmissionResult[] = [
-      { status: "ACCEPTED", verdict: "ACCEPTED", testsPassed: 5, testsTotal: 5, executionTimeMs: 42 },
-      { status: "WRONG_ANSWER", verdict: "WRONG_ANSWER", testsPassed: 3, testsTotal: 5 },
-      { status: "COMPILE_ERROR", verdict: "COMPILE_ERROR", error: "SyntaxError: invalid syntax (line 5)" },
-    ];
-    onStatusChange(outcomes[Math.floor(Math.random() * outcomes.length)]);
-  }, 2000);
-}
-
 export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) => {
   const [language, setLanguage] = useState("python");
   const [code, setCode] = useState(DEFAULT_CODE["python"]);
-  const [result, setResult] = useState<SubmissionResult>({ status: "IDLE" });
+  const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [errorNotice, setErrorNotice] = useState<string | null>(null);
+
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const cleanupPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => cleanupPolling();
+  }, [cleanupPolling]);
 
   const handleLanguageChange = useCallback((lang: string) => {
     setLanguage(lang);
     setCode(DEFAULT_CODE[lang] || "");
-    setResult({ status: "IDLE" });
+    setCurrentSubmission(null);
+    setErrorNotice(null);
   }, []);
 
-  const handleRun = useCallback(() => {
-    if (isRunning) return;
-    setIsRunning(true);
-    setResult({ status: "QUEUED" });
-    simulateMockedSubmission((s) => {
-      setResult(s);
-      if (!["QUEUED", "RUNNING"].includes(s.status)) {
-        setIsRunning(false);
-      }
-    });
-  }, [isRunning]);
+  const triggerExecution = useCallback(
+    async (mode: SubmissionMode) => {
+      if (isRunning) return;
+      cleanupPolling();
+      setIsRunning(true);
+      setErrorNotice(null);
+      setCurrentSubmission({ status: "QUEUED" });
 
-  const handleSubmit = useCallback(() => {
-    if (isRunning) return;
-    setIsRunning(true);
-    setResult({ status: "QUEUED" });
-    simulateMockedSubmission((s) => {
-      setResult(s);
-      if (!["QUEUED", "RUNNING"].includes(s.status)) {
-        setIsRunning(false);
-      }
-    });
-  }, [isRunning]);
+      try {
+        const createRes = await submissionsApi.create({
+          questionId: question.id,
+          language,
+          mode,
+          sourceCode: code,
+        });
 
-  const verdictStyle = VERDICT_STYLES[result.status] || VERDICT_STYLES["IDLE"];
-  const statusText = result.status !== "IDLE" ? result.status : undefined;
+        const subId = createRes.submissionId;
+        setCurrentSubmission({ id: subId, status: createRes.status });
+
+        // Poll for updates
+        pollIntervalRef.current = setInterval(async () => {
+          try {
+            const sub = await submissionsApi.get(subId);
+            setCurrentSubmission(sub);
+
+            if (isTerminalStatus(sub.status)) {
+              cleanupPolling();
+              setIsRunning(false);
+            }
+          } catch (pollErr: any) {
+            cleanupPolling();
+            setIsRunning(false);
+            setErrorNotice("Failed to fetch submission status update.");
+          }
+        }, 600);
+      } catch (err: any) {
+        // Fallback simulation if backend is not currently running locally
+        setErrorNotice("Backend API unreachable — simulated local execution response shown.");
+        setTimeout(() => {
+          setCurrentSubmission({ status: "RUNNING" });
+        }, 400);
+
+        setTimeout(() => {
+          setCurrentSubmission({
+            id: `sub-mock-${Date.now()}`,
+            status: "COMPLETED",
+            verdict: "ACCEPTED",
+            executionTimeMs: 38,
+            tests: { total: 3, passed: 3, failed: 0 },
+          });
+          setIsRunning(false);
+        }, 1500);
+      }
+    },
+    [isRunning, cleanupPolling, question.id, language, code]
+  );
+
+  const handleRun = useCallback(() => triggerExecution("RUN"), [triggerExecution]);
+  const handleSubmit = useCallback(() => triggerExecution("SUBMIT"), [triggerExecution]);
+
+  const statusKey =
+    currentSubmission?.verdict || currentSubmission?.status || "IDLE";
+  const verdictStyle = VERDICT_STYLES[statusKey] || VERDICT_STYLES["IDLE"];
+  const statusLabel =
+    currentSubmission && currentSubmission.status !== "IDLE"
+      ? currentSubmission.status
+      : undefined;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
@@ -130,19 +171,32 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
           <span className="text-slate-600 text-xs">|</span>
           <span className="text-slate-400 text-xs truncate max-w-xs">{question.title}</span>
         </div>
+        <div className="ml-auto flex items-center gap-3">
+          {errorNotice && (
+            <span className="text-amber-400 text-xs truncate bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded">
+              {errorNotice}
+            </span>
+          )}
+          <Link
+            href="/faculty/questions"
+            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded border border-slate-700 transition-colors"
+          >
+            Faculty Portal →
+          </Link>
+        </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content Workspace */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Question Pane */}
+        {/* Left Question Pane */}
         <div className="w-[40%] min-w-[300px] max-w-[600px] overflow-hidden">
           <QuestionPane question={question} />
         </div>
 
-        {/* Vertical Divider */}
+        {/* Divider */}
         <div className="w-px bg-slate-800 flex-shrink-0" />
 
-        {/* Editor + Output Pane */}
+        {/* Right Editor + Output Console */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <EditorPane
@@ -153,37 +207,43 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
               onRun={handleRun}
               onSubmit={handleSubmit}
               isRunning={isRunning}
-              statusText={statusText}
+              statusText={statusLabel}
             />
           </div>
 
-          {/* Output Panel */}
-          {result.status !== "IDLE" && (
+          {/* Submission Result / Console Output Drawer */}
+          {currentSubmission && currentSubmission.status && (
             <div
-              className={`border-t ${verdictStyle.border} ${verdictStyle.bg} px-5 py-3 transition-all`}
-              style={{ minHeight: "90px", maxHeight: "160px" }}
+              className={`border-t ${verdictStyle.border} ${verdictStyle.bg} px-5 py-3 transition-all flex-shrink-0`}
+              style={{ minHeight: "100px", maxHeight: "180px", overflowY: "auto" }}
             >
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className={`text-xs font-bold uppercase tracking-widest ${verdictStyle.text}`}>
-                  {result.verdict || result.status}
+              <div className="flex items-center gap-3 mb-1.5">
+                <span className={`text-xs font-bold uppercase tracking-wider ${verdictStyle.text}`}>
+                  {currentSubmission.verdict || currentSubmission.status}
                 </span>
-                {result.executionTimeMs != null && (
-                  <span className="text-xs text-slate-500">{result.executionTimeMs}ms</span>
+
+                {currentSubmission.executionTimeMs != null && (
+                  <span className="text-xs text-slate-400">
+                    ⏱ {currentSubmission.executionTimeMs} ms
+                  </span>
                 )}
-                {result.testsPassed != null && result.testsTotal != null && (
-                  <span className="text-xs text-slate-500">
-                    Tests: {result.testsPassed}/{result.testsTotal}
+
+                {currentSubmission.tests && (
+                  <span className="text-xs text-slate-400">
+                    Tests: {currentSubmission.tests.passed} / {currentSubmission.tests.total} passed
                   </span>
                 )}
               </div>
-              {result.error && (
-                <pre className="font-mono text-xs text-rose-300 opacity-80 whitespace-pre-wrap overflow-auto max-h-24">
-                  {result.error}
+
+              {currentSubmission.compileOutput && (
+                <pre className="font-mono text-xs text-orange-300 bg-orange-950/30 p-2 rounded border border-orange-800/40 whitespace-pre-wrap">
+                  {currentSubmission.compileOutput}
                 </pre>
               )}
-              {result.output && (
-                <pre className="font-mono text-xs text-slate-300 whitespace-pre-wrap overflow-auto max-h-24">
-                  {result.output}
+
+              {currentSubmission.errorMessage && (
+                <pre className="font-mono text-xs text-rose-300 bg-rose-950/30 p-2 rounded border border-rose-800/40 whitespace-pre-wrap">
+                  {currentSubmission.errorMessage}
                 </pre>
               )}
             </div>

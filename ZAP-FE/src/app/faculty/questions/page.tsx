@@ -80,12 +80,20 @@ export default function FacultyDashboard() {
             <span className="text-sky-400 font-black text-xl tracking-tight">ZAP</span>
             <span className="text-slate-500 text-sm">Faculty Portal</span>
           </div>
-          <Link
-            href="/faculty/questions/new"
-            className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors"
-          >
-            + New Question
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded transition-colors"
+            >
+              ← Student Workspace
+            </Link>
+            <Link
+              href="/faculty/questions/new"
+              className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors"
+            >
+              + New Question
+            </Link>
+          </div>
         </div>
       </header>
 
