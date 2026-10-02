@@ -173,8 +173,8 @@ gcloud secrets add-iam-policy-binding zap-mongodb-uri \
 ### Step 4.3: Deploy API Service to Cloud Run
 
 ```bash
-# Build & tag API image
-docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-api:latest -f ZAP-BE/Dockerfile.api ZAP-BE/
+# Build & tag API image for linux/amd64 (required for Apple Silicon / M-series Macs)
+docker build --platform linux/amd64 -t us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-api:latest -f ZAP-BE/Dockerfile.api ZAP-BE/
 docker push us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-api:latest
 
 # Deploy to Cloud Run
@@ -197,8 +197,8 @@ gcloud run deploy zap-api \
 Executor workers must be tightly bounded with strict timeouts and memory caps:
 
 ```bash
-# Build & tag Worker image
-docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-worker:latest -f ZAP-BE/Dockerfile.worker ZAP-BE/
+# Build & tag Worker image for linux/amd64
+docker build --platform linux/amd64 -t us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-worker:latest -f ZAP-BE/Dockerfile.worker ZAP-BE/
 docker push us-central1-docker.pkg.dev/$PROJECT_ID/zap-images/zap-be-worker:latest
 
 # Deploy to Cloud Run with scale-to-zero and sandboxing
