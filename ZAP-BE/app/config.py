@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     DATABASE_NAME: str = "zap_platform"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "https://codezap-arena.vercel.app"]
 
+    # Google Cloud Tasks configuration
+    GCP_PROJECT_ID: str = ""
+    GCP_LOCATION: str = "us-central1"
+    TASKS_QUEUE_NAME: str = "zap-submissions"
+    EXECUTOR_TASK_URL: str = "http://localhost:8080/internal/tasks/execute"
+    TASKS_SERVICE_ACCOUNT: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
 

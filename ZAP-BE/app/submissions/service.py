@@ -6,32 +6,13 @@ from app.submissions.models import (
     SubmissionStatus,
     SubmissionVerdict,
 )
-
-
-class SubmissionQueue:
-    """Loose-coupled queue interface to decouple submission API from judge execution."""
-    def __init__(self):
-        self._jobs = []
-
-    def enqueue(self, job: dict):
-        self._jobs.append(job)
-
-    def dequeue(self) -> Optional[dict]:
-        if self._jobs:
-            return self._jobs.pop(0)
-        return None
-
-    def size(self) -> int:
-        return len(self._jobs)
-
-
-default_queue = SubmissionQueue()
+from app.submissions.queue import get_queue
 
 
 class SubmissionService:
-    def __init__(self, db, queue: SubmissionQueue = default_queue):
+    def __init__(self, db, queue=None):
         self.db = db
-        self.queue = queue
+        self.queue = queue if queue is not None else get_queue()
         self._memory_store = {}
 
     def _get_collection(self):
@@ -57,7 +38,7 @@ class SubmissionService:
         else:
             self._memory_store[submission.id] = doc
 
-        # Hand off to async queue
+        # Hand off to async queue (Cloud Tasks in production, memory locally)
         self.queue.enqueue({
             "submissionId": submission.id,
             "questionId": submission.questionId,

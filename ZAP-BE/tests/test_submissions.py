@@ -4,7 +4,7 @@ import mongomock
 from app.main import app
 from app.db.mongodb import set_test_database
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
-from app.submissions.service import default_queue
+from app.submissions.queue import MemorySubmissionQueue
 
 @pytest.fixture(autouse=True)
 def setup_mock_db():
@@ -32,9 +32,6 @@ def test_create_submission():
     assert data["status"] == "QUEUED"
     submission_id = data["submissionId"]
 
-    # Queue should have received a job
-    assert default_queue.size() > 0
-
     # Get submission status
     get_res = client.get(f"/api/v1/submissions/{submission_id}")
     assert get_res.status_code == 200
@@ -43,6 +40,22 @@ def test_create_submission():
     assert sub_data["status"] == "QUEUED"
     assert sub_data["questionId"] == "valid-anagram"
     assert sub_data["language"] == "python"
+
+def test_create_submission_uses_memory_queue_when_no_gcp():
+    """Without GCP_PROJECT_ID, submissions enqueue into the memory queue."""
+    from app.submissions.queue import get_queue
+    queue = get_queue()
+    assert isinstance(queue, MemorySubmissionQueue)
+
+    payload = {
+        "questionId": "two-sum",
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "print(1)",
+    }
+    res = client.post("/api/v1/submissions", json=payload)
+    assert res.status_code == 202
+    assert queue.size() > 0
 
 def test_cancel_submission():
     payload = {
