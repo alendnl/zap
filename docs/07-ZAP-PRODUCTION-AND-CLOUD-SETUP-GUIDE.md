@@ -220,6 +220,55 @@ gcloud run deploy zap-executor \
 > [!IMPORTANT]
 > The worker is deployed with `--concurrency=1` to guarantee dedicated CPU and memory isolation for each user's code execution, preventing CPU throttling and cross-process interference.
 
+### Step 4.5: GitHub Actions Continuous Deployment
+
+The workflow in `.github/workflows/ci.yml` runs backend tests and a frontend production build for pushes and pull requests. A push to `main` that passes both checks builds the API image, pushes it to Artifact Registry with the commit SHA as its tag, deploys it to Cloud Run, and checks `/health`.
+
+Use Workload Identity Federation instead of a long-lived service-account JSON key.
+
+#### GitHub Actions identity configured for this repository
+
+The production workflow is configured for the following GCP resources; no
+GitHub Actions secrets or repository variables are needed:
+
+| Resource | Value |
+|---|---|
+| Project | `zap-platform-prod` |
+| WIF provider | `projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository` |
+| Deployer service account | `zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com` |
+
+The workflow deploys only the API service. The frontend remains deployed through its Vercel Git integration. The Cloud Run runtime settings (MongoDB secret, database name, CORS, service account) are kept on the service and are not overwritten by the workflow.
+
+#### GCP IAM setup already applied
+
+The dedicated deployment identity has been created, and its roles have been applied. The following commands document the setup for reference:
+
+```bash
+export PROJECT_ID="zap-platform-prod"
+export PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+export DEPLOY_SA="zap-github-deployer"
+
+gcloud iam service-accounts create "$DEPLOY_SA" --project="$PROJECT_ID"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${DEPLOY_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${DEPLOY_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${DEPLOY_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
+```
+
+#### Workload Identity Federation provider already configured
+
+The provider is restricted to repository `alendnl/zap` and branch `main`, and the repository principal has `roles/iam.workloadIdentityUser` on the deployer service account. No service-account key is used.
+
+After configuration, pushes to `main` automatically deploy the API after CI passes. `workflow_dispatch` is also available for manually starting the workflow from GitHub Actions.
+
 ---
 
 ## 5. Security & Sandbox Hardening
