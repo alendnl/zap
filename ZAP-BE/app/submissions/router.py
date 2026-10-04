@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.db.mongodb import get_database
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from app.db.mongodb import get_database, get_request_environment
 from app.submissions.models import (
     Submission,
     SubmissionCreateRequest,
@@ -7,12 +7,14 @@ from app.submissions.models import (
     SubmissionStatus,
     SubmissionVerdict,
 )
+from app.submissions.queue import get_queue_for_env
 from app.submissions.service import SubmissionService
 
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
-def get_submission_service(db = Depends(get_database)) -> SubmissionService:
-    return SubmissionService(db)
+def get_submission_service(request: Request, db = Depends(get_database)) -> SubmissionService:
+    env = get_request_environment(request)
+    return SubmissionService(db, get_queue_for_env(env), env)
 
 @router.post("", response_model=SubmissionCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 @router.post("/", response_model=SubmissionCreateResponse, status_code=status.HTTP_202_ACCEPTED)

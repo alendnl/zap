@@ -1,12 +1,17 @@
 // Faculty Question API client — wired to ZAP-BE REST endpoints (ISSUE-005)
 import { Question, QuestionFormData } from "@/types/question";
+import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  headers.set(ENVIRONMENT_HEADER, getEnvironment());
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));

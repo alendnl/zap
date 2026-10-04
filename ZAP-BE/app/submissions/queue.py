@@ -6,14 +6,21 @@ that Cloud Tasks delivers to the executor service. Otherwise, an in-memory
 queue is used as a local-development fallback.
 """
 from typing import Optional, Dict, Any
+from fastapi import Request
 from app.config import get_settings
+from app.db.mongodb import get_request_environment
 
 
 class CloudTasksQueue:
-    """Producer that creates HTTP tasks in a Google Cloud Tasks queue."""
+    """Producer that creates HTTP tasks in a Google Cloud Tasks queue.
 
-    def __init__(self, settings=None):
+    A single queue instance is bound to a single environment; the queue name
+    is resolved from the per-environment config.
+    """
+
+    def __init__(self, settings=None, environment: str = "production"):
         self.settings = settings or get_settings()
+        self.environment = environment
         self._client = None
 
     @property
@@ -28,14 +35,23 @@ class CloudTasksQueue:
         return bool(self.settings.GCP_PROJECT_ID)
 
     def enqueue(self, job: dict) -> Optional[str]:
-        """Creates a Cloud Task for the given job. Returns task name or None."""
+        """Creates a Cloud Task for the given job. Returns task name or None.
+
+        The task payload is stamped with the environment so the executor can
+        select the correct database.
+        """
         if not self.enabled:
             return None
 
+        # Stamp the environment onto the payload so the executor can select
+        # the correct database.
+        job = {**job, "environment": self.environment}
+
+        env_cfg = self.settings.get_environment_config(self.environment)
         parent = self.client.queue_path(
             self.settings.GCP_PROJECT_ID,
             self.settings.GCP_LOCATION,
-            self.settings.TASKS_QUEUE_NAME,
+            env_cfg.queue_name,
         )
 
         if not self.settings.TASKS_SERVICE_ACCOUNT:
@@ -89,22 +105,31 @@ class MemorySubmissionQueue:
         return len(self._jobs)
 
 
-def get_queue():
-    """Returns the appropriate queue implementation based on configuration.
+def get_queue_for_env(env: str, settings=None):
+    """Returns the queue implementation for the given environment.
 
-    The queue instance is cached so the API service and tests share the same
-    in-memory queue when Cloud Tasks is not configured.
+    When Cloud Tasks is configured (GCP_PROJECT_ID set), a CloudTasksQueue
+    bound to the environment's queue name is returned; otherwise an
+    in-memory queue is used for local development and tests.
     """
-    global _queue_instance
-    if _queue_instance is not None:
-        return _queue_instance
+    cache_instance = settings is None
+    if cache_instance and env in _queue_instances:
+        return _queue_instances[env]
 
-    settings = get_settings()
+    settings = settings or get_settings()
     if settings.GCP_PROJECT_ID:
-        _queue_instance = CloudTasksQueue(settings)
+        queue = CloudTasksQueue(settings, environment=env)
     else:
-        _queue_instance = MemorySubmissionQueue()
-    return _queue_instance
+        queue = MemorySubmissionQueue()
+    if cache_instance:
+        _queue_instances[env] = queue
+    return queue
 
 
-_queue_instance = None
+def get_queue(request: Optional[Request] = None):
+    """FastAPI dependency: returns the queue for the request's environment
+    (X-ZAP-ENV header, defaulting to DEFAULT_ENVIRONMENT)."""
+    return get_queue_for_env(get_request_environment(request))
+
+
+_queue_instances: dict[str, Any] = {}

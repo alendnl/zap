@@ -6,13 +6,14 @@ from app.submissions.models import (
     SubmissionStatus,
     SubmissionVerdict,
 )
-from app.submissions.queue import get_queue
+from app.submissions.queue import get_queue_for_env
 
 
 class SubmissionService:
-    def __init__(self, db, queue=None):
+    def __init__(self, db, queue=None, environment: str = "production"):
         self.db = db
-        self.queue = queue if queue is not None else get_queue()
+        self.environment = environment
+        self.queue = queue if queue is not None else get_queue_for_env(environment)
         self._memory_store = {}
 
     def _get_collection(self):
@@ -38,13 +39,15 @@ class SubmissionService:
         else:
             self._memory_store[submission.id] = doc
 
-        # Hand off to async queue (Cloud Tasks in production, memory locally)
+        # Hand off to async queue (Cloud Tasks in production, memory locally).
+        # The environment is included so the executor selects the correct DB.
         self.queue.enqueue({
             "submissionId": submission.id,
             "questionId": submission.questionId,
             "language": submission.language,
             "mode": submission.mode.value,
-            "createdAt": submission.createdAt
+            "createdAt": submission.createdAt,
+            "environment": self.environment
         })
 
         return submission

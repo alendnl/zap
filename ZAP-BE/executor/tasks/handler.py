@@ -10,11 +10,12 @@ Cloud Tasks delivers execution jobs to this endpoint. The endpoint:
 6. Returns HTTP 200 on success (acknowledge) or a retryable status on failure.
 """
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from app.config import get_settings
-from app.db.mongodb import get_database
+from app.db.mongodb import get_database_for_env
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
+from app.submissions.queue import get_queue_for_env
 from app.submissions.service import SubmissionService
 from executor.languages import get_runner
 from executor.judge.judge import JudgeEngine
@@ -39,10 +40,7 @@ def create_app():
 
 class TaskPayload(BaseModel):
     submissionId: str
-
-
-def get_submission_service(db=Depends(get_database)) -> SubmissionService:
-    return SubmissionService(db)
+    environment: str = "production"
 
 
 def verify_cloud_tasks(request: Request) -> None:
@@ -90,7 +88,6 @@ def verify_cloud_tasks(request: Request) -> None:
 def execute_task(
     request: Request,
     payload: TaskPayload,
-    service: SubmissionService = Depends(get_submission_service),
 ):
     verify_cloud_tasks(request)
 
@@ -100,6 +97,10 @@ def execute_task(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing submissionId in task payload",
         )
+
+    env = payload.environment
+    db = get_database_for_env(env)
+    service = SubmissionService(db, get_queue_for_env(env), env)
 
     submission = service.get_submission(submission_id)
     if not submission:
@@ -120,7 +121,7 @@ def execute_task(
         )
 
     try:
-        result = _run_judge(submission_id, submission)
+        result = _run_judge(submission_id, submission, env)
         _persist_result(service, submission_id, result)
         return {"status": "completed", "verdict": result.verdict}
     except Exception as exc:
@@ -143,11 +144,11 @@ def execute_task(
         )
 
 
-def _run_judge(submission_id: str, submission) -> Any:
+def _run_judge(submission_id: str, submission, environment: str = "production") -> Any:
     """Runs the JudgeEngine for a submission loaded from MongoDB."""
     from app.questions.service import QuestionService
 
-    db = get_database()
+    db = get_database_for_env(environment)
     question_service = QuestionService(db)
     question = question_service.get_question(submission.questionId)
     if not question:

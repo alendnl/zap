@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { questionsApi } from "@/services/questionsApi";
 import type { QuestionFormData, TestCase, Difficulty, QuestionStatus } from "@/types/question";
 
@@ -117,6 +118,9 @@ export default function NewQuestionPage() {
           </button>
           <span className="text-sky-400 font-black text-xl tracking-tight">ZAP</span>
           <span className="text-slate-500 text-sm">New Question</span>
+          <div className="ml-auto">
+            <EnvironmentSwitcher />
+          </div>
         </div>
       </header>
 

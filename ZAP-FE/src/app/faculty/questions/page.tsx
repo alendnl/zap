@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { questionsApi } from "@/services/questionsApi";
 import type { Question } from "@/types/question";
 
@@ -81,6 +82,7 @@ export default function FacultyDashboard() {
             <span className="text-slate-500 text-sm">Faculty Portal</span>
           </div>
           <div className="flex items-center gap-3">
+            <EnvironmentSwitcher />
             <Link
               href="/"
               className="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded transition-colors"

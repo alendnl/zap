@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 import mongomock
 from app.questions.router import router as questions_router
 from app.submissions.router import router as submissions_router
-from app.db.mongodb import set_test_database
+from app.db.mongodb import clear_database_cache, set_test_database
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
 from executor.tasks.handler import create_app
 
@@ -14,6 +14,9 @@ def setup_mock_db():
     set_test_database(mock_db)
     yield
     set_test_database(None)
+    from app.submissions.queue import _queue_instances
+    clear_database_cache()
+    _queue_instances.clear()
 
 app = create_app()
 app.include_router(questions_router)
@@ -21,7 +24,7 @@ app.include_router(submissions_router)
 client = TestClient(app)
 
 
-def _create_question():
+def _create_question(environment: str = "production"):
     payload = {
         "slug": "sum-two",
         "title": "Sum Two",
@@ -39,12 +42,13 @@ def _create_question():
         "executionLimits": {"timeMs": 2000, "memoryMb": 256, "outputKb": 1024},
         "supportedLanguages": ["python", "java", "cpp", "node"]
     }
-    res = client.post("/api/v1/questions", json=payload)
+    headers = {"X-ZAP-ENV": environment} if environment != "production" else {}
+    res = client.post("/api/v1/questions", json=payload, headers=headers)
     assert res.status_code == 201
     return res.json()
 
 
-def _create_submission(question_id: str, code: str):
+def _create_submission(question_id: str, code: str, environment: str = "production"):
     payload = {
         "questionId": question_id,
         "language": "python",
@@ -52,7 +56,8 @@ def _create_submission(question_id: str, code: str):
         "sourceCode": code,
         "userId": "student-test-1"
     }
-    res = client.post("/api/v1/submissions", json=payload)
+    headers = {"X-ZAP-ENV": environment} if environment != "production" else {}
+    res = client.post("/api/v1/submissions", json=payload, headers=headers)
     assert res.status_code == 202
     return res.json()["submissionId"]
 
@@ -108,8 +113,29 @@ def test_execute_task_acknowledges_active_duplicate():
 
     question = _create_question()
     sub_id = _create_submission(question["id"], "print(5)")
-    service = SubmissionService(db_manager.db)
+    service = SubmissionService(db_manager.dbs["production"])
     assert service.claim_submission(sub_id) is not None
 
     response = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
     assert response.status_code == 503
+
+
+def test_execute_task_uses_environment_database():
+    from app.db.mongodb import db_manager, set_test_database
+
+    qa_client = mongomock.MongoClient()
+    qa_db = qa_client["qa_test_db"]
+    set_test_database(qa_db, env="qa")
+    qa_question = _create_question("qa")
+    sub_id = _create_submission(
+        qa_question["id"],
+        "import sys\nprint(sum(map(int, sys.stdin.read().split())))",
+        "qa",
+    )
+    assert db_manager.dbs["qa"].submissions.find_one({"_id": sub_id})
+    assert db_manager.dbs["production"].submissions.find_one({"_id": sub_id}) is None
+
+    response = client.post("/internal/tasks/execute", json={"submissionId": sub_id, "environment": "qa"})
+    assert response.status_code == 200
+    assert response.json()["verdict"] == "ACCEPTED"
+    assert db_manager.dbs["qa"].submissions.find_one({"_id": sub_id})["status"] == SubmissionStatus.COMPLETED.value

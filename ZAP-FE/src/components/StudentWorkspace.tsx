@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { QuestionPane, QuestionData } from "./QuestionPane";
 import { EditorPane } from "./EditorPane";
 import {
@@ -180,6 +181,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
           >
             Faculty Portal →
           </Link>
+          <EnvironmentSwitcher />
         </div>
       </header>
 
