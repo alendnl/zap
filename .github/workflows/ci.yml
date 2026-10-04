@@ -48,6 +48,8 @@ jobs:
     needs: [backend-tests, frontend-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/qa'
     environment: qa
+    permissions:
+      id-token: write
     concurrency:
       group: deploy-qa
       cancel-in-progress: false
@@ -148,6 +150,8 @@ jobs:
     needs: [backend-tests, frontend-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: production
+    permissions:
+      id-token: write
     concurrency:
       group: deploy-production
       cancel-in-progress: false
