@@ -34,6 +34,10 @@ ZAP is a DSA and technical-interview preparation platform. The first major produ
    - Production cloud deployment topology (GCP Cloud Run, Artifact Registry, MongoDB Atlas, Secret Manager).
    - Scale-to-zero containerization, sandbox security hardening, and load testing.
 
+8. `HANDOFF-issue-010-single-deployment-env-switcher.md`
+   - Single `main` branch deployment pipeline with a runtime Prod/QA switcher in the frontend.
+   - Only MongoDB database name and Cloud Tasks queue name differ per environment (`X-ZAP-ENV` header + task payload `environment`).
+
 ## Core implementation rule
 
 The **question system and compiler/execution system must be loosely coupled**.
