@@ -120,7 +120,7 @@ jobs:
             --project="$PROJECT_ID" --region="$REGION" \
             --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
             --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
-            --min=0 --max=20 --cpu=4 --memory=4Gi --concurrency=1 --timeout=360 \
+            --min=0 --max=5 --cpu=4 --memory=4Gi --concurrency=1 --timeout=360 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions-lower,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
             --quiet
