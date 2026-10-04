@@ -100,11 +100,20 @@ jobs:
           set -euo pipefail
           EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${GITHUB_SHA}"
           EXECUTOR_URL="https://${EXECUTOR_SERVICE_NAME}-394729648143.us-central1.run.app"
+          if [[ "$TARGET_ENV" == "qa" ]]; then
+            MEMORY=2Gi
+            CPU=2
+            MAX_INSTANCES=10
+          else
+            MEMORY=4Gi
+            CPU=4
+            MAX_INSTANCES=20
+          fi
           gcloud run deploy "$EXECUTOR_SERVICE_NAME" \
             --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
             --image="$EXECUTOR_IMAGE" --no-allow-unauthenticated \
             --service-account="$EXECUTOR_SERVICE_ACCOUNT" \
-            --min=0 --max=10 --cpu=2 --memory=2Gi --concurrency=1 --timeout=360 \
+            --min=0 --max="$MAX_INSTANCES" --cpu="$CPU" --memory="$MEMORY" --concurrency=1 --timeout=360 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
             --update-env-vars="^@^ENVIRONMENT=${TARGET_ENV}@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
