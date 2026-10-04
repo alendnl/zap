@@ -2,9 +2,9 @@ name: ZAP CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, qa]
   pull_request:
-    branches: [main]
+    branches: [main, qa]
   workflow_dispatch:
 
 permissions:
@@ -12,112 +12,134 @@ permissions:
 
 jobs:
   backend-tests:
-    name: Backend Tests & Lint
+    name: Backend Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install Backend Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r ZAP-BE/requirements.txt
-
-      - name: Run Pytest
-        run: |
-          pytest -v
+      - name: Install backend dependencies
+        run: pip install -r ZAP-BE/requirements.txt
+      - name: Run backend tests
+        run: pytest -v
 
   frontend-tests:
     name: Frontend Build & Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: "22"
+          cache: npm
           cache-dependency-path: package-lock.json
-
-      - name: Install Frontend Dependencies
-        run: npm ci
-
-      - name: Build Frontend
+      - run: npm ci
+      - name: Build frontend
         run: npm run build --workspace=ZAP-FE
         env:
           NEXT_PUBLIC_API_URL: https://zap-api-394729648143.us-central1.run.app
-
-      - name: Run Frontend Tests
+      - name: Run frontend tests
         run: npm test --workspace=ZAP-FE
 
-  deploy-api:
-    name: Deploy API to Cloud Run
+  deploy-environment:
+    name: Deploy ${{ github.ref_name == 'qa' && 'QA' || 'Production' }}
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
     if: >-
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/qa') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: ${{ github.ref_name == 'qa' && 'qa' || 'production' }}
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
     env:
+      TARGET_ENV: ${{ github.ref_name == 'qa' && 'qa' || 'production' }}
       GCP_PROJECT_ID: zap-platform-prod
-      GCP_WIF_PROVIDER: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository
-      GCP_DEPLOY_SERVICE_ACCOUNT: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
       GCP_REGION: us-central1
       AR_REPOSITORY: zap-images
-      SERVICE_NAME: zap-api
+      MONGODB_SECRET_NAME: ${{ github.ref_name == 'qa' && 'zap-mongodb-uri-qa' || 'zap-mongodb-uri' }}
+      GCP_WIF_PROVIDER: ${{ github.ref_name == 'qa' && 'projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-qa' || 'projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository' }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ github.ref_name == 'qa' && 'zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com' || 'zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com' }}
+      API_SERVICE_NAME: ${{ github.ref_name == 'qa' && 'zap-api-qa' || 'zap-api' }}
+      EXECUTOR_SERVICE_NAME: ${{ github.ref_name == 'qa' && 'zap-executor-qa' || 'zap-executor' }}
+      DATABASE_NAME: ${{ github.ref_name == 'qa' && 'zap_lower' || 'zap_prod' }}
+      QUEUE_NAME: ${{ github.ref_name == 'qa' && 'zap-submissions-lower' || 'zap-submissions' }}
+      TASKS_SERVICE_ACCOUNT: ${{ github.ref_name == 'qa' && 'zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com' || 'zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com' }}
+      API_SERVICE_ACCOUNT: ${{ github.ref_name == 'qa' && 'zap-api-qa@zap-platform-prod.iam.gserviceaccount.com' || 'zap-api-runtime@zap-platform-prod.iam.gserviceaccount.com' }}
+      EXECUTOR_SERVICE_ACCOUNT: ${{ github.ref_name == 'qa' && 'zap-executor-qa@zap-platform-prod.iam.gserviceaccount.com' || 'zap-executor-runtime@zap-platform-prod.iam.gserviceaccount.com' }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud (Workload Identity Federation)
-        uses: google-github-actions/auth@v2
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
           service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and push API image
+      - name: Build and push API/executor images
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
-          IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
           gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-          docker build --platform linux/amd64 \
-            -t "$IMAGE" \
-            -f ZAP-BE/Dockerfile.api \
-            ZAP-BE/
-          docker push "$IMAGE"
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
+          EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
+          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
+          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
+          docker push "$API_IMAGE"
+          docker push "$EXECUTOR_IMAGE"
+          echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
+          echo "EXECUTOR_IMAGE=$EXECUTOR_IMAGE" >> "$GITHUB_ENV"
 
-      - name: Deploy API to Cloud Run
+      - name: Deploy private executor
         run: |
           set -euo pipefail
-          gcloud run deploy "$SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" \
-            --region="$GCP_REGION" \
-            --image="$IMAGE" \
+          EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${GITHUB_SHA}"
+          EXECUTOR_URL="https://${EXECUTOR_SERVICE_NAME}-394729648143.us-central1.run.app"
+          gcloud run deploy "$EXECUTOR_SERVICE_NAME" \
+            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --image="$EXECUTOR_IMAGE" --no-allow-unauthenticated \
+            --service-account="$EXECUTOR_SERVICE_ACCOUNT" \
+            --min=0 --max=10 --cpu=2 --memory=2Gi --concurrency=1 --timeout=360 \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
+            --update-env-vars="^@^ENVIRONMENT=${TARGET_ENV}@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
+            --quiet
+          echo "EXECUTOR_URL=$EXECUTOR_URL" >> "$GITHUB_ENV"
+          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(status.conditions[?type=='Ready'].status)")"
+          test "$EXECUTOR_READY" = "True"
+
+      - name: Deploy API
+        run: |
+          set -euo pipefail
+          API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${GITHUB_SHA}"
+          if [[ "$TARGET_ENV" == "qa" ]]; then
+            CORS_ORIGINS='["http://localhost:3000"]'
+            CORS_REGEX='^https://codezap-arena-git-qa-alendnl\.vercel\.app$'
+          else
+            CORS_ORIGINS='["https://codezap-arena.vercel.app"]'
+            CORS_REGEX=""
+          fi
+          gcloud run deploy "$API_SERVICE_NAME" \
+            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --image="$API_IMAGE" --allow-unauthenticated \
+            --service-account="$API_SERVICE_ACCOUNT" \
+            --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
+            --update-env-vars="^@^ENVIRONMENT=${TARGET_ENV}@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@CORS_ORIGINS=${CORS_ORIGINS}@CORS_ORIGIN_REGEX=${CORS_REGEX}" \
             --quiet
 
-      - name: Verify production health endpoint
+      - name: Verify environment configuration and API health
         run: |
           set -euo pipefail
-          SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" \
-            --region="$GCP_REGION" \
-            --format='value(status.url)')"
-          curl --fail --silent --show-error \
-            --retry 10 --retry-all-errors --retry-delay 5 \
-            "$SERVICE_URL/health" | tee /tmp/health.json
-          python -c 'import json; d=json.load(open("/tmp/health.json")); assert d["status"] == "healthy" and d["environment"] == "production", d'
+          SERVICE_URL="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(status.url)')"
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 5 "$SERVICE_URL/health" | tee /tmp/health.json
+          python -c 'import json,os; d=json.load(open("/tmp/health.json")); assert d["status"] == "healthy" and d["environment"] == os.environ["TARGET_ENV"], d'
+          ACTUAL_DB="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(spec.template.spec.containers[0].env[?name=='DATABASE_NAME'].value)")"
+          test "$ACTUAL_DB" = "$DATABASE_NAME"
+          gcloud tasks queues describe "$QUEUE_NAME" --project="$GCP_PROJECT_ID" --location="$GCP_REGION" >/dev/null
+          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(status.conditions[?type=='Ready'].status)")"
+          test "$EXECUTOR_READY" = "True"
