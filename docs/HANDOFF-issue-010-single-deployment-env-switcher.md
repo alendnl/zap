@@ -14,8 +14,8 @@ Replace the two-branch / two-deployer QA+production pipeline (issue #9) with a *
 - **ONE API Cloud Run service** (`zap-api`) and **ONE executor Cloud Run service** (`zap-executor`).
 - **ONE frontend deployment** (Vercel) with a **Prod/QA switcher in the top-right corner** of the UI.
 - Only the **MongoDB database name** and **Cloud Tasks queue name** differ per environment:
-  - QA: `zap_lower` / `zap-submissions-lower`
-  - Production: `zap_prod` / `zap-submissions`
+  - QA: `zap_platform_lower` / `zap-submissions-lower`
+  - Production: `zap_platform_prod` / `zap-submissions`
 - Environment is selected **at runtime in code** — no separate QA deployment process, no QA IAM, no conditional bindings.
 
 ---
@@ -41,8 +41,8 @@ flowchart LR
         EXEC[zap-executor<br/>FastAPI task consumer]
     end
     subgraph INFRA["Per-Environment (selected in code)"]
-        DBQ[(zap_lower)]
-        DBP[(zap_prod)]
+        DBQ[(zap_platform_lower)]
+        DBP[(zap_platform_prod)]
         QQ[zap-submissions-lower]
         QP[zap-submissions]
     end
@@ -62,7 +62,7 @@ flowchart LR
 **Flow:**
 1. User toggles **Prod/QA** in the top-right corner of the UI. Selection is persisted in `localStorage`.
 2. Every API call from the frontend includes the header `X-ZAP-ENV: qa|production`.
-3. The single API service reads the header and selects the DB (`zap_lower`/`zap_prod`) and Cloud Tasks queue (`zap-submissions-lower`/`zap-submissions`).
+3. The single API service reads the header and selects the DB (`zap_platform_lower`/`zap_platform_prod`) and Cloud Tasks queue (`zap-submissions-lower`/`zap-submissions`).
 4. The enqueued Cloud Task payload includes `"environment": "qa"|"production"`.
 5. The single executor service reads `environment` from the task payload and selects the DB for loading/persisting the submission.
 
@@ -113,9 +113,9 @@ class Settings(BaseSettings):
 
     # Per-environment (only DB name + queue name differ)
     DEFAULT_ENVIRONMENT: str = "production"
-    QA_DATABASE_NAME: str = "zap_lower"
+    QA_DATABASE_NAME: str = "zap_platform_lower"
     QA_QUEUE_NAME: str = "zap-submissions-lower"
-    PRODUCTION_DATABASE_NAME: str = "zap_prod"
+    PRODUCTION_DATABASE_NAME: str = "zap_platform_prod"
     PRODUCTION_QUEUE_NAME: str = "zap-submissions"
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
@@ -289,8 +289,8 @@ GCP_PROJECT_ID=zap-platform-prod,GCP_LOCATION=us-central1,
 EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute,
 TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app,
 TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com,
-QA_DATABASE_NAME=zap_lower,QA_QUEUE_NAME=zap-submissions-lower,
-PRODUCTION_DATABASE_NAME=zap_prod,PRODUCTION_QUEUE_NAME=zap-submissions,
+QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions-lower,
+PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions,
 CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app"],CORS_ORIGIN_REGEX=
 ```
 
@@ -311,8 +311,8 @@ CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app"],CORS_O
 
 - Update `ZAP-BE/tests/test_submissions.py` and `test_executor_tasks.py` for the new `db_manager.dbs` structure and `set_test_database(mock_db, env=...)` signature.
 - New `ZAP-BE/tests/test_environment_config.py`:
-  - `get_environment_config("qa")` → `zap_lower` / `zap-submissions-lower`.
-  - `get_environment_config("production")` → `zap_prod` / `zap-submissions`.
+  - `get_environment_config("qa")` → `zap_platform_lower` / `zap-submissions-lower`.
+  - `get_environment_config("production")` → `zap_platform_prod` / `zap-submissions`.
   - `get_environment_config("unknown")` → defaults to production.
 - New test: POST `/api/v1/submissions` with `X-ZAP-ENV: qa` header → task payload contains `environment == "qa"` and the QA queue is used.
 - Executor test: task payload `{"submissionId": ..., "environment": "qa"}` → submission read from the QA db.
@@ -324,7 +324,7 @@ CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app"],CORS_O
 - [ ] Single `main` branch pipeline; no `qa` branch, no `deploy-qa` job, no QA deployer/WIF provider usage.
 - [ ] One API + one executor Cloud Run service; both envs' config deployed as env vars.
 - [ ] Frontend has a Prod/QA switcher in the top-right corner; selection persists in `localStorage`; all API calls send `X-ZAP-ENV`.
-- [ ] QA submissions use `zap_lower` + `zap-submissions-lower`; production uses `zap_prod` + `zap-submissions`.
+- [ ] QA submissions use `zap_platform_lower` + `zap-submissions-lower`; production uses `zap_platform_prod` + `zap-submissions`.
 - [ ] Executor processes tasks from both queues, selecting the DB from `payload.environment`.
 - [ ] Backend tests pass (including new env-selection tests); frontend build passes.
 - [ ] `docs/07` updated; issue-009 handoff marked superseded.
@@ -395,7 +395,7 @@ curl -s -H "X-ZAP-ENV: qa" https://zap-api-394729648143.us-central1.run.app/heal
 
 | Per-env | QA | Production |
 |---|---|---|
-| `DATABASE_NAME` | `zap_lower` | `zap_prod` |
+| `DATABASE_NAME` | `zap_platform_lower` | `zap_platform_prod` |
 | `QUEUE_NAME` | `zap-submissions-lower` | `zap-submissions` |
 | Frontend header | `X-ZAP-ENV: qa` | `X-ZAP-ENV: production` |
 | Task payload field | `"environment": "qa"` | `"environment": "production"` |
