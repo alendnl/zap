@@ -1,5 +1,5 @@
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.submissions.models import (
     Submission,
     SubmissionCreateRequest,
@@ -63,6 +63,70 @@ class SubmissionService:
             clean.pop("_id", None)
             return Submission(**clean)
         return None
+
+    def claim_submission(self, submission_id: str) -> Optional[Submission]:
+        """Atomically claim a queued submission or recover an expired lease."""
+        from pymongo import ReturnDocument
+        from app.config import get_settings
+
+        coll = self._get_collection()
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat()
+        stale_before = (now_dt - timedelta(
+            seconds=get_settings().TASKS_EXECUTION_LEASE_SECONDS
+        )).isoformat()
+        if coll is not None:
+            doc = coll.find_one_and_update(
+                {
+                    "_id": submission_id,
+                    "$or": [
+                        {"status": SubmissionStatus.QUEUED.value},
+                        {
+                            "status": SubmissionStatus.RUNNING.value,
+                            "startedAt": {"$lte": stale_before},
+                        },
+                    ],
+                },
+                {"$set": {
+                    "status": SubmissionStatus.RUNNING.value,
+                    "startedAt": now,
+                }},
+                return_document=ReturnDocument.AFTER,
+            )
+            if not doc:
+                return None
+            doc.pop("_id", None)
+            return Submission(**doc)
+
+        doc = self._memory_store.get(submission_id)
+        if not doc:
+            return None
+        is_queued = doc.get("status") == SubmissionStatus.QUEUED.value
+        is_expired = (
+            doc.get("status") == SubmissionStatus.RUNNING.value
+            and doc.get("startedAt")
+            and doc["startedAt"] <= stale_before
+        )
+        if not (is_queued or is_expired):
+            return None
+        doc["status"] = SubmissionStatus.RUNNING.value
+        doc["startedAt"] = now
+        clean = dict(doc)
+        clean.pop("_id", None)
+        return Submission(**clean)
+
+    def requeue_submission(self, submission_id: str, error_message: str) -> Optional[Submission]:
+        """Make a failed transient attempt eligible for Cloud Tasks retry."""
+        coll = self._get_collection()
+        updates = {"status": SubmissionStatus.QUEUED.value, "errorMessage": error_message}
+        if coll is not None:
+            coll.update_one(
+                {"_id": submission_id, "status": SubmissionStatus.RUNNING.value},
+                {"$set": updates, "$unset": {"startedAt": ""}},
+            )
+        elif submission_id in self._memory_store:
+            self._memory_store[submission_id].update(updates)
+        return self.get_submission(submission_id)
 
     def update_submission_status(
         self,

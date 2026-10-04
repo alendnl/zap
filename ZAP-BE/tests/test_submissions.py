@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 import mongomock
 from app.main import app
-from app.db.mongodb import set_test_database
+from app.db.mongodb import set_test_database, db_manager
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
 from app.submissions.queue import MemorySubmissionQueue
 
@@ -70,3 +70,24 @@ def test_cancel_submission():
     cancel_res = client.post(f"/api/v1/submissions/{sub_id}/cancel")
     assert cancel_res.status_code == 200
     assert cancel_res.json()["verdict"] == SubmissionVerdict.CANCELLED.value
+
+
+def test_submission_claim_is_atomic_and_retryable():
+    from app.submissions.service import SubmissionService
+
+    response = client.post("/api/v1/submissions", json={
+        "questionId": "claim-test",
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "print(1)",
+    })
+    submission_id = response.json()["submissionId"]
+    service = SubmissionService(db_manager.db)
+
+    claimed = service.claim_submission(submission_id)
+    assert claimed.status == SubmissionStatus.RUNNING
+    assert service.claim_submission(submission_id) is None
+
+    service.requeue_submission(submission_id, "temporary failure")
+    retried_claim = service.claim_submission(submission_id)
+    assert retried_claim.status == SubmissionStatus.RUNNING

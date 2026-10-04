@@ -9,13 +9,16 @@ class Settings(BaseSettings):
     MONGODB_URI: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "zap_platform"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "https://codezap-arena.vercel.app"]
+    CORS_ORIGIN_REGEX: str | None = None
 
     # Google Cloud Tasks configuration
     GCP_PROJECT_ID: str = ""
     GCP_LOCATION: str = "us-central1"
     TASKS_QUEUE_NAME: str = "zap-submissions"
     EXECUTOR_TASK_URL: str = "http://localhost:8080/internal/tasks/execute"
+    TASKS_OIDC_AUDIENCE: str = "http://localhost:8080"
     TASKS_SERVICE_ACCOUNT: str = ""
+    TASKS_EXECUTION_LEASE_SECONDS: int = 360
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 

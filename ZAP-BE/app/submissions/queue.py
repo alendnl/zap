@@ -6,7 +6,6 @@ that Cloud Tasks delivers to the executor service. Otherwise, an in-memory
 queue is used as a local-development fallback.
 """
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
 from app.config import get_settings
 
 
@@ -39,6 +38,12 @@ class CloudTasksQueue:
             self.settings.TASKS_QUEUE_NAME,
         )
 
+        if not self.settings.TASKS_SERVICE_ACCOUNT:
+            raise RuntimeError("TASKS_SERVICE_ACCOUNT must be configured for Cloud Tasks")
+
+        if not self.settings.TASKS_OIDC_AUDIENCE:
+            raise RuntimeError("TASKS_OIDC_AUDIENCE must be configured for Cloud Tasks")
+
         task = {
             "http_request": {
                 "http_method": "POST",
@@ -48,11 +53,10 @@ class CloudTasksQueue:
             }
         }
 
-        if self.settings.TASKS_SERVICE_ACCOUNT:
-            task["http_request"]["oidc_token"] = {
-                "service_account_email": self.settings.TASKS_SERVICE_ACCOUNT,
-                "audience": self.settings.EXECUTOR_TASK_URL,
-            }
+        task["http_request"]["oidc_token"] = {
+            "service_account_email": self.settings.TASKS_SERVICE_ACCOUNT,
+            "audience": self.settings.TASKS_OIDC_AUDIENCE,
+        }
 
         response = self.client.create_task(parent=parent, task=task)
         return response.name

@@ -1,9 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
 import mongomock
-from app.main import app
+from app.questions.router import router as questions_router
+from app.submissions.router import router as submissions_router
 from app.db.mongodb import set_test_database
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
+from executor.tasks.handler import create_app
 
 @pytest.fixture(autouse=True)
 def setup_mock_db():
@@ -13,6 +15,9 @@ def setup_mock_db():
     yield
     set_test_database(None)
 
+app = create_app()
+app.include_router(questions_router)
+app.include_router(submissions_router)
 client = TestClient(app)
 
 
@@ -95,3 +100,16 @@ def test_execute_task_idempotent_on_terminal():
     assert res2.status_code == 200
     assert res2.json()["status"] == "acknowledged"
     assert res2.json()["reason"] == "already_terminal"
+
+
+def test_execute_task_acknowledges_active_duplicate():
+    from app.submissions.service import SubmissionService
+    from app.db.mongodb import db_manager
+
+    question = _create_question()
+    sub_id = _create_submission(question["id"], "print(5)")
+    service = SubmissionService(db_manager.db)
+    assert service.claim_submission(sub_id) is not None
+
+    response = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
+    assert response.status_code == 503

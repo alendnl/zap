@@ -222,7 +222,7 @@ gcloud run deploy zap-executor \
 
 ### Step 4.5: GitHub Actions Continuous Deployment
 
-The workflow in `.github/workflows/ci.yml` runs backend tests and a frontend production build for pushes and pull requests. A push to `main` that passes both checks builds the API image, pushes it to Artifact Registry with the commit SHA as its tag, deploys it to Cloud Run, and checks `/health`.
+The workflow in `.github/workflows/ci.yml` runs backend tests and a frontend production build for pushes and pull requests. A push to `qa` deploys the QA services; a push to `main` deploys production after both checks pass. Both API and executor images use the commit SHA as their Artifact Registry tag; the API health endpoint is checked after deployment and Cloud Run readiness is checked for the executor.
 
 Use Workload Identity Federation instead of a long-lived service-account JSON key.
 
@@ -234,14 +234,29 @@ GitHub Actions secrets or repository variables are needed:
 | Resource | Value |
 |---|---|
 | Project | `zap-platform-prod` |
-| WIF provider | `projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository` |
-| Deployer service account | `zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com` |
+| Production WIF provider | `projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository` |
+| Production deployer | `zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com` |
+| QA WIF provider | `projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-qa` |
+| QA deployer | `zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com` |
 
-The workflow deploys only the API service. The frontend remains deployed through its Vercel Git integration. The Cloud Run runtime settings (MongoDB secret, database name, CORS, service account) are kept on the service and are not overwritten by the workflow.
+The frontend remains deployed through Vercel Git integration. Cloud Run services, database names, queues, and runtime service accounts are selected independently by branch. QA uses `zap-api-qa`, private `zap-executor-qa`, `zap_lower`, and `zap-submissions-lower`; production uses `zap-api`, private `zap-executor`, `zap_prod`, and `zap-submissions`. Both environments can use the same Atlas URI secret because `DATABASE_NAME` selects the database.
+
+QA and production use separate Secret Manager secrets and service identities. The QA secret currently contains a copy of the production URI; this is a temporary setup and does **not** credential-isolate MongoDB access. Replace it with a QA-only Atlas user restricted to `zap_lower`. Both databases can remain in the same Atlas cluster for lower cost, but that does not isolate cluster capacity, backups, or load; use a separate Atlas cluster before substantial or adversarial load testing.
+
+#### Vercel frontend environments
+
+Set `NEXT_PUBLIC_API_URL` in Vercel:
+
+| Vercel environment | API URL |
+|---|---|
+| Production | Production `zap-api` Cloud Run URL |
+| Preview / QA | QA `zap-api-qa` Cloud Run URL |
+
+Set `QA_CORS_ORIGIN_REGEX` in the GitHub `qa` environment to an anchored expression matching only this project's Vercel preview hostname(s). Avoid a broad `.*vercel.app` expression. The QA API also permits `http://localhost:3000` for local QA testing. Configure the Vercel **Preview** environment's `NEXT_PUBLIC_API_URL` to the QA API URL; keep **Production** pointed at the production API URL.
 
 #### GCP IAM setup already applied
 
-The dedicated deployment identity has been created, and its roles have been applied. The following commands document the setup for reference:
+Production and QA use different WIF providers and deployer service accounts. Restrict each provider to its branch (`main` or `qa`) and bind the matching repository principal to that environment's deployer account. Runtime identities and queues are likewise separate. Never give the QA deployer permission to act as production runtime identities or alter production queue configuration.
 
 ```bash
 export PROJECT_ID="zap-platform-prod"
@@ -265,9 +280,9 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 
 #### Workload Identity Federation provider already configured
 
-The provider is restricted to repository `alendnl/zap` and branch `main`, and the repository principal has `roles/iam.workloadIdentityUser` on the deployer service account. No service-account key is used.
+The production provider is restricted to repository `alendnl/zap` and branch `main`; the QA provider is restricted to the same repository and branch `qa`. Each repository principal has `roles/iam.workloadIdentityUser` only on its matching deployer service account. No service-account key is used.
 
-After configuration, pushes to `main` automatically deploy the API after CI passes. `workflow_dispatch` is also available for manually starting the workflow from GitHub Actions.
+Pushes to `qa` automatically deploy QA after CI passes; pushes to `main` deploy production. Manual dispatch is supported for either branch. Configure GitHub `production` environment protection/reviewers if production deploy approval is desired.
 
 ---
 
