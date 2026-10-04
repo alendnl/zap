@@ -43,31 +43,34 @@ jobs:
         run: npm test --workspace=ZAP-FE
 
   deploy-qa:
-    name: Deploy QA Cloud Run services
+    name: Deploy QA
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/qa'
-    environment:
-      name: qa
+    environment: qa
     concurrency:
       group: deploy-qa
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
+    defaults:
+      run:
+        working-directory: ZAP-BE
     env:
-      GCP_PROJECT_ID: zap-platform-prod
-      GCP_REGION: us-central1
+      PROJECT_ID: zap-platform-prod
+      REGION: us-central1
+      PROJECT_NUMBER: "394729648143"
       AR_REPOSITORY: zap-images
-      IMAGE_TAG: ${{ github.sha }}
-      EXECUTOR_SERVICE_NAME: zap-executor-qa
-      API_SERVICE_NAME: zap-api-qa
+      API_SERVICE: zap-api-qa
+      EXECUTOR_SERVICE: zap-executor-qa
       DATABASE_NAME: zap_lower
       QUEUE_NAME: zap-submissions-lower
-      TASKS_SERVICE_ACCOUNT: zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com
-      API_SERVICE_ACCOUNT: zap-api-qa@zap-platform-prod.iam.gserviceaccount.com
-      EXECUTOR_SERVICE_ACCOUNT: zap-executor-qa@zap-platform-prod.iam.gserviceaccount.com
-      MONGODB_SECRET_NAME: zap-mongodb-uri-qa
+      MONGODB_SECRET: zap-mongodb-uri-qa
+      API_RUNTIME_SA: zap-api-qa@zap-platform-prod.iam.gserviceaccount.com
+      EXECUTOR_RUNTIME_SA: zap-executor-qa@zap-platform-prod.iam.gserviceaccount.com
+      TASK_CALLER_SA: zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com
+      IMAGE_TAG: ${{ github.sha }}
       EXECUTOR_URL: https://zap-executor-qa-394729648143.us-central1.run.app
     steps:
       - uses: actions/checkout@v4
@@ -76,239 +79,191 @@ jobs:
           workload_identity_provider: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-qa
           service_account: zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Configure production Cloud Tasks IAM
-        run: |
-          set -euo pipefail
-          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" \
-            --member="serviceAccount:${TASKS_AGENT}" \
-            --role=roles/iam.serviceAccountTokenCreator --quiet
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
-            --role=roles/iam.serviceAccountUser --quiet
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" --member="serviceAccount:${GCP_DEPLOY_SERVICE_ACCOUNT}" \
-            --role=roles/iam.serviceAccountUser --quiet
-          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
-            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
-            --member="serviceAccount:${API_SERVICE_ACCOUNT}" --role=roles/cloudtasks.enqueuer --quiet
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" --role=roles/run.invoker --quiet
 
-      - name: Configure production runtime identities
+      - name: Configure QA deployment permissions
         run: |
           set -euo pipefail
-          PROD_DEPLOYER="zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com"
-          for runtime in zap-api-runtime zap-executor-runtime; do
-            gcloud iam service-accounts add-iam-policy-binding \
-              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
-              --project=zap-platform-prod \
-              --member="serviceAccount:${PROD_DEPLOYER}" \
-              --role=roles/iam.serviceAccountUser --quiet
-          done
-
-      - name: Configure production Cloud Tasks IAM
-        run: |
-          set -euo pipefail
-          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" \
-            --member="serviceAccount:${TASKS_AGENT}" \
-            --role=roles/iam.serviceAccountTokenCreator --quiet
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
-            --role=roles/iam.serviceAccountUser --quiet
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" --member="serviceAccount:${GCP_DEPLOY_SERVICE_ACCOUNT}" \
-            --role=roles/iam.serviceAccountUser --quiet
-          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
-            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
-            --member="serviceAccount:${API_SERVICE_ACCOUNT}" --role=roles/cloudtasks.enqueuer --quiet
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" --role=roles/run.invoker --quiet
-      - name: Build and push QA images
-        run: |
-          set -euo pipefail
-          gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-          API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
-          EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
-          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
-          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
-          docker push "$API_IMAGE"
-          docker push "$EXECUTOR_IMAGE"
-
-      - name: Configure QA Cloud Tasks IAM
-        run: |
-          set -euo pipefail
-          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" \
-            --member="serviceAccount:${TASKS_AGENT}" \
-            --role=roles/iam.serviceAccountTokenCreator --quiet
-          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
-            --project="$GCP_PROJECT_ID" \
-            --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
-            --role=roles/iam.serviceAccountUser --quiet
-          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
-            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
-            --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
-            --role=roles/cloudtasks.enqueuer --quiet
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" \
-            --role=roles/run.invoker --quiet
-
-      - name: Configure QA runtime service accounts
-        run: |
-          set -euo pipefail
-          QA_DEPLOYER="zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com"
-          for runtime in zap-api-qa zap-executor-qa; do
-            gcloud iam service-accounts add-iam-policy-binding \
-              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
-              --project=zap-platform-prod \
+          QA_DEPLOYER=zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com
+          TASKS_AGENT="service-${PROJECT_NUMBER}@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+          for runtime in "$API_RUNTIME_SA" "$EXECUTOR_RUNTIME_SA"; do
+            gcloud iam service-accounts add-iam-policy-binding "$runtime" \
+              --project="$PROJECT_ID" \
               --member="serviceAccount:${QA_DEPLOYER}" \
               --role=roles/iam.serviceAccountUser --quiet
           done
-      - name: Deploy private QA executor
+          gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
+            --project="$PROJECT_ID" \
+            --member="serviceAccount:${TASKS_AGENT}" \
+            --role=roles/iam.serviceAccountTokenCreator --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
+            --project="$PROJECT_ID" \
+            --member="serviceAccount:${API_RUNTIME_SA}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
+            --project="$PROJECT_ID" --location="$REGION" \
+            --member="serviceAccount:${API_RUNTIME_SA}" \
+            --role=roles/cloudtasks.enqueuer --quiet
+
+      - name: Build and push QA images
+        working-directory: ZAP-BE
         run: |
           set -euo pipefail
-          gcloud run deploy "$EXECUTOR_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --image="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
-            --no-allow-unauthenticated --service-account="$EXECUTOR_SERVICE_ACCOUNT" \
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
+          EXECUTOR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
+          docker build --platform linux/amd64 -t "$API_IMAGE" -f Dockerfile.api .
+          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f Dockerfile.executor-api .
+          docker push "$API_IMAGE"
+          docker push "$EXECUTOR_IMAGE"
+
+      - name: Deploy QA executor
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
+            --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
             --min=0 --max=10 --cpu=2 --memory=2Gi --concurrency=1 --timeout=360 \
-            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
-            --update-env-vars="^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
+            --update-env-vars="^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
+
+      - name: Configure private QA executor invocation
+        run: |
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" \
+            --role=roles/run.invoker --quiet
+
       - name: Deploy QA API
         run: |
           set -euo pipefail
-          gcloud run deploy "$API_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --image="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
-            --allow-unauthenticated --service-account="$API_SERVICE_ACCOUNT" \
+          gcloud run deploy "$API_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
+            --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
             --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
-            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars='^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=zap_lower@GCP_PROJECT_ID=zap-platform-prod@GCP_LOCATION=us-central1@TASKS_QUEUE_NAME=zap-submissions-lower@EXECUTOR_TASK_URL=https://zap-executor-qa-394729648143.us-central1.run.app/internal/tasks/execute@TASKS_OIDC_AUDIENCE=https://zap-executor-qa-394729648143.us-central1.run.app@TASKS_SERVICE_ACCOUNT=zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com@CORS_ORIGINS=["http://localhost:3000"]@CORS_ORIGIN_REGEX=^https://codezap-arena-git-qa-alendnl\.vercel\.app$' \
             --quiet
-      - name: Verify QA database and queue configuration
+
+      - name: Verify QA deployment
         run: |
           set -euo pipefail
-          API_URL="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(status.url)')"
+          API_URL="$(gcloud run services describe "$API_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 5 "$API_URL/health" | tee /tmp/qa-health.json
           python -c 'import json; d=json.load(open("/tmp/qa-health.json")); assert d["status"] == "healthy" and d["environment"] == "qa", d'
-          DB_VALUE="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json | python -c 'import json,sys; d=json.load(sys.stdin); print(next(e.get("value", "") for e in d["spec"]["template"]["spec"]["containers"][0]["env"] if e["name"] == "DATABASE_NAME"))')"
-          test "$DB_VALUE" = "zap_lower"
-          gcloud tasks queues describe zap-submissions-lower --project="$GCP_PROJECT_ID" --location="$GCP_REGION" >/dev/null
+          DB_VALUE="$(gcloud run services describe "$API_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json | python -c 'import json,sys; d=json.load(sys.stdin); print(next(e.get("value", "") for e in d["spec"]["template"]["spec"]["containers"][0]["env"] if e["name"] == "DATABASE_NAME"))')"
+          test "$DB_VALUE" = "$DATABASE_NAME"
+          gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="$REGION" >/dev/null
+          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format="value(status.conditions[?type=='Ready'].status)")"
+          test "$EXECUTOR_READY" = "True"
 
-  deploy-environment:
+  deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    environment:
-      name: production
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: production
     concurrency:
-      group: deploy-${{ github.ref_name }}
+      group: deploy-production
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
+    defaults:
+      run:
+        working-directory: ZAP-BE
     env:
-      TARGET_ENV: production
-      GCP_PROJECT_ID: zap-platform-prod
-      GCP_REGION: us-central1
+      PROJECT_ID: zap-platform-prod
+      REGION: us-central1
+      PROJECT_NUMBER: "394729648143"
       AR_REPOSITORY: zap-images
-      MONGODB_SECRET_NAME: zap-mongodb-uri
-      GCP_WIF_PROVIDER: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository
-      GCP_DEPLOY_SERVICE_ACCOUNT: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
-      API_SERVICE_NAME: zap-api
-      EXECUTOR_SERVICE_NAME: zap-executor
+      API_SERVICE: zap-api
+      EXECUTOR_SERVICE: zap-executor
       DATABASE_NAME: zap_prod
       QUEUE_NAME: zap-submissions
-      TASKS_SERVICE_ACCOUNT: zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com
-      API_SERVICE_ACCOUNT: zap-api-runtime@zap-platform-prod.iam.gserviceaccount.com
-      EXECUTOR_SERVICE_ACCOUNT: zap-executor-runtime@zap-platform-prod.iam.gserviceaccount.com
+      MONGODB_SECRET: zap-mongodb-uri
+      API_RUNTIME_SA: zap-api-runtime@zap-platform-prod.iam.gserviceaccount.com
+      EXECUTOR_RUNTIME_SA: zap-executor-runtime@zap-platform-prod.iam.gserviceaccount.com
+      TASK_CALLER_SA: zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com
+      IMAGE_TAG: ${{ github.sha }}
+      EXECUTOR_URL: https://zap-executor-394729648143.us-central1.run.app
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
-          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          workload_identity_provider: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository
+          service_account: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure production runtime identities
+      - name: Configure production deployment permissions
         run: |
           set -euo pipefail
-          PROD_DEPLOYER="zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com"
-          for runtime in zap-api-runtime zap-executor-runtime; do
-            gcloud iam service-accounts add-iam-policy-binding \
-              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
-              --project=zap-platform-prod \
-              --member="serviceAccount:${PROD_DEPLOYER}" \
+          DEPLOYER=zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
+          TASKS_AGENT="service-${PROJECT_NUMBER}@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+          for runtime in "$API_RUNTIME_SA" "$EXECUTOR_RUNTIME_SA"; do
+            gcloud iam service-accounts add-iam-policy-binding "$runtime" \
+              --project="$PROJECT_ID" --member="serviceAccount:${DEPLOYER}" \
               --role=roles/iam.serviceAccountUser --quiet
           done
+          gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
+            --project="$PROJECT_ID" --member="serviceAccount:${TASKS_AGENT}" \
+            --role=roles/iam.serviceAccountTokenCreator --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
+            --project="$PROJECT_ID" --member="serviceAccount:${API_RUNTIME_SA}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
+            --project="$PROJECT_ID" --location="$REGION" \
+            --member="serviceAccount:${API_RUNTIME_SA}" --role=roles/cloudtasks.enqueuer --quiet
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" --role=roles/run.invoker --quiet
 
-      - name: Build and push API/executor images
-        env:
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Build and push production images
+        working-directory: ZAP-BE
         run: |
           set -euo pipefail
-          gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-          API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
-          EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
-          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
-          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
+          EXECUTOR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
+          docker build --platform linux/amd64 -t "$API_IMAGE" -f Dockerfile.api .
+          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f Dockerfile.executor-api .
           docker push "$API_IMAGE"
           docker push "$EXECUTOR_IMAGE"
-          echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
-          echo "EXECUTOR_IMAGE=$EXECUTOR_IMAGE" >> "$GITHUB_ENV"
 
-      - name: Deploy private executor
+      - name: Deploy production executor
         run: |
           set -euo pipefail
-          EXECUTOR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${GITHUB_SHA}"
-          EXECUTOR_URL="https://${EXECUTOR_SERVICE_NAME}-394729648143.us-central1.run.app"
-          gcloud run deploy "$EXECUTOR_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --image="$EXECUTOR_IMAGE" --no-allow-unauthenticated \
-            --service-account="$EXECUTOR_SERVICE_ACCOUNT" \
+          gcloud run deploy "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
+            --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
             --min=0 --max=20 --cpu=4 --memory=4Gi --concurrency=1 --timeout=360 \
-            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
-            --update-env-vars="^@^ENVIRONMENT=${TARGET_ENV}@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
+            --update-env-vars="^@^ENVIRONMENT=production@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
-          echo "EXECUTOR_URL=$EXECUTOR_URL" >> "$GITHUB_ENV"
-          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(status.conditions[?type=='Ready'].status)")"
-          test "$EXECUTOR_READY" = "True"
 
-      - name: Deploy API
+      - name: Deploy production API
         run: |
           set -euo pipefail
-          API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${GITHUB_SHA}"
-          CORS_ORIGINS='["https://codezap-arena.vercel.app"]'
-          CORS_REGEX=""
-          gcloud run deploy "$API_SERVICE_NAME" \
-            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --image="$API_IMAGE" --allow-unauthenticated \
-            --service-account="$API_SERVICE_ACCOUNT" \
+          gcloud run deploy "$API_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
+            --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
             --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
-            --update-secrets="MONGODB_URI=${MONGODB_SECRET_NAME}:latest" \
-            --update-env-vars="^@^ENVIRONMENT=${TARGET_ENV}@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${GCP_PROJECT_ID}@GCP_LOCATION=${GCP_REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}@TASKS_SERVICE_ACCOUNT=${TASKS_SERVICE_ACCOUNT}@CORS_ORIGINS=${CORS_ORIGINS}@CORS_ORIGIN_REGEX=${CORS_REGEX}" \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
+            --update-env-vars='^@^ENVIRONMENT=production@DEBUG=false@DATABASE_NAME=zap_prod@GCP_PROJECT_ID=zap-platform-prod@GCP_LOCATION=us-central1@TASKS_QUEUE_NAME=zap-submissions@EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute@TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app@TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com@CORS_ORIGINS=["https://codezap-arena.vercel.app"]@CORS_ORIGIN_REGEX=' \
             --quiet
 
-      - name: Verify environment configuration and API health
+      - name: Verify production deployment
         run: |
           set -euo pipefail
-          SERVICE_URL="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(status.url)')"
-          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 5 "$SERVICE_URL/health" | tee /tmp/health.json
-          python -c 'import json,os; d=json.load(open("/tmp/health.json")); assert d["status"] == "healthy" and d["environment"] == os.environ["TARGET_ENV"], d'
-          ACTUAL_DB="$(gcloud run services describe "$API_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(spec.template.spec.containers[0].env[?name=='DATABASE_NAME'].value)")"
-          test "$ACTUAL_DB" = "$DATABASE_NAME"
-          gcloud tasks queues describe "$QUEUE_NAME" --project="$GCP_PROJECT_ID" --location="$GCP_REGION" >/dev/null
-          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE_NAME" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format="value(status.conditions[?type=='Ready'].status)")"
+          API_URL="$(gcloud run services describe "$API_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 5 "$API_URL/health" | tee /tmp/production-health.json
+          python -c 'import json; d=json.load(open("/tmp/production-health.json")); assert d["status"] == "healthy" and d["environment"] == "production", d'
+          DB_VALUE="$(gcloud run services describe "$API_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json | python -c 'import json,sys; d=json.load(sys.stdin); print(next(e.get("value", "") for e in d["spec"]["template"]["spec"]["containers"][0]["env"] if e["name"] == "DATABASE_NAME"))')"
+          test "$DB_VALUE" = "$DATABASE_NAME"
+          gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="$REGION" >/dev/null
+          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format="value(status.conditions[?type=='Ready'].status)")"
           test "$EXECUTOR_READY" = "True"
