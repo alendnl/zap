@@ -76,6 +76,59 @@ jobs:
           workload_identity_provider: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-qa
           service_account: zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure production Cloud Tasks IAM
+        run: |
+          set -euo pipefail
+          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" \
+            --member="serviceAccount:${TASKS_AGENT}" \
+            --role=roles/iam.serviceAccountTokenCreator --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" --member="serviceAccount:${GCP_DEPLOY_SERVICE_ACCOUNT}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
+            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
+            --member="serviceAccount:${API_SERVICE_ACCOUNT}" --role=roles/cloudtasks.enqueuer --quiet
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
+            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" --role=roles/run.invoker --quiet
+
+      - name: Configure production runtime identities
+        run: |
+          set -euo pipefail
+          PROD_DEPLOYER="zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com"
+          for runtime in zap-api-runtime zap-executor-runtime; do
+            gcloud iam service-accounts add-iam-policy-binding \
+              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
+              --project=zap-platform-prod \
+              --member="serviceAccount:${PROD_DEPLOYER}" \
+              --role=roles/iam.serviceAccountUser --quiet
+          done
+
+      - name: Configure production Cloud Tasks IAM
+        run: |
+          set -euo pipefail
+          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" \
+            --member="serviceAccount:${TASKS_AGENT}" \
+            --role=roles/iam.serviceAccountTokenCreator --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" --member="serviceAccount:${GCP_DEPLOY_SERVICE_ACCOUNT}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
+            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
+            --member="serviceAccount:${API_SERVICE_ACCOUNT}" --role=roles/cloudtasks.enqueuer --quiet
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
+            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" --role=roles/run.invoker --quiet
       - name: Build and push QA images
         run: |
           set -euo pipefail
@@ -86,6 +139,39 @@ jobs:
           docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
           docker push "$API_IMAGE"
           docker push "$EXECUTOR_IMAGE"
+
+      - name: Configure QA Cloud Tasks IAM
+        run: |
+          set -euo pipefail
+          TASKS_AGENT="service-394729648143@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" \
+            --member="serviceAccount:${TASKS_AGENT}" \
+            --role=roles/iam.serviceAccountTokenCreator --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASKS_SERVICE_ACCOUNT" \
+            --project="$GCP_PROJECT_ID" \
+            --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
+            --role=roles/iam.serviceAccountUser --quiet
+          gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
+            --project="$GCP_PROJECT_ID" --location="$GCP_REGION" \
+            --member="serviceAccount:${API_SERVICE_ACCOUNT}" \
+            --role=roles/cloudtasks.enqueuer --quiet
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE_NAME" \
+            --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --member="serviceAccount:${TASKS_SERVICE_ACCOUNT}" \
+            --role=roles/run.invoker --quiet
+
+      - name: Configure QA runtime service accounts
+        run: |
+          set -euo pipefail
+          QA_DEPLOYER="zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com"
+          for runtime in zap-api-qa zap-executor-qa; do
+            gcloud iam service-accounts add-iam-policy-binding \
+              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
+              --project=zap-platform-prod \
+              --member="serviceAccount:${QA_DEPLOYER}" \
+              --role=roles/iam.serviceAccountUser --quiet
+          done
       - name: Deploy private QA executor
         run: |
           set -euo pipefail
@@ -155,6 +241,18 @@ jobs:
           workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
           service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure production runtime identities
+        run: |
+          set -euo pipefail
+          PROD_DEPLOYER="zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com"
+          for runtime in zap-api-runtime zap-executor-runtime; do
+            gcloud iam service-accounts add-iam-policy-binding \
+              "${runtime}@zap-platform-prod.iam.gserviceaccount.com" \
+              --project=zap-platform-prod \
+              --member="serviceAccount:${PROD_DEPLOYER}" \
+              --role=roles/iam.serviceAccountUser --quiet
+          done
 
       - name: Build and push API/executor images
         env:
