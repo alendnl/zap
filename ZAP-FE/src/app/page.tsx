@@ -1,36 +1,83 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import type { QuestionData } from "@/components/QuestionPane";
-
-const MOCK_QUESTION: QuestionData = {
-  id: "q-001",
-  slug: "two-sum",
-  title: "Two Sum",
-  difficulty: "EASY",
-  tags: ["array", "hash-map"],
-  statement: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.`,
-  examples: [
-    {
-      input: "nums = [2,7,11,15], target = 9",
-      output: "[0,1]",
-      explanation: "Because nums[0] + nums[1] == 9, we return [0, 1].",
-    },
-    {
-      input: "nums = [3,2,4], target = 6",
-      output: "[1,2]",
-    },
-  ],
-  constraints: [
-    "2 <= nums.length <= 10^4",
-    "-10^9 <= nums[i] <= 10^9",
-    "-10^9 <= target <= 10^9",
-    "Only one valid answer exists.",
-  ],
-};
+import { questionsApi } from "@/services/questionsApi";
+import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
+import type { Question } from "@/types/question";
 
 export default function Home() {
-  return <StudentWorkspace question={MOCK_QUESTION} />;
+  const [question, setQuestion] = useState<QuestionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let requestVersion = 0;
+    async function loadQuestion() {
+      const currentRequest = ++requestVersion;
+      setLoading(true);
+      setError(null);
+      setQuestion(null);
+      try {
+        const questions = await questionsApi.list("PUBLISHED");
+        if (!cancelled && currentRequest === requestVersion && questions[0]) {
+          setQuestion(toQuestionData(questions[0]));
+        }
+      } catch (err: unknown) {
+        if (!cancelled && currentRequest === requestVersion) {
+          setError(err instanceof Error ? err.message : "Could not load published questions.");
+        }
+      } finally {
+        if (!cancelled && currentRequest === requestVersion) setLoading(false);
+      }
+    }
+
+    void loadQuestion();
+    window.addEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestion);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestion);
+    };
+  }, []);
+
+  if (question) return <StudentWorkspace question={question} />;
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-100">
+      <section className="max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-xl">
+        <p className="text-2xl font-black tracking-tight text-sky-400">ZAP</p>
+        <h1 className="mt-4 text-xl font-semibold">
+          {loading ? "Loading published questions…" : error ? "Could not reach the question API" : "No published questions in this environment"}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          {error ?? "Create a question in the Faculty Portal, add at least one enabled test case, and publish it. Then return here to run code against the selected QA or production environment."}
+        </p>
+        {!loading && (
+          <Link
+            href="/faculty/questions"
+            className="mt-6 inline-flex rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-500"
+          >
+            Open Faculty Portal
+          </Link>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function toQuestionData(question: Question): QuestionData {
+  return {
+    id: question.id,
+    slug: question.slug,
+    title: question.title,
+    difficulty: question.difficulty,
+    tags: question.tags,
+    statement: question.statement,
+    examples: question.examples ?? [],
+    constraints: question.constraints,
+  };
 }

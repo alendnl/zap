@@ -2,9 +2,14 @@
 import { Question, QuestionFormData } from "@/types/question";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "")
+  || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!API_BASE) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured for this deployment.");
+  }
+
   const headers = new Headers(init?.headers);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   headers.set(ENVIRONMENT_HEADER, getEnvironment());

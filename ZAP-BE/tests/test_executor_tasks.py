@@ -92,6 +92,56 @@ def test_execute_task_unknown_submission_acknowledges():
     assert res.json()["status"] == "acknowledged"
 
 
+def test_execute_task_marks_missing_question_failed_without_retry():
+    sub_id = _create_submission("q-does-not-exist", "print(5)")
+
+    response = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
+
+    assert response.status_code == 200
+    assert response.json()["reason"] == "permanent_execution_error"
+    submission = client.get(f"/api/v1/submissions/{sub_id}").json()
+    assert submission["status"] == SubmissionStatus.FAILED.value
+    assert submission["verdict"] == SubmissionVerdict.SYSTEM_ERROR.value
+    assert "not found" in submission["errorMessage"]
+
+
+def test_execute_task_marks_unsupported_language_failed_without_retry():
+    question = _create_question()
+    response = client.post("/api/v1/submissions", json={
+        "questionId": question["id"],
+        "language": "unsupported",
+        "mode": "RUN",
+        "sourceCode": "print(5)",
+    })
+    sub_id = response.json()["submissionId"]
+
+    task_response = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
+
+    assert task_response.status_code == 200
+    assert task_response.json()["reason"] == "permanent_execution_error"
+    submission = client.get(f"/api/v1/submissions/{sub_id}").json()
+    assert submission["status"] == SubmissionStatus.FAILED.value
+    assert "Unsupported language" in submission["errorMessage"]
+
+
+def test_execute_task_marks_question_without_enabled_tests_failed_without_retry():
+    question = _create_question()
+    from app.db.mongodb import db_manager
+    db_manager.dbs["production"].questions.update_one(
+        {"_id": question["id"]},
+        {"$set": {"testCases.0.enabled": False}},
+    )
+    sub_id = _create_submission(question["id"], "print(5)")
+
+    response = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
+
+    assert response.status_code == 200
+    assert response.json()["reason"] == "permanent_execution_error"
+    submission = client.get(f"/api/v1/submissions/{sub_id}").json()
+    assert submission["status"] == SubmissionStatus.FAILED.value
+    assert "no enabled test cases" in submission["errorMessage"]
+
+
 def test_execute_task_idempotent_on_terminal():
     question = _create_question()
     sub_id = _create_submission(question["id"], "print(5)")

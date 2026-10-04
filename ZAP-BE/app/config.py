@@ -15,8 +15,12 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     MONGODB_URI: str = "mongodb://localhost:27017"
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "https://codezap-arena.vercel.app"]
-    CORS_ORIGIN_REGEX: str | None = None
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "https://codezap-arena.vercel.app",
+        "https://www.codezap-arena.vercel.app",
+    ]
+    CORS_ORIGIN_REGEX: str | None = r"https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app"
 
     # Shared Cloud Tasks / executor config (single API + single executor)
     GCP_PROJECT_ID: str = ""

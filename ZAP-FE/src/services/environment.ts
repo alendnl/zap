@@ -1,6 +1,7 @@
 export type ZAPEnvironment = "qa" | "production";
 
 export const ENVIRONMENT_HEADER = "X-ZAP-ENV";
+export const ENVIRONMENT_CHANGE_EVENT = "zap:environment-change";
 const STORAGE_KEY = "zap.environment";
 
 export function getEnvironment(): ZAPEnvironment {
@@ -11,5 +12,8 @@ export function getEnvironment(): ZAPEnvironment {
 export function setEnvironment(environment: ZAPEnvironment): void {
   if (typeof localStorage !== "undefined") {
     localStorage.setItem(STORAGE_KEY, environment);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ENVIRONMENT_CHANGE_EVENT));
   }
 }

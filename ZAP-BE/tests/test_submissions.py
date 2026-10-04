@@ -62,6 +62,31 @@ def test_create_submission_uses_memory_queue_when_no_gcp():
     assert res.status_code == 202
     assert queue.size() > 0
 
+
+def test_failed_enqueue_does_not_leave_submission_queued():
+    from app.submissions.service import SubmissionService
+    from app.submissions.models import SubmissionCreateRequest
+
+    class FailingQueue:
+        def enqueue(self, job):
+            raise RuntimeError("Cloud Tasks unavailable")
+
+    service = SubmissionService(db_manager.dbs["production"], FailingQueue())
+    request = SubmissionCreateRequest(
+        questionId="two-sum",
+        language="python",
+        mode="RUN",
+        sourceCode="print(1)",
+    )
+
+    with pytest.raises(RuntimeError, match="Cloud Tasks unavailable"):
+        service.create_submission(request)
+
+    stored = db_manager.dbs["production"].submissions.find_one({})
+    assert stored["status"] == SubmissionStatus.FAILED.value
+    assert stored["verdict"] == SubmissionVerdict.SYSTEM_ERROR.value
+    assert "Failed to enqueue submission" in stored["errorMessage"]
+
 def test_cancel_submission():
     payload = {
         "questionId": "two-sum",

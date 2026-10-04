@@ -24,6 +24,11 @@ export interface Question {
   difficulty: Difficulty;
   tags: string[];
   statement: string;
+  examples?: Array<{
+    input: string;
+    output: string;
+    explanation?: string;
+  }>;
   constraints: string[];
   testCases: TestCase[];
   executionLimits: ExecutionLimits;

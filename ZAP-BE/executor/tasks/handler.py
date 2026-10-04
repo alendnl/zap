@@ -9,6 +9,7 @@ Cloud Tasks delivers execution jobs to this endpoint. The endpoint:
 5. Stores the final result in MongoDB.
 6. Returns HTTP 200 on success (acknowledge) or a retryable status on failure.
 """
+import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
@@ -22,6 +23,11 @@ from executor.judge.judge import JudgeEngine
 from executor.core.runner import ExecutionLimits
 
 router = APIRouter(prefix="/internal/tasks", tags=["internal-tasks"])
+logger = logging.getLogger(__name__)
+
+
+class PermanentExecutionError(Exception):
+    """An invalid job that will not succeed if Cloud Tasks retries it."""
 
 
 def create_app():
@@ -99,6 +105,21 @@ def execute_task(
         )
 
     env = payload.environment
+    retry_count = request.headers.get("X-CloudTasks-TaskRetryCount", "0")
+    try:
+        retry_count_value = int(retry_count)
+    except ValueError:
+        retry_count_value = 0
+    task_name = request.headers.get("X-CloudTasks-TaskName", "unknown")
+    logger.info(
+        "Starting submission execution",
+        extra={
+            "submission_id": submission_id,
+            "environment": env,
+            "task_name": task_name,
+            "task_retry_count": retry_count_value,
+        },
+    )
     db = get_database_for_env(env)
     service = SubmissionService(db, get_queue_for_env(env), env)
 
@@ -123,11 +144,46 @@ def execute_task(
     try:
         result = _run_judge(submission_id, submission, env)
         _persist_result(service, submission_id, result)
+        logger.info(
+            "Submission execution completed",
+            extra={
+                "submission_id": submission_id,
+                "environment": env,
+                "task_name": task_name,
+                "verdict": result.verdict,
+            },
+        )
         return {"status": "completed", "verdict": result.verdict}
+    except PermanentExecutionError as exc:
+        logger.warning(
+            "Submission rejected permanently",
+            extra={
+                "submission_id": submission_id,
+                "environment": env,
+                "task_name": task_name,
+                "task_retry_count": retry_count_value,
+                "error": str(exc),
+            },
+        )
+        service.update_submission_status(
+            submission_id=submission_id,
+            status=SubmissionStatus.FAILED,
+            verdict=SubmissionVerdict.SYSTEM_ERROR,
+            error_message=str(exc),
+        )
+        return {"status": "failed", "reason": "permanent_execution_error"}
     except Exception as exc:
-        retry_count = int(request.headers.get("X-CloudTasks-TaskRetryCount", "0"))
+        logger.exception(
+            "Submission execution failed",
+            extra={
+                "submission_id": submission_id,
+                "environment": env,
+                "task_name": task_name,
+                "task_retry_count": retry_count_value,
+            },
+        )
         max_retries = 5
-        if retry_count >= max_retries - 1:
+        if retry_count_value >= max_retries - 1:
             service.update_submission_status(
                 submission_id=submission_id,
                 status=SubmissionStatus.FAILED,
@@ -152,9 +208,22 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
     question_service = QuestionService(db)
     question = question_service.get_question(submission.questionId)
     if not question:
-        raise ValueError(f"Question '{submission.questionId}' not found")
+        raise PermanentExecutionError(f"Question '{submission.questionId}' not found")
 
-    runner = get_runner(submission.language)
+    try:
+        runner = get_runner(submission.language)
+    except ValueError as exc:
+        raise PermanentExecutionError(str(exc)) from exc
+
+    if runner.language not in question.supportedLanguages:
+        raise PermanentExecutionError(
+            f"Language '{runner.language}' is not enabled for question '{question.slug}'"
+        )
+
+    enabled_test_cases = [tc for tc in question.testCases if tc.enabled]
+    if not enabled_test_cases:
+        raise PermanentExecutionError(f"Question '{question.slug}' has no enabled test cases")
+
     limits = ExecutionLimits(
         timeout_seconds=question.executionLimits.timeMs / 1000.0,
         memory_mb=question.executionLimits.memoryMb,
@@ -165,7 +234,7 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
     return judge.judge(
         runner=runner,
         source_code=submission.sourceCode,
-        test_cases=[tc.model_dump() for tc in question.testCases],
+        test_cases=[tc.model_dump() for tc in enabled_test_cases],
         limits=limits,
         submission_id=submission_id,
         fail_fast=True,

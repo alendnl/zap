@@ -18,37 +18,8 @@ const STATUS_BADGE: Record<string, string> = {
   ARCHIVED: "text-orange-400 bg-orange-950/60 border-orange-800/50",
 };
 
-// Seed data so the UI renders without a live backend
-const MOCK_QUESTIONS: Question[] = [
-  {
-    id: "q-001", slug: "two-sum", title: "Two Sum",
-    difficulty: "EASY", tags: ["array", "hash-map"],
-    statement: "Given an array of integers nums and an integer target, return indices of two numbers that add up to target.",
-    constraints: ["2 <= nums.length <= 10^4"],
-    testCases: [
-      { id: "tc1", visibility: "PUBLIC", input: "[2,7,11,15]\n9", expectedOutput: "[0,1]", enabled: true },
-      { id: "tc2", visibility: "HIDDEN",  input: "[3,2,4]\n6",     expectedOutput: "[1,2]", enabled: true },
-    ],
-    executionLimits: { timeMs: 2000, memoryMb: 256, outputKb: 1024 },
-    supportedLanguages: ["python", "java", "cpp", "node"],
-    status: "PUBLISHED", version: 1,
-  },
-  {
-    id: "q-002", slug: "valid-anagram", title: "Valid Anagram",
-    difficulty: "EASY", tags: ["string", "hash-map"],
-    statement: "Given two strings s and t, return true if t is an anagram of s, and false otherwise.",
-    constraints: ["1 <= s.length, t.length <= 5 * 10^4"],
-    testCases: [
-      { id: "tc1", visibility: "PUBLIC", input: "anagram\nnagaram", expectedOutput: "true", enabled: true },
-    ],
-    executionLimits: { timeMs: 2000, memoryMb: 256, outputKb: 1024 },
-    supportedLanguages: ["python", "java"],
-    status: "DRAFT", version: 1,
-  },
-];
-
 export default function FacultyDashboard() {
-  const [questions, setQuestions] = useState<Question[]>(MOCK_QUESTIONS);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,8 +27,10 @@ export default function FacultyDashboard() {
     setLoading(true);
     questionsApi
       .list()
-      .then((data) => { if (data.length > 0) setQuestions(data); })
-      .catch(() => { /* gracefully fall back to mock data */ })
+      .then(setQuestions)
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? `Could not load questions: ${err.message}` : "Could not load questions.");
+      })
       .finally(() => setLoading(false));
   }, []);
 

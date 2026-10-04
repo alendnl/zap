@@ -7,6 +7,7 @@ from app.submissions.models import (
     SubmissionVerdict,
 )
 from app.submissions.queue import get_queue_for_env
+from app.config import get_settings
 
 
 class SubmissionService:
@@ -41,14 +42,25 @@ class SubmissionService:
 
         # Hand off to async queue (Cloud Tasks in production, memory locally).
         # The environment is included so the executor selects the correct DB.
-        self.queue.enqueue({
-            "submissionId": submission.id,
-            "questionId": submission.questionId,
-            "language": submission.language,
-            "mode": submission.mode.value,
-            "createdAt": submission.createdAt,
-            "environment": self.environment
-        })
+        try:
+            self.queue.enqueue({
+                "submissionId": submission.id,
+                "questionId": submission.questionId,
+                "language": submission.language,
+                "mode": submission.mode.value,
+                "createdAt": submission.createdAt,
+                "environment": self.environment
+            })
+        except Exception as exc:
+            # Do not leave a submission QUEUED forever if the database write
+            # succeeded but Cloud Tasks rejected the enqueue request.
+            self.update_submission_status(
+                submission_id=submission.id,
+                status=SubmissionStatus.FAILED,
+                verdict=SubmissionVerdict.SYSTEM_ERROR,
+                error_message=f"Failed to enqueue submission: {exc}",
+            )
+            raise
 
         return submission
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { QuestionPane, QuestionData } from "./QuestionPane";
 import { EditorPane } from "./EditorPane";
+import { questionsApi } from "@/services/questionsApi";
 import {
   submissionsApi,
   Submission,
@@ -65,6 +66,7 @@ const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string 
   SYSTEM_ERROR: { bg: "bg-rose-950/80", text: "text-rose-400", border: "border-rose-700/60" },
   QUEUED: { bg: "bg-sky-950/60", text: "text-sky-400", border: "border-sky-700/50" },
   RUNNING: { bg: "bg-sky-950/60", text: "text-sky-400", border: "border-sky-700/50" },
+  FAILED: { bg: "bg-rose-950/60", text: "text-rose-400", border: "border-rose-700/50" },
   IDLE: { bg: "bg-slate-900/40", text: "text-slate-400", border: "border-slate-700/30" },
 };
 
@@ -104,8 +106,19 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
       setCurrentSubmission({ status: "QUEUED" });
 
       try {
+        const publishedQuestions = await questionsApi.list("PUBLISHED");
+        const backendQuestion = publishedQuestions.find(
+          (candidate) => candidate.id === question.id || candidate.slug === question.slug
+        );
+
+        if (!backendQuestion) {
+          throw new Error(
+            `Question "${question.slug}" is not published in the selected environment. Check the Prod/QA question bank.`
+          );
+        }
+
         const createRes = await submissionsApi.create({
-          questionId: question.id,
+          questionId: backendQuestion.id,
           language,
           mode,
           sourceCode: code,
@@ -124,32 +137,29 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
               cleanupPolling();
               setIsRunning(false);
             }
-          } catch (pollErr: any) {
+          } catch (pollErr: unknown) {
+            const message = pollErr instanceof Error ? pollErr.message : "Unknown polling error.";
             cleanupPolling();
             setIsRunning(false);
-            setErrorNotice("Failed to fetch submission status update.");
+            setCurrentSubmission((submission) => submission ? ({
+              ...submission,
+              errorMessage: `Status unavailable for submission ${subId}: ${message}`,
+            }) : submission);
+            setErrorNotice(`Failed to fetch status for submission ${subId}: ${message}`);
           }
         }, 600);
-      } catch (err: any) {
-        // Fallback simulation if backend is not currently running locally
-        setErrorNotice("Backend API unreachable — simulated local execution response shown.");
-        setTimeout(() => {
-          setCurrentSubmission({ status: "RUNNING" });
-        }, 400);
-
-        setTimeout(() => {
-          setCurrentSubmission({
-            id: `sub-mock-${Date.now()}`,
-            status: "COMPLETED",
-            verdict: "ACCEPTED",
-            executionTimeMs: 38,
-            tests: { total: 3, passed: 3, failed: 0 },
-          });
-          setIsRunning(false);
-        }, 1500);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown submission error.";
+        setErrorNotice(`Submission failed: ${message}`);
+        setCurrentSubmission((submission) => ({
+          ...(submission ?? {}),
+          status: "FAILED",
+          errorMessage: message,
+        }));
+        setIsRunning(false);
       }
     },
-    [isRunning, cleanupPolling, question.id, language, code]
+    [isRunning, cleanupPolling, question.id, question.slug, language, code]
   );
 
   const handleRun = useCallback(() => triggerExecution("RUN"), [triggerExecution]);

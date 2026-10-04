@@ -44,7 +44,7 @@ The production architecture is designed around two strict principles from the ZA
 | **Frontend** | Vercel or GCP Cloud Run | Hosts Next.js SSR & static assets | Auto-scales instantly; global edge CDN |
 | **API Gateway** | GCP Cloud Run | FastAPI REST endpoints (`/questions`, `/submissions`) | Auto-scales `0 → N`, scales to zero when idle |
 | **Job Queue** | GCP Cloud Tasks or Memorystore (Redis) | Decouples submission creation from compilation | Managed, high-throughput, automatic retry |
-| **Executor Workers** | GCP Cloud Run | Sandboxed code execution & test case evaluation | Scale-to-zero, dedicated container per execution |
+| **Executor** | GCP Cloud Run | Sandboxed code execution & test case evaluation | Scale-to-zero, one task per instance |
 | **Database** | MongoDB Atlas (Serverless / M10+) | Questions, Submissions, User records | Multi-AZ, automated backups, encrypted at rest |
 | **Secrets** | GCP Secret Manager | Database URI, API credentials, service tokens | Encrypted, versioned, IAM-restricted |
 | **Registry** | GCP Artifact Registry | Production multi-runtime Docker images | Regional vulnerability scanning |
@@ -248,12 +248,22 @@ The API stamps `environment` into each task payload. The executor uses that valu
 
 #### Vercel frontend environments
 
-Set `NEXT_PUBLIC_API_URL` once in the Vercel Production and Preview environments; both should target the same API service:
+Set `NEXT_PUBLIC_API_URL` in the Vercel Production and Preview environments; both should target the same API service. Browser requests send `X-ZAP-ENV` and `Content-Type`, which trigger a CORS preflight. Keep the API's `CORS_ORIGINS` and `CORS_ORIGIN_REGEX` aligned with the custom frontend origin and trusted Vercel preview domains. For this repository, the preview regex is restricted to the `codezap-arena-…-alendnl.vercel.app` naming pattern; do not use a wildcard for arbitrary origins with credentials enabled.
 
 | Vercel environment | API URL |
 |---|---|
 | Production | `https://zap-api-394729648143.us-central1.run.app` |
 | Preview | `https://zap-api-394729648143.us-central1.run.app` |
+
+For browser smoke checks, verify `OPTIONS /api/v1/submissions` from the exact frontend origin returns HTTP 200 and `Access-Control-Allow-Origin` echoes that origin. A successful Postman/curl POST does not test browser CORS.
+
+### Submission diagnostics
+
+- A submission returning `QUEUED` confirms only that the API persisted it and Cloud Tasks accepted a task; it does not confirm executor completion.
+- The student home route loads the first published question from the selected environment. If none exist, create a question with at least one enabled test case in the Faculty Portal and publish it before testing submissions.
+- Use the submission ID to correlate API/executor logs. Executor logs include submission ID, environment, task name, retry count, and completion verdict.
+- Missing questions, unsupported languages, unsupported question-language combinations, and questions with no enabled test cases are permanent request/data errors: mark them `FAILED` and acknowledge the Cloud Task rather than retrying.
+- Infrastructure/transient errors should return a retryable 5xx and remain visible with the task retry count in logs.
 
 The switcher stores its selection in `localStorage` (`zap.environment`), and the question/submission API clients read it for every request. The API's CORS allowlist includes the shared frontend origin and `http://localhost:3000`; no branch-specific CORS setting is required.
 
