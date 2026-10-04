@@ -152,7 +152,8 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 5 "$API_URL/health" | tee /tmp/health.json
           python -c 'import json; d=json.load(open("/tmp/health.json")); assert d["status"] == "healthy", d'
           for queue in zap-submissions zap-submissions-lower; do
-            gcloud tasks queues describe "$queue" --project="$PROJECT_ID" --location="$REGION" >/dev/null
+            echo "Checking Cloud Tasks queue: $queue"
+            gcloud tasks queues describe "$queue" --project="$PROJECT_ID" --location="$REGION" --format='value(name)'
           done
-          EXECUTOR_READY="$(gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format="value(status.conditions[?type=='Ready'].status)")"
-          test "$EXECUTOR_READY" = "True"
+          gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > /tmp/executor-service.json
+          python -c 'import json,sys; d=json.load(open("/tmp/executor-service.json")); conditions=d.get("status",{}).get("conditions",[]); ready=next((c.get("status") for c in conditions if c.get("type")=="Ready"),None); print("Executor Ready condition:", ready); print("Conditions:", conditions); sys.exit(0 if ready=="True" else 1)'
