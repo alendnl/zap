@@ -51,12 +51,6 @@ jobs:
     concurrency:
       group: deploy-qa
       cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: ZAP-BE
     env:
       PROJECT_ID: zap-platform-prod
       REGION: us-central1
@@ -83,14 +77,7 @@ jobs:
       - name: Configure QA deployment permissions
         run: |
           set -euo pipefail
-          QA_DEPLOYER=zap-github-qa-deployer@zap-platform-prod.iam.gserviceaccount.com
           TASKS_AGENT="service-${PROJECT_NUMBER}@gcp-sa-cloudtasks.iam.gserviceaccount.com"
-          for runtime in "$API_RUNTIME_SA" "$EXECUTOR_RUNTIME_SA"; do
-            gcloud iam service-accounts add-iam-policy-binding "$runtime" \
-              --project="$PROJECT_ID" \
-              --member="serviceAccount:${QA_DEPLOYER}" \
-              --role=roles/iam.serviceAccountUser --quiet
-          done
           gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
             --project="$PROJECT_ID" \
             --member="serviceAccount:${TASKS_AGENT}" \
@@ -103,16 +90,19 @@ jobs:
             --project="$PROJECT_ID" --location="$REGION" \
             --member="serviceAccount:${API_RUNTIME_SA}" \
             --role=roles/cloudtasks.enqueuer --quiet
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" \
+            --role=roles/run.invoker --quiet
 
       - name: Build and push QA images
-        working-directory: ZAP-BE
         run: |
           set -euo pipefail
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
           EXECUTOR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
-          docker build --platform linux/amd64 -t "$API_IMAGE" -f Dockerfile.api .
-          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f Dockerfile.executor-api .
+          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
+          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
           docker push "$API_IMAGE"
           docker push "$EXECUTOR_IMAGE"
 
@@ -127,13 +117,6 @@ jobs:
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars="^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
-
-      - name: Configure private QA executor invocation
-        run: |
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
-            --project="$PROJECT_ID" --region="$REGION" \
-            --member="serviceAccount:${TASK_CALLER_SA}" \
-            --role=roles/run.invoker --quiet
 
       - name: Deploy QA API
         run: |
@@ -168,12 +151,6 @@ jobs:
     concurrency:
       group: deploy-production
       cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: ZAP-BE
     env:
       PROJECT_ID: zap-platform-prod
       REGION: us-central1
@@ -219,16 +196,18 @@ jobs:
           gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
             --project="$PROJECT_ID" --region="$REGION" \
             --member="serviceAccount:${TASK_CALLER_SA}" --role=roles/run.invoker --quiet
+          gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
+            --project="$PROJECT_ID" --member="serviceAccount:${DEPLOYER}" \
+            --role=roles/iam.serviceAccountUser --quiet
 
       - name: Build and push production images
-        working-directory: ZAP-BE
         run: |
           set -euo pipefail
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
           EXECUTOR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
-          docker build --platform linux/amd64 -t "$API_IMAGE" -f Dockerfile.api .
-          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f Dockerfile.executor-api .
+          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
+          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
           docker push "$API_IMAGE"
           docker push "$EXECUTOR_IMAGE"
 
