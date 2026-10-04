@@ -92,10 +92,6 @@ jobs:
             --project="$PROJECT_ID" --location="$REGION" \
             --member="serviceAccount:${API_RUNTIME_SA}" \
             --role=roles/cloudtasks.enqueuer --quiet
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
-            --project="$PROJECT_ID" --region="$REGION" \
-            --member="serviceAccount:${TASK_CALLER_SA}" \
-            --role=roles/run.invoker --quiet
 
       - name: Build and push QA images
         run: |
@@ -119,6 +115,14 @@ jobs:
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars="^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
+
+      - name: Grant QA task caller access to executor
+        run: |
+          set -euo pipefail
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" \
+            --role=roles/run.invoker --quiet
 
       - name: Deploy QA API
         run: |
@@ -197,9 +201,6 @@ jobs:
           gcloud tasks queues add-iam-policy-binding "$QUEUE_NAME" \
             --project="$PROJECT_ID" --location="$REGION" \
             --member="serviceAccount:${API_RUNTIME_SA}" --role=roles/cloudtasks.enqueuer --quiet
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
-            --project="$PROJECT_ID" --region="$REGION" \
-            --member="serviceAccount:${TASK_CALLER_SA}" --role=roles/run.invoker --quiet
           gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
             --project="$PROJECT_ID" --member="serviceAccount:${DEPLOYER}" \
             --role=roles/iam.serviceAccountUser --quiet
@@ -226,6 +227,14 @@ jobs:
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars="^@^ENVIRONMENT=production@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
+
+      - name: Grant production task caller access to executor
+        run: |
+          set -euo pipefail
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" \
+            --role=roles/run.invoker --quiet
 
       - name: Deploy production API
         run: |
