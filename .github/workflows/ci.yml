@@ -113,7 +113,7 @@ jobs:
             --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
             --min=0 --max=10 --cpu=2 --memory=2Gi --concurrency=1 --timeout=360 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars="^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
+            --update-env-vars="ENVIRONMENT=qa,DEBUG=false,DATABASE_NAME=${DATABASE_NAME},GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},TASKS_QUEUE_NAME=${QUEUE_NAME},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
 
       - name: Grant QA task caller access to executor
@@ -133,7 +133,7 @@ jobs:
             --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
             --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars='^@^ENVIRONMENT=qa@DEBUG=false@DATABASE_NAME=zap_lower@GCP_PROJECT_ID=zap-platform-prod@GCP_LOCATION=us-central1@TASKS_QUEUE_NAME=zap-submissions-lower@EXECUTOR_TASK_URL=https://zap-executor-qa-394729648143.us-central1.run.app/internal/tasks/execute@TASKS_OIDC_AUDIENCE=https://zap-executor-qa-394729648143.us-central1.run.app@TASKS_SERVICE_ACCOUNT=zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com@CORS_ORIGINS=["http://localhost:3000"]@CORS_ORIGIN_REGEX=^https://codezap-arena-git-qa-alendnl\.vercel\.app$' \
+            --update-env-vars='ENVIRONMENT=qa,DEBUG=false,DATABASE_NAME=zap_lower,GCP_PROJECT_ID=zap-platform-prod,GCP_LOCATION=us-central1,TASKS_QUEUE_NAME=zap-submissions-lower,EXECUTOR_TASK_URL=https://zap-executor-qa-394729648143.us-central1.run.app/internal/tasks/execute,TASKS_OIDC_AUDIENCE=https://zap-executor-qa-394729648143.us-central1.run.app,TASKS_SERVICE_ACCOUNT=zap-tasks-invoker-qa@zap-platform-prod.iam.gserviceaccount.com,CORS_ORIGINS=["http://localhost:3000"],CORS_ORIGIN_REGEX=^https://codezap-arena-git-qa-alendnl\.vercel\.app$' \
             --quiet
 
       - name: Verify QA deployment
@@ -225,7 +225,7 @@ jobs:
             --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
             --min=0 --max=20 --cpu=4 --memory=4Gi --concurrency=1 --timeout=360 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars="^@^ENVIRONMENT=production@DEBUG=false@DATABASE_NAME=${DATABASE_NAME}@GCP_PROJECT_ID=${PROJECT_ID}@GCP_LOCATION=${REGION}@TASKS_QUEUE_NAME=${QUEUE_NAME}@TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA}@EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute@TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
+            --update-env-vars="ENVIRONMENT=production,DEBUG=false,DATABASE_NAME=${DATABASE_NAME},GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},TASKS_QUEUE_NAME=${QUEUE_NAME},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL}" \
             --quiet
 
       - name: Grant production task caller access to executor
@@ -245,7 +245,7 @@ jobs:
             --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
             --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars='^@^ENVIRONMENT=production@DEBUG=false@DATABASE_NAME=zap_prod@GCP_PROJECT_ID=zap-platform-prod@GCP_LOCATION=us-central1@TASKS_QUEUE_NAME=zap-submissions@EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute@TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app@TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com@CORS_ORIGINS=["https://codezap-arena.vercel.app"]@CORS_ORIGIN_REGEX=' \
+            --update-env-vars='ENVIRONMENT=production,DEBUG=false,DATABASE_NAME=zap_prod,GCP_PROJECT_ID=zap-platform-prod,GCP_LOCATION=us-central1,TASKS_QUEUE_NAME=zap-submissions,EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute,TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app,TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com,CORS_ORIGINS=["https://codezap-arena.vercel.app"],CORS_ORIGIN_REGEX=' \
             --quiet
 
       - name: Verify production deployment
