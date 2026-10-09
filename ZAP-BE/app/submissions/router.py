@@ -1,9 +1,11 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.db.mongodb import get_database, get_request_environment
 from app.submissions.models import (
     Submission,
     SubmissionCreateRequest,
     SubmissionCreateResponse,
+    SubmissionMode,
     SubmissionStatus,
     SubmissionVerdict,
 )
@@ -26,6 +28,22 @@ def submit_code(
     return SubmissionCreateResponse(
         submissionId=submission.id,
         status=submission.status
+    )
+
+@router.get("", response_model=list[Submission])
+@router.get("/", response_model=list[Submission])
+def list_submissions(
+    userId: Optional[str] = None,
+    questionId: Optional[str] = None,
+    mode: Optional[SubmissionMode] = None,
+    limit: int = 50,
+    service: SubmissionService = Depends(get_submission_service)
+):
+    return service.list_submissions(
+        user_id=userId,
+        question_id=questionId,
+        mode=mode,
+        limit=limit
     )
 
 @router.get("/{submission_id}", response_model=Submission)

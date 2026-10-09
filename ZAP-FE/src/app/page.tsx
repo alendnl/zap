@@ -19,6 +19,7 @@ import {
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
+import { submissionsApi } from "@/services/submissionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
@@ -64,11 +65,36 @@ export default function Home() {
   const [isAuthInitializing, setIsAuthInitializing] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [intendedProblem, setIntendedProblem] = useState<string | null>(null);
+  const [solvedQuestionIds, setSolvedQuestionIds] = useState<Set<string>>(new Set());
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  const loadUserSolvedStatus = useCallback(async () => {
+    const curStudent = getStoredStudent();
+    if (!curStudent) {
+      setSolvedQuestionIds(new Set());
+      return;
+    }
+    try {
+      const subs = await submissionsApi.list({
+        userId: curStudent.studentId,
+        mode: "SUBMIT",
+        limit: 100,
+      });
+      const solved = new Set<string>();
+      (subs || []).forEach((s) => {
+        if (s.verdict === "ACCEPTED") {
+          solved.add(s.questionId);
+        }
+      });
+      setSolvedQuestionIds(solved);
+    } catch (err) {
+      console.error("Failed to load user solved status", err);
+    }
+  }, []);
 
   // Check stored session & URL query params on mount
   useEffect(() => {
@@ -92,11 +118,14 @@ export default function Home() {
       setStudent(current);
       if (!current) {
         setSelectedQuestion(null);
+        setSolvedQuestionIds(new Set());
+      } else {
+        void loadUserSolvedStatus();
       }
     };
     window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
     return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-  }, []);
+  }, [loadUserSolvedStatus]);
 
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
     setLoadingProblemId(questionIdOrSlug);
@@ -154,23 +183,25 @@ export default function Home() {
   const handleBackToCatalog = useCallback(() => {
     setSelectedQuestion(null);
     setIntendedProblem(null);
+    void loadUserSolvedStatus();
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("problem");
       url.searchParams.delete("id");
       window.history.pushState({}, "", url.toString());
     }
-  }, []);
+  }, [loadUserSolvedStatus]);
 
   useEffect(() => {
     if (student) {
       void loadQuestionList();
+      void loadUserSolvedStatus();
     }
     window.addEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestionList);
     return () => {
       window.removeEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestionList);
     };
-  }, [student, loadQuestionList]);
+  }, [student, loadQuestionList, loadUserSolvedStatus]);
 
   // Unique tags for filter pills
   const allTags = useMemo(() => {
@@ -199,6 +230,11 @@ export default function Home() {
       return matchesSearch && matchesDifficulty && matchesTag;
     });
   }, [questions, searchQuery, difficultyFilter, selectedTag]);
+
+  // Solved Count
+  const solvedCount = useMemo(() => {
+    return questions.filter((q) => solvedQuestionIds.has(q.id) || solvedQuestionIds.has(q.slug)).length;
+  }, [questions, solvedQuestionIds]);
 
   // Difficulty counts
   const difficultyCounts = useMemo(() => {
@@ -301,9 +337,19 @@ export default function Home() {
       <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
         {/* Hero Section */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Interactive Interview Arena</span>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Interactive Interview Arena</span>
+            </div>
+            {questions.length > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>
+                  Solved {solvedCount} / {questions.length} Challenges
+                </span>
+              </div>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             DSA & Algorithmic Challenges
@@ -451,6 +497,7 @@ export default function Home() {
                 const diffConfig =
                   DIFFICULTY_CONFIG[q.difficulty] || DIFFICULTY_CONFIG.EASY;
                 const isOpening = loadingProblemId === q.id;
+                const isSolved = solvedQuestionIds.has(q.id) || solvedQuestionIds.has(q.slug);
 
                 return (
                   <div
@@ -466,6 +513,9 @@ export default function Home() {
                     {/* Title & Tags */}
                     <div className="col-span-5 md:col-span-6 min-w-0 pr-2">
                       <div className="flex items-center gap-2">
+                        {isSolved && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        )}
                         <span className="text-sm font-semibold text-slate-200 group-hover:text-sky-400 transition-colors truncate">
                           {q.title}
                         </span>
@@ -513,10 +563,19 @@ export default function Home() {
                           void openQuestion(q.id);
                         }}
                         disabled={isOpening}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 group-hover:bg-sky-500 text-white transition-all shadow-sm disabled:opacity-50"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm disabled:opacity-50 ${
+                          isSolved
+                            ? "bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-600/40"
+                            : "bg-sky-600 group-hover:bg-sky-500 text-white"
+                        }`}
                       >
                         {isOpening ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : isSolved ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Solved</span>
+                          </>
                         ) : (
                           <>
                             <span>Solve</span>

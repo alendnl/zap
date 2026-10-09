@@ -8,6 +8,7 @@ RUN apk add --no-cache \
     nodejs \
     openjdk21-jre-headless \
     openjdk21 \
+    gcc \
     g++ \
     bash
 

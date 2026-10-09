@@ -17,6 +17,8 @@ def prepare_executable_code(language: str, source_code: str) -> str:
         return _prepare_node_harness(source_code)
     elif lang in ["cpp", "c++"]:
         return _prepare_cpp_harness(source_code)
+    elif lang in ["c"]:
+        return _prepare_c_harness(source_code)
     elif lang in ["java"]:
         return _prepare_java_harness(source_code)
         
@@ -61,10 +63,47 @@ def outputs_match(actual: str, expected: str) -> bool:
     return False
 
 
+def _ensure_python_non_empty_bodies(source: str) -> str:
+    lines = source.splitlines()
+    new_lines = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        new_lines.append(line)
+        stripped = line.strip()
+        if (stripped.startswith("def ") or stripped.startswith("async def ")) and stripped.endswith(":"):
+            def_indent = len(line) - len(line.lstrip())
+            j = i + 1
+            has_statement = False
+            while j < n:
+                next_line = lines[j]
+                next_stripped = next_line.strip()
+                if not next_stripped or next_stripped.startswith("#"):
+                    j += 1
+                    continue
+                next_indent = len(next_line) - len(next_line.lstrip())
+                if next_indent > def_indent:
+                    has_statement = True
+                    break
+                else:
+                    break
+            if not has_statement:
+                for k in range(i + 1, j):
+                    new_lines.append(lines[k])
+                new_lines.append(" " * (def_indent + 4) + "pass")
+                i = j - 1
+        i += 1
+    return "\n".join(new_lines)
+
+
 def _prepare_python_harness(source: str) -> str:
     # If the student wrote a script with an explicit main entrypoint, run as-is
     if "__name__" in source and "__main__" in source:
         return source
+
+    # Ensure any empty function definitions have fallback 'pass' to avoid IndentationError
+    source = _ensure_python_non_empty_bodies(source)
 
     # Check if a class or function is defined
     has_solution_class = bool(re.search(r"class\s+Solution\b", source))
@@ -397,6 +436,103 @@ int main() {
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     sol.solution();
+    return 0;
+}
+"""
+    else:
+        return source
+
+    return source + driver
+
+
+def _prepare_c_harness(source: str) -> str:
+    # If user provided a main function, run as-is
+    if "int main" in source or "main(" in source:
+        return source
+
+    driver = r"""
+
+// ==================== ZAP AUTOMATED DRIVER HARNESS ====================
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main() {
+"""
+    if re.search(r'\btwoSum\s*\(', source):
+        driver += r"""
+    char line1[4096], line2[256];
+    if (fgets(line1, sizeof(line1), stdin) && fgets(line2, sizeof(line2), stdin)) {
+        int nums[1024];
+        int n = 0;
+        char *p = line1;
+        while (*p) {
+            if (*p == '[' || *p == ']' || *p == ',') *p = ' ';
+            p++;
+        }
+        char *token = strtok(line1, " \t\r\n");
+        while (token) {
+            nums[n++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        int target = atoi(line2);
+        int returnSize = 0;
+        int *res = twoSum(nums, n, target, &returnSize);
+        if (res) {
+            printf("[%d, %d]\n", res[0], res[1]);
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\breverseString\s*\(', source):
+        driver += r"""
+    char line[4096];
+    if (fgets(line, sizeof(line), stdin)) {
+        char s[1024];
+        int n = 0;
+        for (int i = 0; line[i]; i++) {
+            if (line[i] != '[' && line[i] != ']' && line[i] != ',' && line[i] != '\"' && line[i] != '\'' && line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
+                s[n++] = line[i];
+            }
+        }
+        s[n] = '\0';
+        reverseString(s, n);
+        printf("[");
+        for (int i = 0; i < n; i++) {
+            if (i > 0) printf(",");
+            printf("\"%c\"", s[i]);
+        }
+        printf("]\n");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsumArray\s*\(', source):
+        driver += r"""
+    char line[4096];
+    if (fgets(line, sizeof(line), stdin)) {
+        int nums[1024];
+        int n = 0;
+        char *p = line;
+        while (*p) {
+            if (*p == '[' || *p == ']' || *p == ',') *p = ' ';
+            p++;
+        }
+        char *token = strtok(line, " \t\r\n");
+        while (token) {
+            nums[n++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        int total = sumArray(nums, n);
+        printf("%d\n", total);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsolution\s*\(', source):
+        driver += r"""
+    solution();
     return 0;
 }
 """

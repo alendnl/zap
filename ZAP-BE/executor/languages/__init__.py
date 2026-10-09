@@ -3,6 +3,7 @@ from executor.languages.python314.runner import PythonRunner
 from executor.languages.node2208.runner import NodeRunner
 from executor.languages.java21.runner import JavaRunner
 from executor.languages.cpp23.runner import CppRunner
+from executor.languages.c.runner import CRunner
 
 
 def get_runner(language: str) -> LanguageRunner:
@@ -15,5 +16,8 @@ def get_runner(language: str) -> LanguageRunner:
         return JavaRunner()
     elif lang in ["cpp", "c++"]:
         return CppRunner()
+    elif lang in ["c"]:
+        return CRunner()
     else:
         raise ValueError(f"Unsupported language: '{language}'")
+

@@ -49,7 +49,8 @@ class ExecutionLimits(BaseModel):
 
 
 DEFAULT_STARTER_CODE: Dict[str, str] = {
-    "python": "class Solution:\n    def solution(self):\n        # Write your solution here\n        pass\n",
+    "python": "class Solution:\n    def solution(self):\n        # Write your solution here\n",
+    "c": "// Write your solution here\n",
     "cpp": "class Solution {\npublic:\n    void solution() {\n        // Write your solution here\n    }\n};\n",
     "java": "class Solution {\n    public void solution() {\n        // Write your solution here\n    }\n}\n",
     "node": "/**\n * @return {void}\n */\nvar solution = function() {\n    // Write your solution here\n};\n",
@@ -69,7 +70,7 @@ class QuestionBase(BaseModel):
     testCases: List[TestCase] = Field(default_factory=list)
     executionLimits: ExecutionLimits = Field(default_factory=ExecutionLimits)
     supportedLanguages: List[str] = Field(
-        default_factory=lambda: ["python", "java", "cpp", "node"]
+        default_factory=lambda: ["python", "c", "cpp", "java", "node"]
     )
     starterCode: Dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_STARTER_CODE))
     status: QuestionStatus = QuestionStatus.PUBLISHED
@@ -117,7 +118,7 @@ class QuestionSummary(BaseModel):
     version: int = 1
     testCasesCount: int = 0
     supportedLanguages: List[str] = Field(
-        default_factory=lambda: ["python", "java", "cpp", "node"]
+        default_factory=lambda: ["python", "c", "cpp", "java", "node"]
     )
 
     model_config = ConfigDict(populate_by_name=True)

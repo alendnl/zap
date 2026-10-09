@@ -154,3 +154,51 @@ def test_create_submission_with_qa_header_uses_qa_db():
     response = client.post("/api/v1/submissions", json=payload, headers={"X-ZAP-ENV": "qa"})
     assert response.status_code == 202
     assert db_manager.dbs["qa"].submissions.find_one({"_id": response.json()["submissionId"]})
+
+
+def test_list_submissions_filters():
+    # Create a couple of submissions
+    sub1 = client.post("/api/v1/submissions", json={
+        "questionId": "two-sum",
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print(1)",
+        "userId": "user-a"
+    }).json()
+
+    sub2 = client.post("/api/v1/submissions", json={
+        "questionId": "two-sum",
+        "language": "c",
+        "mode": "RUN",
+        "sourceCode": "int main() { return 0; }",
+        "userId": "user-a"
+    }).json()
+
+    sub3 = client.post("/api/v1/submissions", json={
+        "questionId": "reverse-string",
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print(2)",
+        "userId": "user-b"
+    }).json()
+
+    # Query all for user-a
+    res = client.get("/api/v1/submissions?userId=user-a")
+    assert res.status_code == 200
+    items = res.json()
+    assert len(items) == 2
+    ids = [it["id"] for it in items]
+    assert sub1["submissionId"] in ids
+    assert sub2["submissionId"] in ids
+
+    # Query by questionId
+    res = client.get("/api/v1/submissions?questionId=reverse-string")
+    assert res.status_code == 200
+    assert len(res.json()) == 1
+    assert res.json()[0]["userId"] == "user-b"
+
+    # Query by mode
+    res = client.get("/api/v1/submissions?userId=user-a&mode=SUBMIT")
+    assert res.status_code == 200
+    assert len(res.json()) == 1
+    assert res.json()[0]["id"] == sub1["submissionId"]

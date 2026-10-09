@@ -175,3 +175,56 @@ class Solution {
     assert result.passed_tests == 1
 
 
+def test_harness_python_empty_function_without_pass():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def solution(self):
+        # Write your solution here
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "", "expectedOutput": "anything", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    # Should not crash with IndentationError / CompileError, should execute cleanly (even if Wrong Answer on empty output)
+    assert result.verdict != "COMPILE_ERROR"
+    assert "IndentationError" not in (result.error_message or "")
+
+
+def test_harness_c_two_sum():
+    runner = get_runner("c")
+    judge = JudgeEngine()
+
+    code = """
+#include <stdlib.h>
+
+int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    int* res = (int*)malloc(2 * sizeof(int));
+    *returnSize = 2;
+    for (int i = 0; i < numsSize; i++) {
+        for (int j = i + 1; j < numsSize; j++) {
+            if (nums[i] + nums[j] == target) {
+                res[0] = i;
+                res[1] = j;
+                return res;
+            }
+        }
+    }
+    return res;
+}
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "[2, 7, 11, 15]\n9", "expectedOutput": "[0, 1]", "enabled": True},
+        {"id": "tc2", "visibility": "PUBLIC", "input": "[3, 2, 4]\n6", "expectedOutput": "[1, 2]", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 2
+
+
+
+

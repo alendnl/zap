@@ -53,6 +53,24 @@ def test_node_runner_success(tmp_path):
     sandbox.cleanup()
 
 
+def test_c_runner_success(tmp_path):
+    if not (shutil.which("gcc") or shutil.which("clang")):
+        pytest.skip("C compiler not installed")
+
+    runner = get_runner("c")
+    sandbox = Sandbox("test-c-01", base_dir=tmp_path)
+    context = sandbox.setup(runner.get_source_filename(), '#include <stdio.h>\nint main() { printf("Hello from C\\n"); return 0; }')
+
+    compile_res = runner.compile(context)
+    assert compile_res.success is True
+
+    run_res = runner.run(context, stdin="")
+    assert run_res.exit_code == 0
+    assert "Hello from C" in run_res.stdout
+
+    sandbox.cleanup()
+
+
 def test_sandbox_timeout_adversarial(tmp_path):
     runner = get_runner("python")
     limits = ExecutionLimits(timeout_seconds=0.5)

@@ -79,6 +79,47 @@ class SubmissionService:
             return Submission(**clean)
         return None
 
+    def list_submissions(
+        self,
+        user_id: Optional[str] = None,
+        question_id: Optional[str] = None,
+        mode: Optional[SubmissionMode] = None,
+        limit: int = 50,
+    ) -> List[Submission]:
+        coll = self._get_collection()
+        query = {}
+        if user_id:
+            query["userId"] = user_id
+        if question_id:
+            query["questionId"] = question_id
+        if mode:
+            query["mode"] = mode.value if hasattr(mode, "value") else mode
+
+        if coll is not None:
+            cursor = coll.find(query).sort("createdAt", -1).limit(limit)
+            results = []
+            for doc in cursor:
+                doc.pop("_id", None)
+                results.append(Submission(**doc))
+            return results
+
+        matching = []
+        for doc in self._memory_store.values():
+            if user_id and doc.get("userId") != user_id:
+                continue
+            if question_id and doc.get("questionId") != question_id:
+                continue
+            if mode:
+                expected_mode = mode.value if hasattr(mode, "value") else mode
+                if doc.get("mode") != expected_mode:
+                    continue
+            clean = dict(doc)
+            clean.pop("_id", None)
+            matching.append(Submission(**clean))
+
+        matching.sort(key=lambda s: s.createdAt, reverse=True)
+        return matching[:limit]
+
     def claim_submission(self, submission_id: str) -> Optional[Submission]:
         """Atomically claim a queued submission or recover an expired lease."""
         from pymongo import ReturnDocument

@@ -7,10 +7,14 @@ import { questionsApi } from "@/services/questionsApi";
 import type { QuestionFormData, TestCase, Difficulty, QuestionStatus } from "@/types/question";
 
 const DEFAULT_STARTER_CODE: Record<string, string> = {
+  c: `#include <stdio.h>
+#include <stdlib.h>
+
+// Write your solution here
+`,
   python: `class Solution:
     def solution(self):
         # Write your solution here
-        pass
 `,
   java: `class Solution {
     public void solution() {
@@ -43,7 +47,7 @@ const EMPTY_FORM: QuestionFormData = {
   constraints: [],
   testCases: [],
   executionLimits: { timeMs: 2000, memoryMb: 256, outputKb: 1024 },
-  supportedLanguages: ["python", "java", "cpp", "node"],
+  supportedLanguages: ["c", "python", "java", "cpp", "node"],
   starterCode: DEFAULT_STARTER_CODE,
   status: "DRAFT",
 };

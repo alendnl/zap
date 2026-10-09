@@ -57,6 +57,7 @@ export interface Submission {
   questionId: string;
   language: string;
   mode: SubmissionMode;
+  sourceCode: string;
   status: SubmissionStatus;
   verdict?: SubmissionVerdict;
   executionTimeMs?: number;
@@ -99,6 +100,16 @@ export const submissionsApi = {
 
   get: (submissionId: string): Promise<Submission> =>
     apiFetch(`/api/v1/submissions/${submissionId}`),
+
+  list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number }): Promise<Submission[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.questionId) searchParams.set("questionId", params.questionId);
+    if (params?.userId) searchParams.set("userId", params.userId);
+    if (params?.mode) searchParams.set("mode", params.mode);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    const qs = searchParams.toString();
+    return apiFetch(`/api/v1/submissions${qs ? `?${qs}` : ""}`);
+  },
 };
 
 /** TERMINAL statuses — polling should stop when the submission reaches one of these. */

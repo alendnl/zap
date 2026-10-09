@@ -36,6 +36,8 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
 }) => {
   const getMonacoLanguage = (lang: string) => {
     switch (lang.toLowerCase()) {
+      case "c":
+        return "c";
       case "python":
         return "python";
       case "java":
@@ -62,6 +64,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             disabled={isRunning}
             className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:opacity-50"
           >
+            <option value="c">C (GCC)</option>
             <option value="python">Python (3.14)</option>
             <option value="java">Java (21)</option>
             <option value="cpp">C++ (23)</option>
