@@ -63,6 +63,21 @@ def outputs_match(actual: str, expected: str) -> bool:
     return False
 
 
+def _strip_c_comments(code: str) -> str:
+    """Strip /* ... */ block comments and // ... line comments for accurate token matching."""
+    code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+    code = re.sub(r'//.*', '', code)
+    return code
+
+
+def _strip_py_comments(code: str) -> str:
+    """Strip triple-quote docstrings and # comments for accurate token matching."""
+    code = re.sub(r'""".*?"""', '', code, flags=re.DOTALL)
+    code = re.sub(r"'''.*?'''", '', code, flags=re.DOTALL)
+    code = re.sub(r'#.*', '', code)
+    return code
+
+
 def _ensure_python_non_empty_bodies(source: str) -> str:
     lines = source.splitlines()
     new_lines = []
@@ -106,8 +121,12 @@ def _prepare_python_harness(source: str) -> str:
     source = _ensure_python_non_empty_bodies(source)
 
     # Inject TreeNode and typing prelude if referenced but not defined
-    if re.search(r"\bTreeNode\b", source) and not re.search(r"^\s*class\s+TreeNode\b", source, re.M):
-        prelude = """from typing import Optional, List, Dict, Any
+    code_clean = _strip_py_comments(source)
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\bclass\s+TreeNode\b", code_clean):
+        prelude = """from typing import Optional, List, Dict, Set, Tuple, Any
+import collections
+import heapq
+import math
 
 class TreeNode:
     def __init__(self, val=0, left=None, right=None):
@@ -323,7 +342,8 @@ def _prepare_node_harness(source: str) -> str:
     if "readFileSync" in source or "process.stdin" in source:
         return source
 
-    if (re.search(r"\b(TreeNode|maxPathSum)\b", source)) and not re.search(r"\b(function|class)\s+TreeNode\b", source):
+    code_clean = _strip_c_comments(source)
+    if (re.search(r"\b(TreeNode|maxPathSum)\b", source)) and not re.search(r"\b(function|class)\s+TreeNode\b", code_clean):
         prelude = """function TreeNode(val, left, right) {
     this.val = (val===undefined ? 0 : val);
     this.left = (left===undefined ? null : left);
@@ -463,16 +483,32 @@ def _prepare_cpp_harness(source: str) -> str:
     if "class Solution" not in source:
         return source
 
-    if re.search(r"\bTreeNode\b", source) and not re.search(r"\b(struct|class)\s+TreeNode\s*\{", source):
-        prelude = """#include <iostream>
+    code_clean = _strip_c_comments(source)
+
+    # Standard headers & namespace (LeetCode default environment)
+    prelude = """#include <iostream>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <algorithm>
 #include <climits>
 #include <queue>
+#include <stack>
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <map>
+#include <set>
+#include <cmath>
+#include <utility>
+#include <numeric>
 
-struct TreeNode {
+using namespace std;
+
+"""
+
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\b(struct|class)\s+TreeNode\s*\{", code_clean):
+        prelude += """struct TreeNode {
     int val;
     TreeNode *left;
     TreeNode *right;
@@ -482,7 +518,8 @@ struct TreeNode {
 };
 
 """
-        source = prelude + source
+
+    source = prelude + source
 
     driver = r"""
 
@@ -491,6 +528,9 @@ struct TreeNode {
 #include <vector>
 #include <string>
 #include <sstream>
+#include <queue>
+#include <algorithm>
+#include <climits>
 
 int main() {
     Solution sol;
@@ -625,20 +665,25 @@ def _prepare_c_harness(source: str) -> str:
     if "int main" in source or "main(" in source:
         return source
 
-    if re.search(r"\bTreeNode\b", source) and not re.search(r"\bstruct\s+TreeNode\s*\{", source):
-        prelude = """#include <stdio.h>
+    code_clean = _strip_c_comments(source)
+
+    prelude = """#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <stdbool.h>
+#include <math.h>
 
-struct TreeNode {
+"""
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\bstruct\s+TreeNode\s*\{", code_clean):
+        prelude += """struct TreeNode {
     int val;
     struct TreeNode *left;
     struct TreeNode *right;
 };
 
 """
-        source = prelude + source
+    source = prelude + source
 
     driver = r"""
 
@@ -646,6 +691,7 @@ struct TreeNode {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 int main() {
 """
@@ -803,6 +849,11 @@ def _prepare_java_harness(source: str) -> str:
     if "class Solution" not in source:
         return source
 
+    code_clean = _strip_c_comments(source)
+
+    if not re.search(r"import\s+java\.util", source):
+        source = "import java.util.*;\nimport java.io.*;\n\n" + source
+
     driver = r"""
     // ==================== ZAP AUTOMATED DRIVER HARNESS ====================
     public static void main(String[] args) {
@@ -816,10 +867,29 @@ def _prepare_java_harness(source: str) -> str:
 
     private static void _zapDriverRun() throws Exception {
         java.lang.reflect.Method target = null;
+        // Prioritize public entrypoint methods
         for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {
             if (!m.getName().equals("main") && !m.getName().startsWith("_zap") && !m.isSynthetic()) {
-                target = m;
-                break;
+                if (java.lang.reflect.Modifier.isPublic(m.getModifiers())) {
+                    target = m;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {
+                if (!m.getName().equals("main") && !m.getName().startsWith("_zap") && !m.isSynthetic() && !m.getName().startsWith("helper") && !m.getName().startsWith("dfs") && !m.getName().startsWith("bfs")) {
+                    target = m;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {
+                if (!m.getName().equals("main") && !m.getName().startsWith("_zap") && !m.isSynthetic()) {
+                    target = m;
+                    break;
+                }
             }
         }
         if (target == null) return;
@@ -1011,16 +1081,16 @@ def _prepare_java_harness(source: str) -> str:
 
     result = source[:idx] + driver + source[idx:]
 
-    if re.search(r"\bTreeNode\b", result) and not re.search(r"\bclass\s+TreeNode\b", result):
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\bclass\s+TreeNode\s*\{", code_clean):
         result += """
 
 class TreeNode {
-    int val;
-    TreeNode left;
-    TreeNode right;
-    TreeNode() {}
-    TreeNode(int val) { this.val = val; }
-    TreeNode(int val, TreeNode left, TreeNode right) {
+    public int val;
+    public TreeNode left;
+    public TreeNode right;
+    public TreeNode() {}
+    public TreeNode(int val) { this.val = val; }
+    public TreeNode(int val, TreeNode left, TreeNode right) {
         this.val = val;
         this.left = left;
         this.right = right;
