@@ -97,3 +97,28 @@ if __name__ == "__main__":
     result = judge.judge(runner, code, test_cases)
     assert result.verdict == "ACCEPTED"
     assert result.test_results[0].actual_output == "30"
+
+
+def test_harness_zero_arg_function_with_print_and_return():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def solution(self):
+        # Write your solution here
+        print("Testing")
+        # pass
+        return
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "raw stdin input data", "expectedOutput": "Testing", "enabled": True},
+        {"id": "tc2", "visibility": "PUBLIC", "input": "", "expectedOutput": "Testing", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 2
+    assert result.test_results[0].actual_output == "Testing"
+    assert result.test_results[1].actual_output == "Testing"
+

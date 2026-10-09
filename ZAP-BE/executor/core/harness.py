@@ -73,11 +73,11 @@ def _prepare_python_harness(source: str) -> str:
     if not (has_solution_class or has_func_def):
         return source
 
-    driver = """
+    driver = r"""
 
 # ==================== ZAP AUTOMATED DRIVER HARNESS ====================
 if __name__ == "__main__":
-    import sys, json, inspect
+    import sys, json, inspect, re
 
     def _zap_format_output(val):
         if val is None:
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         else:
             # First user-defined function
             for k, v in list(globals().items()):
-                if callable(v) and not k.startswith("_") and k not in ["json", "sys", "inspect"]:
+                if callable(v) and not k.startswith("_") and k not in ["json", "sys", "inspect", "re"]:
                     target_fn = v
                     break
 
@@ -119,51 +119,108 @@ if __name__ == "__main__":
 
         raw_stdin = sys.stdin.read().strip()
         sig = inspect.signature(target_fn)
-        params = [p for p in sig.parameters.values() if p.name != "self"]
+        params = [p for p in sig.parameters.values() if p.name not in ("self", "cls")]
 
-        if not raw_stdin:
-            if len(params) == 0:
-                _zap_format_output(target_fn())
+        # Case 0: Target function takes 0 arguments (e.g. def solution(self):)
+        if len(params) == 0:
+            try:
+                res = target_fn()
+                _zap_format_output(res)
+            except Exception:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                sys.exit(1)
             return
 
-        # Attempt JSON parsing first (e.g. multiple args or complex types)
+        # Case 1: No stdin provided but parameters exist
+        if not raw_stdin:
+            try:
+                res = target_fn()
+                _zap_format_output(res)
+            except Exception:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                sys.exit(1)
+            return
+
+        # Case 2: Parse arguments from raw_stdin
         parsed_args = []
-        try:
-            val = json.loads(raw_stdin)
-            if isinstance(val, list) and len(params) > 1 and len(val) == len(params):
-                parsed_args = val
-            else:
-                parsed_args = [val]
-        except Exception:
-            # Parse line-by-line or token-by-token
+
+        # 2a. Check for LeetCode-style named arguments (e.g. nums = [2,7,11,15], target = 9 or s = "babad")
+        kw_matches = re.findall(
+            r'(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*=\s*([^=]+?)(?=(?:,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=|\n[a-zA-Z_][a-zA-Z0-9_]*\s*=|$))',
+            raw_stdin,
+            re.DOTALL
+        )
+        if kw_matches:
+            kw_dict = {}
+            for k, v in kw_matches:
+                val_str = v.strip().rstrip(",")
+                try:
+                    kw_dict[k] = json.loads(val_str)
+                except Exception:
+                    kw_dict[k] = val_str
+            param_names = [p.name for p in params]
+            if any(p in kw_dict for p in param_names):
+                matched = [kw_dict[p] for p in param_names if p in kw_dict]
+                if len(matched) == len(params):
+                    parsed_args = matched
+
+        # 2b. Attempt JSON parsing
+        if not parsed_args:
+            try:
+                val = json.loads(raw_stdin)
+                if isinstance(val, (list, tuple)) and len(params) > 1 and len(val) == len(params):
+                    parsed_args = list(val)
+                elif len(params) == 1:
+                    parsed_args = [val]
+            except Exception:
+                pass
+
+        # 2c. Parse line-by-line (e.g. arg1 on line 1, arg2 on line 2)
+        if not parsed_args:
             lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
             if len(lines) == len(params):
+                parsed_args = []
                 for l in lines:
                     try:
                         parsed_args.append(json.loads(l))
                     except Exception:
                         parsed_args.append(l)
-            else:
-                tokens = raw_stdin.split()
-                if len(tokens) == len(params):
-                    for t in tokens:
-                        try:
-                            parsed_args.append(json.loads(t))
-                        except Exception:
-                            parsed_args.append(t)
-                else:
-                    parsed_args = [raw_stdin]
 
-        # Call the target function
+        # 2d. Parse space-separated tokens
+        if not parsed_args:
+            tokens = raw_stdin.split()
+            if len(tokens) == len(params):
+                parsed_args = []
+                for t in tokens:
+                    try:
+                        parsed_args.append(json.loads(t))
+                    except Exception:
+                        parsed_args.append(t)
+
+        # 2e. Default single argument
+        if not parsed_args and len(params) == 1:
+            try:
+                parsed_args = [json.loads(raw_stdin)]
+            except Exception:
+                parsed_args = [raw_stdin]
+
+        # Call the target function with appropriately sized argument list
         try:
             if len(parsed_args) == len(params):
                 res = target_fn(*parsed_args)
-            elif len(params) == 1 and len(parsed_args) == 1:
+            elif len(params) == 1 and len(parsed_args) >= 1:
                 res = target_fn(parsed_args[0])
+            elif len(parsed_args) > len(params):
+                res = target_fn(*parsed_args[:len(params)])
             else:
-                res = target_fn(raw_stdin)
+                try:
+                    res = target_fn(*parsed_args)
+                except TypeError:
+                    res = target_fn(raw_stdin)
             _zap_format_output(res)
-        except Exception as exc:
+        except Exception:
             import traceback
             traceback.print_exc(file=sys.stderr)
             sys.exit(1)
@@ -210,6 +267,23 @@ def _prepare_node_harness(source: str) -> str:
     }
 
     if (!targetFn) return;
+
+    if (targetFn.length === 0) {
+        try {
+            const result = targetFn();
+            if (result !== undefined) {
+                if (typeof result === 'object' && result !== null) {
+                    console.log(JSON.stringify(result));
+                } else {
+                    console.log(result);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            process.exit(1);
+        }
+        return;
+    }
 
     let args = [];
     try {
