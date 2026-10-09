@@ -86,6 +86,33 @@ def test_execute_task_accepts_submission():
     assert sub["testResults"][0]["actualOutput"] == "5"
 
 
+def test_execute_task_accepts_run_mode():
+    question = _create_question()
+    payload = {
+        "questionId": question["id"],
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "import sys\nprint(sum(map(int, sys.stdin.read().split())))",
+        "userId": "student-test-run"
+    }
+    res = client.post("/api/v1/submissions", json=payload)
+    assert res.status_code == 202
+    sub_id = res.json()["submissionId"]
+
+    task_res = client.post("/internal/tasks/execute", json={"submissionId": sub_id})
+    assert task_res.status_code == 200
+    task_data = task_res.json()
+    assert task_data["status"] == "completed"
+    assert task_data["verdict"] == "ACCEPTED"
+
+    get_res = client.get(f"/api/v1/submissions/{sub_id}")
+    assert get_res.status_code == 200
+    sub = get_res.json()
+    assert sub["status"] == SubmissionStatus.COMPLETED.value
+    assert sub["mode"] == "RUN"
+    assert sub["verdict"] == SubmissionVerdict.ACCEPTED.value
+
+
 def test_execute_task_missing_submission_id():
     res = client.post("/internal/tasks/execute", json={})
     assert res.status_code == 422

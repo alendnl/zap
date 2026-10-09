@@ -136,8 +136,18 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
         const subId = createRes.submissionId;
         setCurrentSubmission({ id: subId, status: createRes.status });
 
-        // Poll for updates
+        // Poll for updates every 1 second (1000ms)
+        let pollCount = 0;
+        const MAX_POLLS = 60; // 60 seconds safety guard
         pollIntervalRef.current = setInterval(async () => {
+          pollCount += 1;
+          if (pollCount > MAX_POLLS) {
+            cleanupPolling();
+            setIsRunning(false);
+            setErrorNotice("Execution timed out. Please try running again.");
+            return;
+          }
+
           try {
             const sub = await submissionsApi.get(subId);
             setCurrentSubmission(sub);
@@ -160,7 +170,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
             }) : submission);
             setErrorNotice(`Failed to fetch status for submission ${subId}: ${message}`);
           }
-        }, 600);
+        }, 1000);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown submission error.";
         setErrorNotice(`Submission failed: ${message}`);

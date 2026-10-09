@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from app.config import get_settings
 from app.db.mongodb import get_database_for_env
+from app.questions.models import TestCaseVisibility
 from app.submissions.models import SubmissionStatus, SubmissionVerdict, SubmissionMode
 from app.submissions.queue import get_queue_for_env
 from app.submissions.service import SubmissionService
@@ -236,6 +237,7 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
         tests_to_judge = [
             tc for tc in enabled_test_cases
             if getattr(tc, "visibility", None) in [TestCaseVisibility.PUBLIC, "PUBLIC"]
+            or str(getattr(tc, "visibility", "")).upper().endswith("PUBLIC")
         ]
         if not tests_to_judge:
             tests_to_judge = enabled_test_cases
