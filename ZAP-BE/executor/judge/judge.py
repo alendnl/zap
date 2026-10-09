@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from executor.core.runner import LanguageRunner, ExecutionLimits
 from executor.sandbox.sandbox import Sandbox
+from executor.core.harness import prepare_executable_code, outputs_match
 
 
 @dataclass
@@ -56,9 +57,10 @@ class JudgeEngine:
         limits = sandbox.limits
 
         try:
-            # 1. Source setup
-            context = sandbox.setup(runner.get_source_filename(), source_code)
-            runner.validate_source(source_code)
+            # 1. Source setup (applies automated driver harness for function-based submissions)
+            prepared_code = prepare_executable_code(runner.language, source_code)
+            context = sandbox.setup(runner.get_source_filename(), prepared_code)
+            runner.validate_source(prepared_code)
 
             # 2. Compilation step
             compile_res = runner.compile(context)
@@ -149,7 +151,7 @@ class JudgeEngine:
                 actual_norm = self.normalize_output(run_res.stdout)
                 expected_norm = self.normalize_output(expected_output)
 
-                is_match = (actual_norm == expected_norm)
+                is_match = outputs_match(actual_norm, expected_norm)
                 if is_match:
                     passed += 1
                     test_results.append(TestCaseResult(

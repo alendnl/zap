@@ -15,7 +15,9 @@ export interface QuestionData {
     explanation?: string;
   }>;
   constraints: string[];
+  starterCode?: Record<string, string>;
 }
+
 
 interface QuestionPaneProps {
   question: QuestionData;

@@ -18,40 +18,30 @@ interface StudentWorkspaceProps {
 }
 
 const DEFAULT_CODE: Record<string, string> = {
-  python: `import sys
-
-def solution():
-    # Read input from standard input
-    data = sys.stdin.read().split()
-    # Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solution()
+  python: `class Solution:
+    def solution(self):
+        # Write your solution here
+        pass
 `,
-  java: `import java.util.Scanner;
-
-public class Solution {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+  java: `class Solution {
+    public void solution() {
         // Write your solution here
     }
 }
 `,
-  cpp: `#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-    ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-    // Write your solution here
-    return 0;
-}
+  cpp: `class Solution {
+public:
+    void solution() {
+        // Write your solution here
+    }
+};
 `,
-  node: `const fs = require("fs");
-const input = fs.readFileSync("/dev/stdin", "utf-8").trim().split("\\n");
-
-// Write your solution here
+  node: `/**
+ * @return {void}
+ */
+var solution = function() {
+    // Write your solution here
+};
 `,
 };
 
@@ -72,7 +62,7 @@ const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string 
 
 export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) => {
   const [language, setLanguage] = useState("python");
-  const [code, setCode] = useState(DEFAULT_CODE["python"]);
+  const [code, setCode] = useState(question.starterCode?.["python"] || DEFAULT_CODE["python"]);
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
@@ -93,11 +83,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
 
   const handleLanguageChange = useCallback((lang: string) => {
     setLanguage(lang);
-    setCode(DEFAULT_CODE[lang] || "");
+    setCode(question.starterCode?.[lang] || DEFAULT_CODE[lang] || "");
     setCurrentSubmission(null);
     setErrorNotice(null);
     setSelectedCaseIdx(0);
-  }, []);
+  }, [question.starterCode]);
+
 
   const triggerExecution = useCallback(
     async (mode: SubmissionMode) => {

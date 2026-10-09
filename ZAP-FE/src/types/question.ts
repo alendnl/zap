@@ -33,8 +33,10 @@ export interface Question {
   testCases: TestCase[];
   executionLimits: ExecutionLimits;
   supportedLanguages: string[];
+  starterCode?: Record<string, string>;
   status: QuestionStatus;
   version: number;
 }
+
 
 export type QuestionFormData = Omit<Question, "id" | "version">;

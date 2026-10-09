@@ -79,5 +79,7 @@ function toQuestionData(question: Question): QuestionData {
     statement: question.statement,
     examples: question.examples ?? [],
     constraints: question.constraints,
+    starterCode: question.starterCode,
   };
 }
+

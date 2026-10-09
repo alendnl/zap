@@ -6,6 +6,34 @@ import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { questionsApi } from "@/services/questionsApi";
 import type { QuestionFormData, TestCase, Difficulty, QuestionStatus } from "@/types/question";
 
+const DEFAULT_STARTER_CODE: Record<string, string> = {
+  python: `class Solution:
+    def solution(self):
+        # Write your solution here
+        pass
+`,
+  java: `class Solution {
+    public void solution() {
+        // Write your solution here
+    }
+}
+`,
+  cpp: `class Solution {
+public:
+    void solution() {
+        // Write your solution here
+    }
+};
+`,
+  node: `/**
+ * @return {void}
+ */
+var solution = function() {
+    // Write your solution here
+};
+`,
+};
+
 const EMPTY_FORM: QuestionFormData = {
   slug: "",
   title: "",
@@ -16,6 +44,7 @@ const EMPTY_FORM: QuestionFormData = {
   testCases: [],
   executionLimits: { timeMs: 2000, memoryMb: 256, outputKb: 1024 },
   supportedLanguages: ["python", "java", "cpp", "node"],
+  starterCode: DEFAULT_STARTER_CODE,
   status: "DRAFT",
 };
 
@@ -24,6 +53,7 @@ export default function NewQuestionPage() {
   const [form, setForm] = useState<QuestionFormData>(EMPTY_FORM);
   const [tagInput, setTagInput] = useState("");
   const [constraintInput, setConstraintInput] = useState("");
+  const [activeStarterLang, setActiveStarterLang] = useState<string>("python");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +118,7 @@ export default function NewQuestionPage() {
         tags: parsed.tags ?? [],
         constraints: parsed.constraints ?? [],
         supportedLanguages: parsed.supportedLanguages ?? EMPTY_FORM.supportedLanguages,
+        starterCode: parsed.starterCode ?? EMPTY_FORM.starterCode,
       });
       setJsonMode(false);
     } catch (e: any) {
@@ -248,6 +279,40 @@ export default function NewQuestionPage() {
                   </li>
                 ))}
               </ul>
+            </div>
+          </section>
+
+          {/* Starter Code Templates */}
+          <section className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Starter Code Templates</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Customize the default function signature or boilerplate for each language.</p>
+              </div>
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {(["python", "java", "cpp", "node"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setActiveStarterLang(lang)}
+                    className={`px-3 py-1 rounded text-xs font-semibold uppercase transition-colors ${
+                      activeStarterLang === lang
+                        ? "bg-sky-600 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {lang === "node" ? "JavaScript" : lang}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <textarea
+                rows={7}
+                value={form.starterCode?.[activeStarterLang] ?? DEFAULT_STARTER_CODE[activeStarterLang] ?? ""}
+                onChange={(e) => update("starterCode", { ...form.starterCode, [activeStarterLang]: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-200 resize-y focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
             </div>
           </section>
 

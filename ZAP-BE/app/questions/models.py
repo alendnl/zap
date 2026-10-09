@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 import uuid
@@ -48,6 +48,14 @@ class ExecutionLimits(BaseModel):
     outputKb: int = 1024
 
 
+DEFAULT_STARTER_CODE: Dict[str, str] = {
+    "python": "class Solution:\n    def solution(self):\n        # Write your solution here\n        pass\n",
+    "cpp": "class Solution {\npublic:\n    void solution() {\n        // Write your solution here\n    }\n};\n",
+    "java": "class Solution {\n    public void solution() {\n        // Write your solution here\n    }\n}\n",
+    "node": "/**\n * @return {void}\n */\nvar solution = function() {\n    // Write your solution here\n};\n",
+}
+
+
 class QuestionBase(BaseModel):
     slug: str
     title: str
@@ -63,6 +71,7 @@ class QuestionBase(BaseModel):
     supportedLanguages: List[str] = Field(
         default_factory=lambda: ["python", "java", "cpp", "node"]
     )
+    starterCode: Dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_STARTER_CODE))
     status: QuestionStatus = QuestionStatus.PUBLISHED
 
 
@@ -83,6 +92,7 @@ class QuestionUpdate(BaseModel):
     testCases: Optional[List[TestCase]] = None
     executionLimits: Optional[ExecutionLimits] = None
     supportedLanguages: Optional[List[str]] = None
+    starterCode: Optional[Dict[str, str]] = None
     status: Optional[QuestionStatus] = None
 
 
