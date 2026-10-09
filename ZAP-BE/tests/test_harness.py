@@ -1,3 +1,4 @@
+import shutil
 import pytest
 from executor.languages import get_runner
 from executor.judge.judge import JudgeEngine
@@ -124,6 +125,8 @@ class Solution:
 
 
 def test_harness_java_two_sum():
+    if not shutil.which("javac"):
+        pytest.skip("Java compiler (javac) not installed")
     runner = get_runner("java")
     judge = JudgeEngine()
 
@@ -156,6 +159,8 @@ class Solution {
 
 
 def test_harness_java_zero_arg():
+    if not shutil.which("javac"):
+        pytest.skip("Java compiler (javac) not installed")
     runner = get_runner("java")
     judge = JudgeEngine()
 
@@ -195,6 +200,8 @@ class Solution:
 
 
 def test_harness_c_two_sum():
+    if not (shutil.which("gcc") or shutil.which("clang")):
+        pytest.skip("C compiler (gcc/clang) not installed")
     runner = get_runner("c")
     judge = JudgeEngine()
 

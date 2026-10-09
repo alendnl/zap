@@ -90,7 +90,24 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
   const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [language, setLanguage] = useState("python");
-  const [code, setCode] = useState(() => cleanStarter(question.starterCode?.["python"] || DEFAULT_CODE["python"]));
+
+  const getStarterCode = useCallback(
+    (lang: string) => {
+      const raw = question.starterCode?.[lang] || DEFAULT_CODE[lang] || "";
+      return lang === "python" ? cleanStarter(raw) : raw;
+    },
+    [question.starterCode]
+  );
+
+  // Independent code buffer per language so switching tabs NEVER loses code!
+  const [codes, setCodes] = useState<Record<string, string>>(() => ({
+    c: getStarterCode("c"),
+    python: getStarterCode("python"),
+    java: getStarterCode("java"),
+    cpp: getStarterCode("cpp"),
+    node: getStarterCode("node"),
+  }));
+
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
@@ -105,8 +122,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
   const [viewingSubmission, setViewingSubmission] = useState<Submission | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // In-session drafts per language
-  const draftsRef = useRef<Record<string, string>>({});
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -126,15 +141,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
     return () => cleanupPolling();
   }, [cleanupPolling]);
 
-  const getStarterCode = useCallback(
-    (lang: string) => {
-      const raw = question.starterCode?.[lang] || DEFAULT_CODE[lang] || "";
-      return lang === "python" ? cleanStarter(raw) : raw;
-    },
-    [question.starterCode]
-  );
-
-  // Fetch past submissions for this problem by this student
+  // Fetch past submissions & runs for this problem by this student
   const loadSubmissions = useCallback(async () => {
     if (!student) return;
     setLoadingSubmissions(true);
@@ -142,10 +149,26 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
       const list = await submissionsApi.list({
         questionId: question.id,
         userId: student.studentId,
-        mode: "SUBMIT",
-        limit: 50,
+        limit: 100,
       });
-      setSubmissionsHistory(list || []);
+      const allSubmissions = list || [];
+      const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
+      setSubmissionsHistory(submitsOnly);
+
+      // Restore latest code for each language from past runs or submissions
+      setCodes((prev) => {
+        const nextCodes = { ...prev };
+        const supported = ["c", "python", "java", "cpp", "node"];
+        for (const lang of supported) {
+          const latest = allSubmissions.find(
+            (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
+          );
+          if (latest && latest.sourceCode) {
+            nextCodes[lang] = latest.sourceCode;
+          }
+        }
+        return nextCodes;
+      });
     } catch (err) {
       console.error("Failed to load submissions history", err);
     } finally {
@@ -157,77 +180,58 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
     void loadSubmissions();
   }, [loadSubmissions]);
 
-  // When question changes, reset drafts and load
+  // When question changes, reset to question starter templates
   useEffect(() => {
-    draftsRef.current = {};
     setCurrentSubmission(null);
     setErrorNotice(null);
     setSelectedCaseIdx(0);
-    setCode(getStarterCode(language));
-  }, [question.id, getStarterCode, language]);
-
-  // If submissions history finishes loading and user has not typed any custom draft for current language,
-  // restore their latest submitted code!
-  useEffect(() => {
-    if (submissionsHistory.length > 0 && !draftsRef.current[language]) {
-      const latestForLang = submissionsHistory.find(
-        (s) => s.language === language && s.sourceCode
-      );
-      if (latestForLang && latestForLang.sourceCode) {
-        setCode(latestForLang.sourceCode);
-      }
+    const initialCodes: Record<string, string> = {};
+    for (const l of ["c", "python", "java", "cpp", "node"]) {
+      initialCodes[l] = getStarterCode(l);
     }
-  }, [submissionsHistory, language]);
+    setCodes(initialCodes);
+  }, [question.id, getStarterCode]);
 
-  const handleLanguageChange = useCallback(
-    (newLang: string) => {
-      draftsRef.current[language] = code;
-      setLanguage(newLang);
-      setCurrentSubmission(null);
-      setErrorNotice(null);
-      setSelectedCaseIdx(0);
+  const currentCode = codes[language] ?? getStarterCode(language);
 
-      // 1. If user typed in this session for newLang, restore that draft
-      if (draftsRef.current[newLang]) {
-        setCode(draftsRef.current[newLang]);
-        return;
-      }
-
-      // 2. If user previously submitted code for this language, restore latest submission
-      const prevSub = submissionsHistory.find((s) => s.language === newLang && s.sourceCode);
-      if (prevSub) {
-        setCode(prevSub.sourceCode);
-        setRestoredNotice(`Restored latest submitted ${newLang.toUpperCase()} code`);
-        setTimeout(() => setRestoredNotice(null), 3000);
-        return;
-      }
-
-      // 3. Fallback to starter code
-      setCode(getStarterCode(newLang));
-    },
-    [code, language, submissionsHistory, getStarterCode]
-  );
+  const handleLanguageChange = useCallback((newLang: string) => {
+    setLanguage(newLang);
+    setSelectedCaseIdx(0);
+  }, []);
 
   const handleCodeChange = useCallback(
     (newCode: string) => {
-      draftsRef.current[language] = newCode;
-      setCode(newCode);
+      setCodes((prev) => ({
+        ...prev,
+        [language]: newCode,
+      }));
     },
     [language]
   );
 
+  // Reset button: resets ONLY the active language to its template
+  const handleReset = useCallback(() => {
+    const template = getStarterCode(language);
+    setCodes((prev) => ({
+      ...prev,
+      [language]: template,
+    }));
+    setRestoredNotice(`Reset ${language.toUpperCase()} code to starter template`);
+    setTimeout(() => setRestoredNotice(null), 3000);
+  }, [language, getStarterCode]);
+
   const restoreSubmissionToEditor = useCallback(
     (sub: Submission) => {
-      setCode(sub.sourceCode);
-      if (sub.language !== language) {
-        setLanguage(sub.language);
-      }
-      draftsRef.current[sub.language] = sub.sourceCode;
-      setRestoredNotice(`Loaded submission (${sub.language.toUpperCase()}) into editor`);
+      setLanguage(sub.language);
+      setCodes((prev) => ({
+        ...prev,
+        [sub.language]: sub.sourceCode,
+      }));
+      setRestoredNotice(`Loaded ${sub.language.toUpperCase()} submission into editor`);
       setTimeout(() => setRestoredNotice(null), 3500);
       setViewingSubmission(null);
     },
-    [language]
+    []
   );
 
   const triggerExecution = useCallback(
@@ -251,7 +255,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
           questionId: question.id,
           language,
           mode,
-          sourceCode: code,
+          sourceCode: currentCode,
           userId: student ? student.studentId : "student-123",
         });
 
@@ -282,10 +286,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                 setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
               }
 
-              // When a SUBMIT finishes, reload submissions list to update history & solved status
-              if (mode === "SUBMIT") {
-                void loadSubmissions();
-              }
+              // Reload submissions to refresh history & completion status
+              void loadSubmissions();
             }
           } catch (pollErr: unknown) {
             const message = pollErr instanceof Error ? pollErr.message : "Unknown polling error.";
@@ -313,7 +315,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
         setIsRunning(false);
       }
     },
-    [isRunning, cleanupPolling, student, question.id, language, code, loadSubmissions]
+    [isRunning, cleanupPolling, student, question.id, language, currentCode, loadSubmissions]
   );
 
   const handleRun = useCallback(() => triggerExecution("RUN"), [triggerExecution]);
@@ -444,10 +446,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
             <EditorPane
               language={language}
               onLanguageChange={handleLanguageChange}
-              code={code}
+              code={currentCode}
               onCodeChange={handleCodeChange}
               onRun={handleRun}
               onSubmit={handleSubmit}
+              onReset={handleReset}
               isRunning={isRunning}
               statusText={statusLabel}
             />

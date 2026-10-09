@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
+import { RotateCcw } from "lucide-react";
 
 // Dynamically load Monaco Editor with SSR disabled
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -20,6 +21,7 @@ interface EditorPaneProps {
   onCodeChange: (code: string) => void;
   onRun: () => void;
   onSubmit: () => void;
+  onReset?: () => void;
   isRunning: boolean;
   statusText?: string;
 }
@@ -31,6 +33,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   onCodeChange,
   onRun,
   onSubmit,
+  onReset,
   isRunning,
   statusText,
 }) => {
@@ -80,6 +83,18 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onReset && (
+            <button
+              onClick={onReset}
+              disabled={isRunning}
+              title={`Reset ${language.toUpperCase()} code to template`}
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded border border-slate-700 transition-colors disabled:opacity-50"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
           <button
             onClick={onRun}
             disabled={isRunning}
