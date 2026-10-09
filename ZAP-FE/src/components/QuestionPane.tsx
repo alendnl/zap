@@ -13,6 +13,7 @@ export interface QuestionData {
     input: string;
     output: string;
     explanation?: string;
+    image?: string;
   }>;
   constraints: string[];
   starterCode?: Record<string, string>;
@@ -71,14 +72,34 @@ export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
           <h3 className="text-sm font-semibold text-slate-200 tracking-wide uppercase">
             Examples
           </h3>
-          {question.examples.map((ex, idx) => (
-            <div
-              key={idx}
-              className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-2 text-xs"
-            >
-              <div className="text-[11px] font-bold text-sky-400 mb-1 uppercase tracking-wider">
-                Example {idx + 1}:
-              </div>
+          {question.examples.map((ex, idx) => {
+            const exampleImage =
+              ex.image ||
+              (question.slug === "binary-tree-maximum-path-sum"
+                ? idx === 0
+                  ? "/images/binary-tree-max-path-1.jpg"
+                  : idx === 1
+                  ? "/images/binary-tree-max-path-2.jpg"
+                  : undefined
+                : undefined);
+
+            return (
+              <div
+                key={idx}
+                className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-2 text-xs"
+              >
+                <div className="text-[11px] font-bold text-sky-400 mb-1 uppercase tracking-wider">
+                  Example {idx + 1}:
+                </div>
+                {exampleImage && (
+                  <div className="my-2.5 flex justify-center bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                    <img
+                      src={exampleImage}
+                      alt={`Example ${idx + 1} diagram`}
+                      className="max-h-56 max-w-full object-contain rounded"
+                    />
+                  </div>
+                )}
               <div className="font-mono text-slate-300">
                 <span className="text-slate-500 font-semibold select-none">Input: </span>
                 {ex.input}
@@ -95,8 +116,9 @@ export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
                   {ex.explanation}
                 </div>
               )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 

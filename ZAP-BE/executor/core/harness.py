@@ -105,7 +105,19 @@ def _prepare_python_harness(source: str) -> str:
     # Ensure any empty function definitions have fallback 'pass' to avoid IndentationError
     source = _ensure_python_non_empty_bodies(source)
 
-    # Check if a class or function is defined
+    # Inject TreeNode and typing prelude if referenced but not defined
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"^\s*class\s+TreeNode\b", source, re.M):
+        prelude = """from typing import Optional, List, Dict, Any
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+"""
+        source = prelude + source
+
     has_solution_class = bool(re.search(r"class\s+Solution\b", source))
     has_func_def = bool(re.search(r"def\s+([a-zA-Z0-9_]+)\s*\(", source))
 
@@ -245,6 +257,43 @@ if __name__ == "__main__":
             except Exception:
                 parsed_args = [raw_stdin]
 
+        # Convert list to TreeNode if target expects TreeNode or TreeNode class exists in globals
+        if "TreeNode" in globals() and parsed_args:
+            def _zap_build_tree(vals):
+                if not isinstance(vals, list) or not vals or vals[0] is None:
+                    return None
+                Node = globals()["TreeNode"]
+                root = Node(vals[0])
+                queue = [root]
+                idx = 1
+                while queue and idx < len(vals):
+                    curr = queue.pop(0)
+                    if not curr:
+                        continue
+                    if idx < len(vals):
+                        v = vals[idx]
+                        idx += 1
+                        if v is not None:
+                            curr.left = Node(v)
+                            queue.append(curr.left)
+                    if idx < len(vals):
+                        v = vals[idx]
+                        idx += 1
+                        if v is not None:
+                            curr.right = Node(v)
+                            queue.append(curr.right)
+                return root
+
+            new_args = []
+            for i, arg in enumerate(parsed_args):
+                p_name = params[i].name if i < len(params) else ""
+                p_annot = str(params[i].annotation) if i < len(params) else ""
+                if isinstance(arg, list) and ("TreeNode" in p_annot or p_name == "root" or "root" in p_name):
+                    new_args.append(_zap_build_tree(arg))
+                else:
+                    new_args.append(arg)
+            parsed_args = new_args
+
         # Call the target function with appropriately sized argument list
         try:
             if len(parsed_args) == len(params):
@@ -274,6 +323,20 @@ def _prepare_node_harness(source: str) -> str:
     if "readFileSync" in source or "process.stdin" in source:
         return source
 
+    if (re.search(r"\b(TreeNode|maxPathSum)\b", source)) and not re.search(r"\b(function|class)\s+TreeNode\b", source):
+        prelude = """function TreeNode(val, left, right) {
+    this.val = (val===undefined ? 0 : val);
+    this.left = (left===undefined ? null : left);
+    this.right = (right===undefined ? null : right);
+}
+
+"""
+        source = prelude + source
+
+    fn_names = re.findall(r'(?:var|let|const|function)\s+([a-zA-Z0-9_$]+)', source)
+    candidates = [f"(typeof {fn} === 'function' ? {fn} : null)" for fn in fn_names if fn not in ("require", "TreeNode", "_zapRun", "Solution")]
+    candidate_check = " || ".join(candidates) if candidates else "null"
+
     driver = """
 
 // ==================== ZAP AUTOMATED DRIVER HARNESS ====================
@@ -296,7 +359,11 @@ def _prepare_node_harness(source: str) -> str:
         targetFn = solution;
     }
     if (!targetFn) {
-        // Look for any function assigned in global/module scope
+        try {
+            targetFn = __CANDIDATE_CHECK__;
+        } catch (_) {}
+    }
+    if (!targetFn) {
         for (const key of Object.keys(global)) {
             if (typeof global[key] === 'function' && !key.startsWith('_')) {
                 targetFn = global[key];
@@ -339,6 +406,37 @@ def _prepare_node_harness(source: str) -> str:
         }
     }
 
+    if (typeof TreeNode === 'function' && args.length > 0) {
+        function _zapBuildTree(arr) {
+            if (!Array.isArray(arr) || arr.length === 0 || arr[0] === null || arr[0] === undefined) return null;
+            const root = new TreeNode(arr[0]);
+            const queue = [root];
+            let idx = 1;
+            while (queue.length > 0 && idx < arr.length) {
+                const node = queue.shift();
+                if (!node) continue;
+                if (idx < arr.length) {
+                    const val = arr[idx++];
+                    if (val !== null && val !== undefined) {
+                        node.left = new TreeNode(val);
+                        queue.push(node.left);
+                    }
+                }
+                if (idx < arr.length) {
+                    const val = arr[idx++];
+                    if (val !== null && val !== undefined) {
+                        node.right = new TreeNode(val);
+                        queue.push(node.right);
+                    }
+                }
+            }
+            return root;
+        }
+        if (Array.isArray(args[0])) {
+            args[0] = _zapBuildTree(args[0]);
+        }
+    }
+
     try {
         const result = targetFn.apply(null, args);
         if (result !== undefined) {
@@ -353,7 +451,7 @@ def _prepare_node_harness(source: str) -> str:
         process.exit(1);
     }
 })();
-"""
+""".replace("__CANDIDATE_CHECK__", candidate_check)
     return source + driver
 
 
@@ -364,6 +462,27 @@ def _prepare_cpp_harness(source: str) -> str:
 
     if "class Solution" not in source:
         return source
+
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\b(struct|class)\s+TreeNode\s*\{", source):
+        prelude = """#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <algorithm>
+#include <climits>
+#include <queue>
+
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+
+"""
+        source = prelude + source
 
     driver = r"""
 
@@ -433,6 +552,63 @@ int main() {
     return 0;
 }
 """
+    elif re.search(r'\bmaxPathSum\s*\(', source):
+        driver += r"""
+    // Tree node is already defined by student starter code (struct TreeNode)
+    std::string raw;
+    std::string segment;
+    while (std::getline(std::cin, segment)) {
+        if (!raw.empty()) raw += " ";
+        raw += segment;
+    }
+    // Remove brackets and commas
+    for (char &c : raw) if (c == '[' || c == ']' || c == ',') c = ' ';
+    std::stringstream ss(raw);
+    std::vector<std::string> tokens;
+    std::string tok;
+    while (ss >> tok) {
+        // Remove trailing commas
+        while (!tok.empty() && tok.back() == ',') tok.pop_back();
+        if (!tok.empty()) tokens.push_back(tok);
+    }
+    if (tokens.empty()) {
+        std::cout << 0 << std::endl;
+        return 0;
+    }
+    // Build tree from level-order
+    std::vector<TreeNode*> nodes;
+    for (auto &t : tokens) {
+        if (t == "null" || t == "None" || t == "nil") {
+            nodes.push_back(nullptr);
+        } else {
+            nodes.push_back(new TreeNode(std::stoi(t)));
+        }
+    }
+    if (nodes.empty() || !nodes[0]) {
+        std::cout << 0 << std::endl;
+        return 0;
+    }
+    std::queue<TreeNode*> q;
+    q.push(nodes[0]);
+    size_t cur = 1;
+    while (!q.empty() && cur < nodes.size()) {
+        TreeNode* parent = q.front();
+        q.pop();
+        if (!parent) continue;
+        if (cur < nodes.size()) {
+            parent->left = nodes[cur++];
+            if (parent->left) q.push(parent->left);
+        }
+        if (cur < nodes.size()) {
+            parent->right = nodes[cur++];
+            if (parent->right) q.push(parent->right);
+        }
+    }
+    int ans = sol.maxPathSum(nodes[0]);
+    std::cout << ans << std::endl;
+    return 0;
+}
+"""
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     sol.solution();
@@ -444,11 +620,25 @@ int main() {
 
     return source + driver
 
-
 def _prepare_c_harness(source: str) -> str:
     # If user provided a main function, run as-is
     if "int main" in source or "main(" in source:
         return source
+
+    if re.search(r"\bTreeNode\b", source) and not re.search(r"\bstruct\s+TreeNode\s*\{", source):
+        prelude = """#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+
+struct TreeNode {
+    int val;
+    struct TreeNode *left;
+    struct TreeNode *right;
+};
+
+"""
+        source = prelude + source
 
     driver = r"""
 
@@ -527,6 +717,69 @@ int main() {
         int total = sumArray(nums, n);
         printf("%d\n", total);
     }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxPathSum\s*\(', source):
+        driver += r"""
+    /* TreeNode is defined in student code */
+    char buf[65536];
+    int bpos = 0;
+    int ch;
+    while ((ch = fgetc(stdin)) != EOF && bpos < (int)sizeof(buf)-1) {
+        buf[bpos++] = (char)ch;
+    }
+    buf[bpos] = '\0';
+    /* Tokenize */
+    char *tokens[4096];
+    int ntokens = 0;
+    char *tp = buf;
+    while (*tp) {
+        if (*tp == '[' || *tp == ']' || *tp == ',' || *tp == ' ' || *tp == '\n' || *tp == '\r' || *tp == '\t') { tp++; continue; }
+        char *start = tp;
+        while (*tp && *tp != '[' && *tp != ']' && *tp != ',' && *tp != ' ' && *tp != '\n' && *tp != '\r' && *tp != '\t') tp++;
+        int tlen = (int)(tp - start);
+        tokens[ntokens] = (char*)malloc(tlen + 1);
+        memcpy(tokens[ntokens], start, tlen);
+        tokens[ntokens][tlen] = '\0';
+        ntokens++;
+    }
+    if (ntokens == 0) { printf("0\n"); return 0; }
+    /* Build tree */
+    struct TreeNode **tree_nodes = (struct TreeNode**)calloc(ntokens, sizeof(struct TreeNode*));
+    for (int i = 0; i < ntokens; i++) {
+        if (strcmp(tokens[i], "null") == 0 || strcmp(tokens[i], "None") == 0) {
+            tree_nodes[i] = NULL;
+        } else {
+            tree_nodes[i] = (struct TreeNode*)malloc(sizeof(struct TreeNode));
+            tree_nodes[i]->val = atoi(tokens[i]);
+            tree_nodes[i]->left = NULL;
+            tree_nodes[i]->right = NULL;
+        }
+    }
+    if (!tree_nodes[0]) {
+        printf("0\n");
+        return 0;
+    }
+    struct TreeNode **queue = (struct TreeNode**)malloc(ntokens * sizeof(struct TreeNode*));
+    int head = 0, tail = 0;
+    queue[tail++] = tree_nodes[0];
+    int cur = 1;
+    while (head < tail && cur < ntokens) {
+        struct TreeNode *parent = queue[head++];
+        if (!parent) continue;
+        if (cur < ntokens) {
+            parent->left = tree_nodes[cur++];
+            if (parent->left) queue[tail++] = parent->left;
+        }
+        if (cur < ntokens) {
+            parent->right = tree_nodes[cur++];
+            if (parent->right) queue[tail++] = parent->right;
+        }
+    }
+    free(queue);
+    int ans = maxPathSum(tree_nodes[0]);
+    printf("%d\n", ans);
     return 0;
 }
 """
@@ -677,6 +930,55 @@ def _prepare_java_harness(source: str) -> str:
             }
             return s.toCharArray();
         }
+        // TreeNode deserialization from level-order array e.g. [1,2,3,null,null,15,7]
+        if (type.getSimpleName().equals("TreeNode")) {
+            try {
+                String clean = s.trim();
+                if (clean.startsWith("[")) clean = clean.substring(1);
+                if (clean.endsWith("]")) clean = clean.substring(0, clean.length() - 1);
+                clean = clean.trim();
+                if (clean.isEmpty()) return null;
+                String[] parts = clean.split(",");
+                java.util.List<Object> nodeList = new java.util.ArrayList<>();
+                java.lang.reflect.Constructor<?> ctor = type.getDeclaredConstructor(int.class);
+                ctor.setAccessible(true);
+                for (String p : parts) {
+                    String t = p.trim();
+                    if (t.equals("null") || t.equals("None") || t.isEmpty()) {
+                        nodeList.add(null);
+                    } else {
+                        nodeList.add(ctor.newInstance(Integer.parseInt(t)));
+                    }
+                }
+                if (nodeList.isEmpty() || nodeList.get(0) == null) return null;
+                // BFS linking using queue
+                java.lang.reflect.Field leftField = type.getDeclaredField("left");
+                java.lang.reflect.Field rightField = type.getDeclaredField("right");
+                leftField.setAccessible(true);
+                rightField.setAccessible(true);
+                java.util.Queue<Object> queue = new java.util.LinkedList<>();
+                Object root = nodeList.get(0);
+                queue.add(root);
+                int idx = 1;
+                while (!queue.isEmpty() && idx < nodeList.size()) {
+                    Object node = queue.poll();
+                    if (node == null) continue;
+                    if (idx < nodeList.size()) {
+                        Object leftChild = nodeList.get(idx++);
+                        leftField.set(node, leftChild);
+                        if (leftChild != null) queue.add(leftChild);
+                    }
+                    if (idx < nodeList.size()) {
+                        Object rightChild = nodeList.get(idx++);
+                        rightField.set(node, rightChild);
+                        if (rightChild != null) queue.add(rightChild);
+                    }
+                }
+                return root;
+            } catch (Exception ex) {
+                return null;
+            }
+        }
         return s;
     }
 
@@ -706,5 +1008,24 @@ def _prepare_java_harness(source: str) -> str:
     idx = source.rfind("}")
     if idx == -1:
         return source
-    return source[:idx] + driver + source[idx:]
+
+    result = source[:idx] + driver + source[idx:]
+
+    if re.search(r"\bTreeNode\b", result) and not re.search(r"\bclass\s+TreeNode\b", result):
+        result += """
+
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+    TreeNode() {}
+    TreeNode(int val) { this.val = val; }
+    TreeNode(int val, TreeNode left, TreeNode right) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+}
+"""
+    return result
 

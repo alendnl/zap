@@ -28,6 +28,7 @@ export interface Question {
     input: string;
     output: string;
     explanation?: string;
+    image?: string;
   }>;
   constraints: string[];
   testCases: TestCase[];
