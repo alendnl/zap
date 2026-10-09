@@ -151,6 +151,7 @@ class SubmissionService:
         execution_time_ms: Optional[int] = None,
         memory_used_bytes: Optional[int] = None,
         tests: Optional[dict] = None,
+        test_results: Optional[list] = None,
         compile_output: Optional[str] = None,
         error_message: Optional[str] = None
     ) -> Optional[Submission]:
@@ -168,6 +169,8 @@ class SubmissionService:
             updates["memoryUsedBytes"] = memory_used_bytes
         if tests:
             updates["tests"] = tests
+        if test_results is not None:
+            updates["testResults"] = test_results
         if compile_output is not None:
             updates["compileOutput"] = compile_output
         if error_message is not None:

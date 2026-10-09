@@ -76,6 +76,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -95,6 +96,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
     setCode(DEFAULT_CODE[lang] || "");
     setCurrentSubmission(null);
     setErrorNotice(null);
+    setSelectedCaseIdx(0);
   }, []);
 
   const triggerExecution = useCallback(
@@ -103,6 +105,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
       cleanupPolling();
       setIsRunning(true);
       setErrorNotice(null);
+      setSelectedCaseIdx(0);
       setCurrentSubmission({ status: "QUEUED" });
 
       try {
@@ -136,6 +139,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
             if (isTerminalStatus(sub.status)) {
               cleanupPolling();
               setIsRunning(false);
+              if (sub.testResults && sub.testResults.length > 0) {
+                const firstFail = sub.testResults.findIndex((tc) => !tc.passed);
+                setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
+              }
             }
           } catch (pollErr: unknown) {
             const message = pollErr instanceof Error ? pollErr.message : "Unknown polling error.";
@@ -223,40 +230,151 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
           {/* Submission Result / Console Output Drawer */}
           {currentSubmission && currentSubmission.status && (
             <div
-              className={`border-t ${verdictStyle.border} ${verdictStyle.bg} px-5 py-3 transition-all flex-shrink-0`}
-              style={{ minHeight: "100px", maxHeight: "180px", overflowY: "auto" }}
+              className={`border-t ${verdictStyle.border} bg-slate-950/95 px-5 py-3 transition-all flex-shrink-0 flex flex-col`}
+              style={{ minHeight: "180px", maxHeight: "360px", overflowY: "auto" }}
             >
-              <div className="flex items-center gap-3 mb-1.5">
-                <span className={`text-xs font-bold uppercase tracking-wider ${verdictStyle.text}`}>
-                  {currentSubmission.verdict || currentSubmission.status}
-                </span>
-
-                {currentSubmission.executionTimeMs != null && (
-                  <span className="text-xs text-slate-400">
-                    ⏱ {currentSubmission.executionTimeMs} ms
+              {/* Top Verdict & Summary Bar */}
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${verdictStyle.border} ${verdictStyle.bg} ${verdictStyle.text}`}>
+                    {currentSubmission.verdict || currentSubmission.status}
                   </span>
-                )}
 
-                {currentSubmission.tests && (
-                  <span className="text-xs text-slate-400">
-                    Tests: {currentSubmission.tests.passed} / {currentSubmission.tests.total} passed
-                  </span>
+                  {currentSubmission.executionTimeMs != null && (
+                    <span className="text-xs text-slate-400 font-mono">
+                      ⏱ {currentSubmission.executionTimeMs} ms
+                    </span>
+                  )}
+
+                  {currentSubmission.tests && (
+                    <span className="text-xs text-slate-300 font-medium">
+                      Tests: <span className={currentSubmission.tests.passed === currentSubmission.tests.total ? "text-emerald-400" : "text-amber-400"}>{currentSubmission.tests.passed}</span> / {currentSubmission.tests.total} passed
+                    </span>
+                  )}
+                </div>
+
+                {isRunning && (
+                  <div className="flex items-center gap-1.5 text-xs text-sky-400 animate-pulse font-medium">
+                    <span className="w-2 h-2 rounded-full bg-sky-400" />
+                    Executing in sandbox...
+                  </div>
                 )}
               </div>
 
+              {/* Compile Error Output */}
               {currentSubmission.compileOutput && (
-                <pre className="font-mono text-xs text-orange-300 bg-orange-950/30 p-2 rounded border border-orange-800/40 whitespace-pre-wrap">
-                  {currentSubmission.compileOutput}
-                </pre>
+                <div className="mb-2">
+                  <div className="text-xs font-semibold text-orange-400 mb-1">Compilation Output:</div>
+                  <pre className="font-mono text-xs text-orange-300 bg-orange-950/40 p-2.5 rounded border border-orange-800/50 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {currentSubmission.compileOutput}
+                  </pre>
+                </div>
               )}
 
+              {/* System / Execution Error */}
               {currentSubmission.errorMessage && (
-                <pre className="font-mono text-xs text-rose-300 bg-rose-950/30 p-2 rounded border border-rose-800/40 whitespace-pre-wrap">
-                  {currentSubmission.errorMessage}
-                </pre>
+                <div className="mb-2">
+                  <div className="text-xs font-semibold text-rose-400 mb-1">Error Message:</div>
+                  <pre className="font-mono text-xs text-rose-300 bg-rose-950/40 p-2.5 rounded border border-rose-800/50 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {currentSubmission.errorMessage}
+                  </pre>
+                </div>
+              )}
+
+              {/* Individual Test Cases Viewer */}
+              {currentSubmission.testResults && currentSubmission.testResults.length > 0 && (
+                <div className="flex-1 flex flex-col gap-2 mt-1">
+                  {/* Test Case Tabs */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-800/60">
+                    {currentSubmission.testResults.map((tc, idx) => {
+                      const isSelected = idx === selectedCaseIdx;
+                      return (
+                        <button
+                          key={tc.id || idx}
+                          type="button"
+                          onClick={() => setSelectedCaseIdx(idx)}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all ${
+                            isSelected
+                              ? "bg-slate-800 text-white shadow-sm border border-slate-700"
+                              : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                          }`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              tc.passed ? "bg-emerald-400" : "bg-rose-500"
+                            }`}
+                          />
+                          <span>Case {idx + 1}</span>
+                          <span className={`text-[10px] uppercase font-bold ${tc.passed ? "text-emerald-400" : "text-rose-400"}`}>
+                            ({tc.status})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Test Case Detail */}
+                  {currentSubmission.testResults[selectedCaseIdx] && (() => {
+                    const activeCase = currentSubmission.testResults[selectedCaseIdx];
+                    return (
+                      <div className="flex flex-col gap-2.5 pt-1">
+                        {/* Input */}
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-400 mb-1">Input:</div>
+                          <pre className="bg-slate-900 border border-slate-800 p-2 rounded text-xs font-mono text-slate-200 whitespace-pre-wrap">
+                            {activeCase.input != null ? activeCase.input : "(Hidden Test Case)"}
+                          </pre>
+                        </div>
+
+                        {/* Expected Output vs Actual Output Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {/* Expected Output */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-slate-400 mb-1">Expected Output:</div>
+                            <pre className="bg-slate-900 border border-slate-800 p-2 rounded text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+                              {activeCase.expectedOutput != null ? activeCase.expectedOutput : "(Hidden Test Case)"}
+                            </pre>
+                          </div>
+
+                          {/* Your Output */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                              <span>Your Output:</span>
+                              <span className={`text-[10px] font-bold ${activeCase.passed ? "text-emerald-400" : "text-rose-400"}`}>
+                                {activeCase.passed ? "MATCH" : "DIFF"}
+                              </span>
+                            </div>
+                            <pre
+                              className={`bg-slate-900 border p-2 rounded text-xs font-mono whitespace-pre-wrap ${
+                                activeCase.passed
+                                  ? "border-emerald-800/40 text-emerald-300"
+                                  : "border-rose-800/40 text-rose-300"
+                              }`}
+                            >
+                              {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
+                                ? activeCase.actualOutput
+                                : "(No stdout printed)"}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {/* Error or Diagnostics */}
+                        {activeCase.error && (
+                          <div>
+                            <div className="text-[11px] font-semibold text-rose-400 mb-1">Diagnostics / Stderr:</div>
+                            <pre className="bg-rose-950/30 border border-rose-800/40 text-rose-300 p-2 rounded text-xs font-mono whitespace-pre-wrap">
+                              {activeCase.error}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               )}
             </div>
           )}
+
         </div>
       </div>
     </div>

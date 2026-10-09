@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from app.config import get_settings
 from app.db.mongodb import get_database_for_env
-from app.submissions.models import SubmissionStatus, SubmissionVerdict
+from app.submissions.models import SubmissionStatus, SubmissionVerdict, SubmissionMode
 from app.submissions.queue import get_queue_for_env
 from app.submissions.service import SubmissionService
 from executor.languages import get_runner
@@ -231,18 +231,34 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
     )
 
     judge = JudgeEngine()
+    is_run_mode = getattr(submission, "mode", None) in [SubmissionMode.RUN, "RUN"]
     return judge.judge(
         runner=runner,
         source_code=submission.sourceCode,
         test_cases=[tc.model_dump() for tc in enabled_test_cases],
         limits=limits,
         submission_id=submission_id,
-        fail_fast=True,
+        fail_fast=not is_run_mode,
     )
 
 
 def _persist_result(service: SubmissionService, submission_id: str, result) -> None:
     """Stores the judge result in MongoDB."""
+    test_results_data = []
+    if hasattr(result, "test_results") and result.test_results:
+        for tr in result.test_results:
+            test_results_data.append({
+                "id": tr.id,
+                "visibility": tr.visibility,
+                "passed": tr.passed,
+                "status": tr.status,
+                "executionTimeMs": tr.execution_time_ms,
+                "input": tr.input,
+                "expectedOutput": tr.expected_output,
+                "actualOutput": tr.actual_output,
+                "error": tr.error,
+            })
+
     service.update_submission_status(
         submission_id=submission_id,
         status=SubmissionStatus.FAILED if result.verdict == "SYSTEM_ERROR" else SubmissionStatus.COMPLETED,
@@ -254,6 +270,7 @@ def _persist_result(service: SubmissionService, submission_id: str, result) -> N
             "passed": result.passed_tests,
             "failed": result.failed_tests,
         },
+        test_results=test_results_data,
         compile_output=result.compile_output,
         error_message=result.error_message,
     )

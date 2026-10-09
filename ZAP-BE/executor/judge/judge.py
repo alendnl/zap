@@ -12,6 +12,7 @@ class TestCaseResult:
     passed: bool
     status: str
     execution_time_ms: int = 0
+    input: Optional[str] = None
     actual_output: Optional[str] = None
     expected_output: Optional[str] = None
     error: Optional[str] = None
@@ -97,6 +98,9 @@ class JudgeEngine:
                         passed=False,
                         status="TIME_LIMIT_EXCEEDED",
                         execution_time_ms=run_res.execution_time_ms,
+                        input=stdin_input if visibility == "PUBLIC" else None,
+                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
                         error="Execution timed out."
                     ))
                     if fail_fast:
@@ -113,6 +117,9 @@ class JudgeEngine:
                         passed=False,
                         status="OUTPUT_LIMIT_EXCEEDED",
                         execution_time_ms=run_res.execution_time_ms,
+                        input=stdin_input if visibility == "PUBLIC" else None,
+                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
                         error="Output size limit exceeded."
                     ))
                     if fail_fast:
@@ -129,6 +136,9 @@ class JudgeEngine:
                         passed=False,
                         status="RUNTIME_ERROR",
                         execution_time_ms=run_res.execution_time_ms,
+                        input=stdin_input if visibility == "PUBLIC" else None,
+                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
                         error=run_res.stderr or f"Non-zero exit code: {run_res.exit_code}"
                     ))
                     if fail_fast:
@@ -148,6 +158,7 @@ class JudgeEngine:
                         passed=True,
                         status="PASSED",
                         execution_time_ms=run_res.execution_time_ms,
+                        input=stdin_input if visibility == "PUBLIC" else None,
                         actual_output=actual_norm if visibility == "PUBLIC" else None,
                         expected_output=expected_norm if visibility == "PUBLIC" else None
                     ))
@@ -160,6 +171,7 @@ class JudgeEngine:
                         passed=False,
                         status="WRONG_ANSWER",
                         execution_time_ms=run_res.execution_time_ms,
+                        input=stdin_input if visibility == "PUBLIC" else None,
                         actual_output=actual_norm if visibility == "PUBLIC" else None,
                         expected_output=expected_norm if visibility == "PUBLIC" else None
                     ))

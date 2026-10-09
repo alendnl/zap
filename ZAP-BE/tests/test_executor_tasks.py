@@ -79,6 +79,11 @@ def test_execute_task_accepts_submission():
     assert sub["status"] == SubmissionStatus.COMPLETED.value
     assert sub["verdict"] == SubmissionVerdict.ACCEPTED.value
     assert sub["tests"]["passed"] == 1
+    assert len(sub["testResults"]) == 1
+    assert sub["testResults"][0]["passed"] is True
+    assert sub["testResults"][0]["input"] == "2 3"
+    assert sub["testResults"][0]["expectedOutput"] == "5"
+    assert sub["testResults"][0]["actualOutput"] == "5"
 
 
 def test_execute_task_missing_submission_id():

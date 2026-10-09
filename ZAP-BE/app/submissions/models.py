@@ -35,6 +35,18 @@ class SubmissionTestsSummary(BaseModel):
     failed: int = 0
 
 
+class SubmissionTestCaseResult(BaseModel):
+    id: str
+    visibility: str = "PUBLIC"
+    passed: bool
+    status: str
+    executionTimeMs: int = 0
+    input: Optional[str] = None
+    expectedOutput: Optional[str] = None
+    actualOutput: Optional[str] = None
+    error: Optional[str] = None
+
+
 class SubmissionCreateRequest(BaseModel):
     questionId: str
     language: str
@@ -62,6 +74,7 @@ class Submission(BaseModel):
     executionTimeMs: Optional[int] = None
     memoryUsedBytes: Optional[int] = None
     tests: SubmissionTestsSummary = Field(default_factory=SubmissionTestsSummary)
+    testResults: list[SubmissionTestCaseResult] = Field(default_factory=list)
     compileOutput: Optional[str] = None
     errorCode: Optional[str] = None
     errorMessage: Optional[str] = None

@@ -39,6 +39,18 @@ export interface SubmissionTestsSummary {
   failed: number;
 }
 
+export interface SubmissionTestCaseResult {
+  id: string;
+  visibility: "PUBLIC" | "HIDDEN" | string;
+  passed: boolean;
+  status: string;
+  executionTimeMs?: number;
+  input?: string | null;
+  expectedOutput?: string | null;
+  actualOutput?: string | null;
+  error?: string | null;
+}
+
 export interface Submission {
   id: string;
   userId: string;
@@ -50,6 +62,7 @@ export interface Submission {
   executionTimeMs?: number;
   memoryUsedBytes?: number;
   tests: SubmissionTestsSummary;
+  testResults?: SubmissionTestCaseResult[];
   compileOutput?: string;
   errorMessage?: string;
   createdAt: string;
