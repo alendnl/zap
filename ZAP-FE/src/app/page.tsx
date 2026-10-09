@@ -22,7 +22,7 @@ import { questionsApi } from "@/services/questionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
-import { AuthModal } from "@/components/AuthModal";
+import { StudentAuthView } from "@/components/StudentAuthView";
 import type { Student } from "@/types/auth";
 import type { Question, QuestionSummary, Difficulty } from "@/types/question";
 
@@ -60,51 +60,42 @@ export default function Home() {
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Student Authentication
-  const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+  // Student Authentication Gate
+  const [isAuthInitializing, setIsAuthInitializing] = useState(true);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [intendedProblem, setIntendedProblem] = useState<string | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
+  // Check stored session & URL query params on mount
   useEffect(() => {
-    const handleAuthChange = () => setStudent(getStoredStudent());
-    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    const stored = getStoredStudent();
+    setStudent(stored);
+    setIsAuthInitializing(false);
+
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const problemParam = urlParams.get("problem") || urlParams.get("id");
+      if (problemParam) {
+        setIntendedProblem(problemParam);
+      }
+    }
   }, []);
 
-  const loadQuestionList = useCallback(async () => {
-    setLoadingList(true);
-    setError(null);
-    try {
-      const list = await questionsApi.list("PUBLISHED", true);
-      setQuestions(list || []);
-
-      // Check URL parameters for direct link to problem
-      if (typeof window !== "undefined") {
-        const urlParams = new URLSearchParams(window.location.search);
-        const problemParam = urlParams.get("problem") || urlParams.get("id");
-        if (problemParam) {
-          const match = (list || []).find(
-            (q) => q.id === problemParam || q.slug === problemParam
-          );
-          if (match) {
-            void openQuestion(match.id);
-          }
-        }
+  // Sync auth state across tabs and logouts
+  useEffect(() => {
+    const handleAuthChange = () => {
+      const current = getStoredStudent();
+      setStudent(current);
+      if (!current) {
+        setSelectedQuestion(null);
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Could not load questions. Check your backend or environment setting."
-      );
-    } finally {
-      setLoadingList(false);
-    }
+    };
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
   }, []);
 
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
@@ -129,8 +120,40 @@ export default function Home() {
     }
   }, []);
 
+  const loadQuestionList = useCallback(async () => {
+    setLoadingList(true);
+    setError(null);
+    try {
+      const list = await questionsApi.list("PUBLISHED", true);
+      setQuestions(list || []);
+
+      // If user came with a problem link and is authenticated, open it
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const problemParam = urlParams.get("problem") || urlParams.get("id");
+        if (problemParam) {
+          const match = (list || []).find(
+            (q) => q.id === problemParam || q.slug === problemParam
+          );
+          if (match) {
+            void openQuestion(match.id);
+          }
+        }
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not load questions. Check your backend or environment setting."
+      );
+    } finally {
+      setLoadingList(false);
+    }
+  }, [openQuestion]);
+
   const handleBackToCatalog = useCallback(() => {
     setSelectedQuestion(null);
+    setIntendedProblem(null);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("problem");
@@ -140,12 +163,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    void loadQuestionList();
+    if (student) {
+      void loadQuestionList();
+    }
     window.addEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestionList);
     return () => {
       window.removeEventListener(ENVIRONMENT_CHANGE_EVENT, loadQuestionList);
     };
-  }, [loadQuestionList]);
+  }, [student, loadQuestionList]);
 
   // Unique tags for filter pills
   const allTags = useMemo(() => {
@@ -186,7 +211,36 @@ export default function Home() {
     return counts;
   }, [questions]);
 
-  // If a question is actively open, render the StudentWorkspace
+  // 1. Initializing auth state from localStorage
+  if (isAuthInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 font-black text-xl animate-pulse">
+            Z
+          </div>
+          <p className="text-xs text-slate-400 font-medium">Initializing ZAP Arena…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated Gate: Show Student Sign In / Sign Up
+  if (!student) {
+    return (
+      <StudentAuthView
+        intendedProblemSlug={intendedProblem}
+        onSuccess={(authenticatedStudent) => {
+          setStudent(authenticatedStudent);
+          if (intendedProblem) {
+            void openQuestion(intendedProblem);
+          }
+        }}
+      />
+    );
+  }
+
+  // 3. Authenticated: Render StudentWorkspace if problem is open
   if (selectedQuestion) {
     return (
       <StudentWorkspace
@@ -217,52 +271,27 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            {student ? (
-              <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
-                <div className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center text-xs">
-                  {student.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden sm:flex flex-col text-left">
-                  <span className="font-semibold text-slate-200 text-xs leading-tight">
-                    {student.name}
-                  </span>
-                  <span className="text-[10px] text-slate-400 leading-tight">
-                    {student.studentId} · {student.collegeName}
-                  </span>
-                </div>
-                <button
-                  onClick={() => authApi.logout()}
-                  title="Sign Out"
-                  type="button"
-                  className="ml-2 text-slate-400 hover:text-rose-400 p-1 rounded transition-colors"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
+            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+              <div className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center text-xs">
+                {student.name.charAt(0).toUpperCase()}
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setAuthModalMode("login");
-                    setAuthModalOpen(true);
-                  }}
-                  type="button"
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthModalMode("signup");
-                    setAuthModalOpen(true);
-                  }}
-                  type="button"
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 shadow-sm transition-colors"
-                >
-                  Sign Up
-                </button>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="font-semibold text-slate-200 text-xs leading-tight">
+                  {student.name}
+                </span>
+                <span className="text-[10px] text-slate-400 leading-tight">
+                  {student.studentId} · {student.collegeName}
+                </span>
               </div>
-            )}
+              <button
+                onClick={() => authApi.logout()}
+                title="Sign Out"
+                type="button"
+                className="ml-2 text-slate-400 hover:text-rose-400 p-1 rounded transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <EnvironmentSwitcher />
           </div>
         </div>
@@ -503,13 +532,6 @@ export default function Home() {
           </div>
         )}
       </main>
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onSuccess={(std) => setStudent(std)}
-        initialMode={authModalMode}
-      />
     </div>
   );
 }

@@ -113,6 +113,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
   const triggerExecution = useCallback(
     async (mode: SubmissionMode) => {
       if (isRunning) return;
+      if (!student) {
+        setErrorNotice("Please sign in to execute code.");
+        setAuthModalOpen(true);
+        return;
+      }
       cleanupPolling();
       setIsRunning(true);
       setErrorNotice(null);
@@ -233,7 +238,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                 </span>
               </div>
               <button
-                onClick={() => authApi.logout()}
+                onClick={() => {
+                  authApi.logout();
+                  onBackToCatalog();
+                }}
                 title="Sign Out"
                 type="button"
                 className="ml-1 text-slate-400 hover:text-rose-400 p-0.5"

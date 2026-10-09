@@ -65,7 +65,16 @@ def test_student_signup_and_login():
     })
     assert bad_login.status_code == 401
 
-    # 6. Profile lookup
+    # 6. Login using Student ID instead of email
+    id_login_res = client.post("/api/v1/auth/login", json={
+        "email": "CS-2026-001",
+        "password": "secretpassword123",
+    })
+    assert id_login_res.status_code == 200
+    assert id_login_res.json()["student"]["email"] == "jane.doe@stanford.edu"
+
+    # 7. Profile lookup
     profile_res = client.get("/api/v1/auth/profile?student_id=CS-2026-001")
     assert profile_res.status_code == 200
     assert profile_res.json()["name"] == "Jane Doe"
+

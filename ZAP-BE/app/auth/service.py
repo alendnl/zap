@@ -92,23 +92,29 @@ class AuthService:
         return profile, token
 
     def login(self, req: StudentLoginRequest) -> Tuple[StudentProfile, str]:
-        email_clean = req.email.strip().lower()
+        ident = req.email.strip()
+        ident_lower = ident.lower()
         coll = self._get_collection()
         user_doc = None
 
         if coll is not None:
-            user_doc = coll.find_one({"email": email_clean})
+            user_doc = coll.find_one({
+                "$or": [
+                    {"email": ident_lower},
+                    {"studentId": ident},
+                ]
+            })
         else:
             for u in self._memory_users.values():
-                if u.get("email") == email_clean:
+                if u.get("email") == ident_lower or u.get("studentId") == ident:
                     user_doc = u
                     break
 
         if not user_doc:
-            raise ValueError("Invalid email or password.")
+            raise ValueError("Invalid email/ID or password.")
 
         if not verify_password(req.password, user_doc.get("passwordHash", "")):
-            raise ValueError("Invalid email or password.")
+            raise ValueError("Invalid email/ID or password.")
 
         token = f"tok-{secrets.token_urlsafe(32)}"
         profile = StudentProfile(
