@@ -27,12 +27,7 @@ jobs:
         run: pip install -r ZAP-BE/requirements.txt
       - name: Run backend tests
         working-directory: ZAP-BE
-        run: |
-          python -m pytest --collect-only 2>&1 | grep -A 10 "ERROR collecting" > /tmp/err.txt || true
-          while IFS= read -r line; do
-            echo "::error::$line"
-          done < /tmp/err.txt
-          python -m pytest -v
+        run: python -m pytest -v
 
   frontend-tests:
     name: Frontend Build & Test

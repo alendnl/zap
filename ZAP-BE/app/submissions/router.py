@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.db.mongodb import get_database, get_request_environment
