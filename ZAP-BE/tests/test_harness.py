@@ -122,3 +122,56 @@ class Solution:
     assert result.test_results[0].actual_output == "Testing"
     assert result.test_results[1].actual_output == "Testing"
 
+
+def test_harness_java_two_sum():
+    runner = get_runner("java")
+    judge = JudgeEngine()
+
+    code = """
+import java.util.*;
+
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        Map<Integer, Integer> map = new HashMap<>();
+        for (int i = 0; i < nums.length; i++) {
+            int comp = target - nums[i];
+            if (map.containsKey(comp)) {
+                return new int[]{map.get(comp), i};
+            }
+            map.put(nums[i], i);
+        }
+        return new int[]{};
+    }
+}
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "[2, 7, 11, 15]\n9", "expectedOutput": "[0, 1]", "enabled": True},
+        {"id": "tc2", "visibility": "PUBLIC", "input": "[3, 2, 4]\n6", "expectedOutput": "[1, 2]", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 2
+    assert result.failed_tests == 0
+
+
+def test_harness_java_zero_arg():
+    runner = get_runner("java")
+    judge = JudgeEngine()
+
+    code = """
+class Solution {
+    public void solution() {
+        System.out.println("Java OK");
+    }
+}
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "", "expectedOutput": "Java OK", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+

@@ -322,11 +322,253 @@ def _prepare_cpp_harness(source: str) -> str:
     # If user provided a main function, run as-is
     if "int main" in source or "main(" in source:
         return source
-    return source
+
+    if "class Solution" not in source:
+        return source
+
+    driver = r"""
+
+// ==================== ZAP AUTOMATED DRIVER HARNESS ====================
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+
+int main() {
+    Solution sol;
+"""
+    if re.search(r'\btwoSum\s*\(', source):
+        driver += r"""
+    std::string line1, line2;
+    if (std::getline(std::cin, line1) && std::getline(std::cin, line2)) {
+        for (char &c : line1) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss1(line1);
+        std::vector<int> nums;
+        int n;
+        while (ss1 >> n) nums.push_back(n);
+        int target = std::stoi(line2);
+        std::vector<int> res = sol.twoSum(nums, target);
+        std::cout << "[";
+        for (size_t i = 0; i < res.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << res[i];
+        }
+        std::cout << "]" << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\breverseString\s*\(', source):
+        driver += r"""
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        std::vector<char> chars;
+        for (char c : line) {
+            if (c != '[' && c != ']' && c != ',' && c != '\"' && c != '\'' && c != ' ') {
+                chars.push_back(c);
+            }
+        }
+        sol.reverseString(chars);
+        std::cout << "[";
+        for (size_t i = 0; i < chars.size(); ++i) {
+            if (i > 0) std::cout << ",";
+            std::cout << "\"" << chars[i] << "\"";
+        }
+        std::cout << "]" << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsumArray\s*\(', source):
+        driver += r"""
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        for (char &c : line) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss(line);
+        std::vector<int> nums;
+        int val;
+        while (ss >> val) nums.push_back(val);
+        int total = sol.sumArray(nums);
+        std::cout << total << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsolution\s*\(', source):
+        driver += r"""
+    sol.solution();
+    return 0;
+}
+"""
+    else:
+        return source
+
+    return source + driver
 
 
 def _prepare_java_harness(source: str) -> str:
     # If user provided main, run as-is
     if "static void main" in source:
         return source
-    return source
+
+    if "class Solution" not in source:
+        return source
+
+    driver = r"""
+    // ==================== ZAP AUTOMATED DRIVER HARNESS ====================
+    public static void main(String[] args) {
+        try {
+            _zapDriverRun();
+        } catch (Throwable t) {
+            t.printStackTrace(System.err);
+            System.exit(1);
+        }
+    }
+
+    private static void _zapDriverRun() throws Exception {
+        java.lang.reflect.Method target = null;
+        for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {
+            if (!m.getName().equals("main") && !m.getName().startsWith("_zap") && !m.isSynthetic()) {
+                target = m;
+                break;
+            }
+        }
+        if (target == null) return;
+        target.setAccessible(true);
+        Solution instance = new Solution();
+
+        java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line).append("\n");
+        }
+        String rawStdin = sb.toString().trim();
+
+        Class<?>[] paramTypes = target.getParameterTypes();
+        if (paramTypes.length == 0) {
+            Object res = target.invoke(instance);
+            _zapPrint(res);
+            return;
+        }
+
+        Object[] invokedArgs = _zapParseArgs(rawStdin, paramTypes);
+        Object res = target.invoke(instance, invokedArgs);
+
+        if (target.getReturnType().equals(void.class)) {
+            if (invokedArgs.length > 0 && invokedArgs[0] != null) {
+                _zapPrint(invokedArgs[0]);
+            }
+        } else {
+            _zapPrint(res);
+        }
+    }
+
+    private static Object[] _zapParseArgs(String raw, Class<?>[] types) {
+        Object[] args = new Object[types.length];
+        if (types.length == 1) {
+            args[0] = _zapParseSingle(raw, types[0]);
+            return args;
+        }
+
+        String[] lines = raw.split("\r?\n");
+        if (lines.length >= types.length) {
+            for (int i = 0; i < types.length; i++) {
+                args[i] = _zapParseSingle(lines[i].trim(), types[i]);
+            }
+            return args;
+        }
+
+        String[] tokens = raw.trim().split("\\s+");
+        if (tokens.length >= types.length) {
+            for (int i = 0; i < types.length; i++) {
+                args[i] = _zapParseSingle(tokens[i].trim(), types[i]);
+            }
+            return args;
+        }
+
+        return args;
+    }
+
+    private static Object _zapParseSingle(String s, Class<?> type) {
+        if (s == null) return null;
+        s = s.trim();
+
+        if (type.equals(int.class) || type.equals(Integer.class)) {
+            return Integer.parseInt(s.replaceAll("[^0-9-]", ""));
+        }
+        if (type.equals(long.class) || type.equals(Long.class)) {
+            return Long.parseLong(s.replaceAll("[^0-9-]", ""));
+        }
+        if (type.equals(double.class) || type.equals(Double.class)) {
+            return Double.parseDouble(s);
+        }
+        if (type.equals(boolean.class) || type.equals(Boolean.class)) {
+            return Boolean.parseBoolean(s);
+        }
+        if (type.equals(String.class)) {
+            if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
+                return s.substring(1, s.length() - 1);
+            }
+            return s;
+        }
+        if (type.equals(int[].class)) {
+            if (s.startsWith("[")) s = s.substring(1);
+            if (s.endsWith("]")) s = s.substring(0, s.length() - 1);
+            s = s.trim();
+            if (s.isEmpty()) return new int[0];
+            String[] parts = s.split("[,\\s]+");
+            java.util.List<Integer> list = new java.util.ArrayList<>();
+            for (String p : parts) {
+                String token = p.trim();
+                if (!token.isEmpty()) list.add(Integer.parseInt(token));
+            }
+            int[] arr = new int[list.size()];
+            for (int i = 0; i < list.size(); i++) arr[i] = list.get(i);
+            return arr;
+        }
+        if (type.equals(char[].class)) {
+            if (s.startsWith("[") && s.endsWith("]")) {
+                String clean = s.substring(1, s.length() - 1).trim();
+                if (clean.isEmpty()) return new char[0];
+                String[] parts = clean.split(",");
+                char[] arr = new char[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    String p = parts[i].trim().replace("\"", "").replace("'", "");
+                    arr[i] = p.length() > 0 ? p.charAt(0) : ' ';
+                }
+                return arr;
+            }
+            return s.toCharArray();
+        }
+        return s;
+    }
+
+    private static void _zapPrint(Object val) {
+        if (val == null) return;
+        if (val instanceof boolean[] || val instanceof Boolean) {
+            System.out.println(val.toString().toLowerCase());
+        } else if (val instanceof int[]) {
+            System.out.println(java.util.Arrays.toString((int[]) val));
+        } else if (val instanceof char[]) {
+            char[] ca = (char[]) val;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < ca.length; i++) {
+                if (i > 0) sb.append(",");
+                sb.append("\"").append(ca[i]).append("\"");
+            }
+            sb.append("]");
+            System.out.println(sb.toString());
+        } else if (val instanceof Object[]) {
+            System.out.println(java.util.Arrays.deepToString((Object[]) val));
+        } else {
+            System.out.println(val.toString());
+        }
+    }
+"""
+
+    idx = source.rfind("}")
+    if idx == -1:
+        return source
+    return source[:idx] + driver + source[idx:]
+
