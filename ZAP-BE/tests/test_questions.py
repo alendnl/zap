@@ -76,10 +76,24 @@ def test_create_and_get_question():
     assert get_slug_res.status_code == 200
     assert get_slug_res.json()["id"] == q_id
 
-    # List questions
+    # List questions (summary by default)
     list_res = client.get("/api/v1/questions")
     assert list_res.status_code == 200
-    assert len(list_res.json()) >= 1
+    items = list_res.json()
+    assert len(items) >= 1
+    first = items[0]
+    assert "title" in first
+    assert "slug" in first
+    assert "difficulty" in first
+    assert "tags" in first
+    assert "testCasesCount" in first
+    assert "statement" not in first
+    assert "solutions" not in first
+
+    # Full list query
+    full_list_res = client.get("/api/v1/questions?summary=false")
+    assert full_list_res.status_code == 200
+    assert "statement" in full_list_res.json()[0]
 
     # Update question
     update_res = client.put(f"/api/v1/questions/{q_id}", json={"title": "Two Sum Updated"})

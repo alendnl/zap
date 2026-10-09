@@ -1,16 +1,27 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
+from app.db.mongodb import get_database_for_env
 from app.questions.router import router as questions_router
 from app.submissions.router import router as submissions_router
 
 settings = get_settings()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        get_database_for_env(settings.DEFAULT_ENVIRONMENT)
+    except Exception:
+        pass
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS configuration

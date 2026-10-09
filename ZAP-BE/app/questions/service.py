@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime, timezone
-from app.questions.models import Question, QuestionCreate, QuestionUpdate
+from app.questions.models import Question, QuestionCreate, QuestionUpdate, QuestionSummary
 
 
 class QuestionService:
@@ -46,13 +46,33 @@ class QuestionService:
                 return Question(**clean)
         return None
 
-    def list_questions(self, status: Optional[str] = None) -> List[Question]:
+    def list_questions(self, status: Optional[str] = None, summary: bool = True) -> list:
         coll = self._get_collection()
         questions = []
         if coll is not None:
             query = {}
             if status:
                 query["status"] = status
+            if summary:
+                projection = {
+                    "_id": 0,
+                    "id": 1,
+                    "slug": 1,
+                    "title": 1,
+                    "difficulty": 1,
+                    "tags": 1,
+                    "status": 1,
+                    "version": 1,
+                    "supportedLanguages": 1,
+                    "testCases": 1,
+                }
+                cursor = coll.find(query, projection)
+                for doc in cursor:
+                    doc["testCasesCount"] = len(doc.get("testCases", []))
+                    doc.pop("testCases", None)
+                    questions.append(QuestionSummary(**doc))
+                return questions
+
             cursor = coll.find(query)
             for doc in cursor:
                 doc.pop("_id", None)
@@ -64,7 +84,12 @@ class QuestionService:
                 continue
             clean = dict(item)
             clean.pop("_id", None)
-            questions.append(Question(**clean))
+            if summary:
+                clean["testCasesCount"] = len(clean.get("testCases", []))
+                clean.pop("testCases", None)
+                questions.append(QuestionSummary(**clean))
+            else:
+                questions.append(Question(**clean))
         return questions
 
     def update_question(self, question_id: str, data: QuestionUpdate) -> Optional[Question]:

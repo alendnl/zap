@@ -61,6 +61,30 @@ def test_judge_compile_error():
     assert result.compile_output is not None
 
 
+def test_judge_runs_all_test_cases_without_fail_fast():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    # Always prints 5
+    code = "print(5)"
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "2 3", "expectedOutput": "5", "enabled": True},
+        {"id": "tc2", "visibility": "PUBLIC", "input": "10 20", "expectedOutput": "30", "enabled": True},
+        {"id": "tc3", "visibility": "PUBLIC", "input": "2 3", "expectedOutput": "5", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases, submission_id="judge-test-all", fail_fast=False)
+    assert result.verdict == "WRONG_ANSWER"
+    assert result.passed_tests == 2
+    assert result.failed_tests == 1
+    # All 3 test cases were evaluated
+    assert len(result.test_results) == 3
+    assert result.test_results[0].passed is True
+    assert result.test_results[1].passed is False
+    assert result.test_results[2].passed is True
+
+
+
 def test_execution_worker():
     queue = MemoryExecutionQueue()
     history = []

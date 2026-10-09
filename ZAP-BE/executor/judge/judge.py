@@ -51,7 +51,7 @@ class JudgeEngine:
         limits: Optional[ExecutionLimits] = None,
         submission_id: str = "judge-exec",
         base_dir: Optional[Path] = None,
-        fail_fast: bool = True
+        fail_fast: bool = False
     ) -> JudgeResult:
         sandbox = Sandbox(submission_id, base_dir=base_dir, limits=limits)
         limits = sandbox.limits
@@ -80,6 +80,19 @@ class JudgeEngine:
             test_results: List[TestCaseResult] = []
             final_verdict = "ACCEPTED"
 
+            verdict_severity = {
+                "ACCEPTED": 0,
+                "WRONG_ANSWER": 1,
+                "OUTPUT_LIMIT_EXCEEDED": 2,
+                "TIME_LIMIT_EXCEEDED": 3,
+                "RUNTIME_ERROR": 4,
+            }
+
+            def record_failure(status_name: str):
+                nonlocal final_verdict
+                if verdict_severity.get(status_name, 1) >= verdict_severity.get(final_verdict, 0):
+                    final_verdict = status_name
+
             # 3. Execute test cases
             for tc in enabled_tests:
                 tc_id = tc.get("id", "tc-anon")
@@ -93,7 +106,7 @@ class JudgeEngine:
                 # Check timeouts
                 if run_res.timed_out:
                     failed += 1
-                    final_verdict = "TIME_LIMIT_EXCEEDED"
+                    record_failure("TIME_LIMIT_EXCEEDED")
                     test_results.append(TestCaseResult(
                         id=tc_id,
                         visibility=visibility,
@@ -112,7 +125,7 @@ class JudgeEngine:
                 # Check output limit
                 if run_res.output_limit_exceeded:
                     failed += 1
-                    final_verdict = "OUTPUT_LIMIT_EXCEEDED"
+                    record_failure("OUTPUT_LIMIT_EXCEEDED")
                     test_results.append(TestCaseResult(
                         id=tc_id,
                         visibility=visibility,
@@ -131,7 +144,7 @@ class JudgeEngine:
                 # Check runtime error
                 if run_res.exit_code != 0:
                     failed += 1
-                    final_verdict = "RUNTIME_ERROR"
+                    record_failure("RUNTIME_ERROR")
                     test_results.append(TestCaseResult(
                         id=tc_id,
                         visibility=visibility,
@@ -166,7 +179,7 @@ class JudgeEngine:
                     ))
                 else:
                     failed += 1
-                    final_verdict = "WRONG_ANSWER"
+                    record_failure("WRONG_ANSWER")
                     test_results.append(TestCaseResult(
                         id=tc_id,
                         visibility=visibility,

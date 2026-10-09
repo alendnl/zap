@@ -105,3 +105,20 @@ class Question(QuestionBase):
     updatedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class QuestionSummary(BaseModel):
+    id: str
+    slug: str
+    title: str
+    difficulty: DifficultyLevel = DifficultyLevel.EASY
+    tags: List[str] = Field(default_factory=list)
+    status: QuestionStatus = QuestionStatus.PUBLISHED
+    version: int = 1
+    testCasesCount: int = 0
+    supportedLanguages: List[str] = Field(
+        default_factory=lambda: ["python", "java", "cpp", "node"]
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+

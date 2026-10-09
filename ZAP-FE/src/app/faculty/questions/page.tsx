@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { questionsApi } from "@/services/questionsApi";
-import type { Question } from "@/types/question";
+import type { QuestionSummary } from "@/types/question";
 
 const DIFFICULTY_BADGE: Record<string, string> = {
   EASY: "text-emerald-400 bg-emerald-950/70 border-emerald-800/60",
@@ -19,7 +19,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function FacultyDashboard() {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,7 +106,7 @@ export default function FacultyDashboard() {
                 </div>
                 <h2 className="text-base font-semibold text-slate-100 truncate">{q.title}</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  v{q.version} · {q.testCases.length} test cases · {q.supportedLanguages.join(", ")}
+                  v{q.version} · {q.testCasesCount ?? 0} test cases · {(q.supportedLanguages ?? []).join(", ")}
                 </p>
               </div>
 

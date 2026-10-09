@@ -232,13 +232,23 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
 
     judge = JudgeEngine()
     is_run_mode = getattr(submission, "mode", None) in [SubmissionMode.RUN, "RUN"]
+    if is_run_mode:
+        tests_to_judge = [
+            tc for tc in enabled_test_cases
+            if getattr(tc, "visibility", None) in [TestCaseVisibility.PUBLIC, "PUBLIC"]
+        ]
+        if not tests_to_judge:
+            tests_to_judge = enabled_test_cases
+    else:
+        tests_to_judge = enabled_test_cases
+
     return judge.judge(
         runner=runner,
         source_code=submission.sourceCode,
-        test_cases=[tc.model_dump() for tc in enabled_test_cases],
+        test_cases=[tc.model_dump() for tc in tests_to_judge],
         limits=limits,
         submission_id=submission_id,
-        fail_fast=not is_run_mode,
+        fail_fast=False,
     )
 
 

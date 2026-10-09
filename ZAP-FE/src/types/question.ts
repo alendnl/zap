@@ -38,5 +38,17 @@ export interface Question {
   version: number;
 }
 
+export interface QuestionSummary {
+  id: string;
+  slug: string;
+  title: string;
+  difficulty: Difficulty;
+  tags: string[];
+  status: QuestionStatus;
+  version: number;
+  testCasesCount?: number;
+  supportedLanguages?: string[];
+}
 
 export type QuestionFormData = Omit<Question, "id" | "version">;
+

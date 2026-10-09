@@ -1,7 +1,7 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional, Union
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.db.mongodb import get_database
-from app.questions.models import Question, QuestionCreate, QuestionUpdate
+from app.questions.models import Question, QuestionCreate, QuestionUpdate, QuestionSummary
 from app.questions.service import QuestionService
 
 router = APIRouter(prefix="", tags=["questions"])
@@ -9,13 +9,14 @@ router = APIRouter(prefix="", tags=["questions"])
 def get_question_service(db = Depends(get_database)) -> QuestionService:
     return QuestionService(db)
 
-@router.get("/questions", response_model=List[Question])
-@router.get("/api/v1/questions", response_model=List[Question])
+@router.get("/questions", response_model=Union[List[QuestionSummary], List[Question]])
+@router.get("/api/v1/questions", response_model=Union[List[QuestionSummary], List[Question]])
 def list_questions(
     status: Optional[str] = None,
+    summary: bool = Query(True, description="Return lightweight summaries without statements or test cases"),
     service: QuestionService = Depends(get_question_service)
 ):
-    return service.list_questions(status=status)
+    return service.list_questions(status=status, summary=summary)
 
 @router.get("/questions/{question_id}", response_model=Question)
 @router.get("/api/v1/questions/{question_id}", response_model=Question)

@@ -1,5 +1,4 @@
-// Faculty Question API client — wired to ZAP-BE REST endpoints (ISSUE-005)
-import { Question, QuestionFormData } from "@/types/question";
+import { Question, QuestionFormData, QuestionSummary } from "@/types/question";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "")
@@ -27,8 +26,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const questionsApi = {
-  list: (status?: string): Promise<Question[]> =>
-    apiFetch(`/api/v1/questions${status ? `?status=${status}` : ""}`),
+  list: (status?: string, summary: boolean = true): Promise<QuestionSummary[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append("status", status);
+    params.append("summary", summary ? "true" : "false");
+    return apiFetch(`/api/v1/questions?${params.toString()}`);
+  },
 
   get: (id: string): Promise<Question> =>
     apiFetch(`/api/v1/questions/${id}`),

@@ -15,6 +15,7 @@ import {
 
 interface StudentWorkspaceProps {
   question: QuestionData;
+  onBackToCatalog?: () => void;
 }
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -60,7 +61,7 @@ const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string 
   IDLE: { bg: "bg-slate-900/40", text: "text-slate-400", border: "border-slate-700/30" },
 };
 
-export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) => {
+export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, onBackToCatalog }) => {
   const [language, setLanguage] = useState("python");
   const [code, setCode] = useState(question.starterCode?.["python"] || DEFAULT_CODE["python"]);
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
@@ -81,6 +82,13 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
     return () => cleanupPolling();
   }, [cleanupPolling]);
 
+  useEffect(() => {
+    setCode(question.starterCode?.[language] || DEFAULT_CODE[language] || "");
+    setCurrentSubmission(null);
+    setErrorNotice(null);
+    setSelectedCaseIdx(0);
+  }, [question.id, question.starterCode, language]);
+
   const handleLanguageChange = useCallback((lang: string) => {
     setLanguage(lang);
     setCode(question.starterCode?.[lang] || DEFAULT_CODE[lang] || "");
@@ -100,19 +108,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
       setCurrentSubmission({ status: "QUEUED" });
 
       try {
-        const publishedQuestions = await questionsApi.list("PUBLISHED");
-        const backendQuestion = publishedQuestions.find(
-          (candidate) => candidate.id === question.id || candidate.slug === question.slug
-        );
-
-        if (!backendQuestion) {
-          throw new Error(
-            `Question "${question.slug}" is not published in the selected environment. Check the Prod/QA question bank.`
-          );
-        }
-
         const createRes = await submissionsApi.create({
-          questionId: backendQuestion.id,
+          questionId: question.id,
           language,
           mode,
           sourceCode: code,
@@ -171,11 +168,36 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question }) 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
       {/* Top Header Bar */}
-      <header className="h-11 border-b border-slate-800/80 bg-slate-900/95 flex items-center px-5 gap-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
+      <header className="h-11 border-b border-slate-800/80 bg-slate-900/95 flex items-center px-4 gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          {onBackToCatalog ? (
+            <button
+              onClick={onBackToCatalog}
+              type="button"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded transition-colors"
+            >
+              ← Problems
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded transition-colors"
+            >
+              ← Problems
+            </Link>
+          )}
           <span className="text-sky-400 font-black text-lg tracking-tight select-none">ZAP</span>
           <span className="text-slate-600 text-xs">|</span>
-          <span className="text-slate-400 text-xs truncate max-w-xs">{question.title}</span>
+          <span className="text-slate-200 text-xs font-medium truncate max-w-sm">{question.title}</span>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+            question.difficulty === "HARD"
+              ? "text-rose-400 border-rose-800/60 bg-rose-950/40"
+              : question.difficulty === "MEDIUM"
+              ? "text-amber-400 border-amber-800/60 bg-amber-950/40"
+              : "text-emerald-400 border-emerald-800/60 bg-emerald-950/40"
+          }`}>
+            {question.difficulty}
+          </span>
         </div>
         <div className="ml-auto flex items-center gap-3">
           {errorNotice && (
