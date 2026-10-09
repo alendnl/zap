@@ -76,6 +76,9 @@ export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
               key={idx}
               className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-2 text-xs"
             >
+              <div className="text-[11px] font-bold text-sky-400 mb-1 uppercase tracking-wider">
+                Example {idx + 1}:
+              </div>
               <div className="font-mono text-slate-300">
                 <span className="text-slate-500 font-semibold select-none">Input: </span>
                 {ex.input}

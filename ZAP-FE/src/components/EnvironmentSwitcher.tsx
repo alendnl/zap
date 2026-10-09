@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { getEnvironment, setEnvironment, type ZAPEnvironment } from "@/services/environment";
+import {
+  getEnvironment,
+  setEnvironment,
+  ENABLE_QA_ENVIRONMENT,
+  type ZAPEnvironment,
+} from "@/services/environment";
 
 const OPTIONS: ZAPEnvironment[] = ["production", "qa"];
 
 export function EnvironmentSwitcher() {
+  if (!ENABLE_QA_ENVIRONMENT) {
+    return null;
+  }
+
   const [environment, setCurrentEnvironment] = useState<ZAPEnvironment>(() => getEnvironment());
   const isQa = environment === "qa";
 

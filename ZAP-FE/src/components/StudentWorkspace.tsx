@@ -2,10 +2,14 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { QuestionPane, QuestionData } from "./QuestionPane";
 import { EditorPane } from "./EditorPane";
 import { questionsApi } from "@/services/questionsApi";
+import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
+import { AuthModal } from "@/components/AuthModal";
+import type { Student } from "@/types/auth";
 import {
   submissionsApi,
   Submission,
@@ -62,6 +66,8 @@ const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string 
 };
 
 export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, onBackToCatalog }) => {
+  const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [language, setLanguage] = useState("python");
   const [code, setCode] = useState(question.starterCode?.["python"] || DEFAULT_CODE["python"]);
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
@@ -70,6 +76,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
   const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleAuthChange = () => setStudent(getStoredStudent());
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+  }, []);
 
   const cleanupPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -113,6 +125,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
           language,
           mode,
           sourceCode: code,
+          userId: student ? student.studentId : "student-123",
         });
 
         const subId = createRes.submissionId;
@@ -205,12 +218,39 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
               {errorNotice}
             </span>
           )}
-          <Link
-            href="/faculty/questions"
-            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded border border-slate-700 transition-colors"
-          >
-            Faculty Portal →
-          </Link>
+
+          {student ? (
+            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-2.5 py-1 rounded-lg text-xs">
+              <div className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center text-[10px]">
+                {student.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="font-semibold text-slate-200 text-[11px] leading-tight">
+                  {student.name}
+                </span>
+                <span className="text-[9px] text-slate-400 leading-tight">
+                  {student.studentId} · {student.collegeName}
+                </span>
+              </div>
+              <button
+                onClick={() => authApi.logout()}
+                title="Sign Out"
+                type="button"
+                className="ml-1 text-slate-400 hover:text-rose-400 p-0.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              type="button"
+              className="text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-lg shadow-sm transition-colors"
+            >
+              Sign In
+            </button>
+          )}
+
           <EnvironmentSwitcher />
         </div>
       </header>
@@ -390,6 +430,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
 
         </div>
       </div>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={(std) => setStudent(std)}
+      />
     </div>
   );
 };

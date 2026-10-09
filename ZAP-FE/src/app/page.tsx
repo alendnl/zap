@@ -13,12 +13,17 @@ import {
   Layers,
   ArrowRight,
   Loader2,
+  LogOut,
+  User,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
+import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
+import { AuthModal } from "@/components/AuthModal";
+import type { Student } from "@/types/auth";
 import type { Question, QuestionSummary, Difficulty } from "@/types/question";
 
 const DIFFICULTY_CONFIG: Record<
@@ -55,10 +60,21 @@ export default function Home() {
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Student Authentication
+  const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleAuthChange = () => setStudent(getStoredStudent());
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+  }, []);
 
   const loadQuestionList = useCallback(async () => {
     setLoadingList(true);
@@ -201,13 +217,52 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/faculty/questions"
-              className="text-xs font-medium text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <span>Faculty Portal</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            {student ? (
+              <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+                <div className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center text-xs">
+                  {student.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden sm:flex flex-col text-left">
+                  <span className="font-semibold text-slate-200 text-xs leading-tight">
+                    {student.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400 leading-tight">
+                    {student.studentId} · {student.collegeName}
+                  </span>
+                </div>
+                <button
+                  onClick={() => authApi.logout()}
+                  title="Sign Out"
+                  type="button"
+                  className="ml-2 text-slate-400 hover:text-rose-400 p-1 rounded transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setAuthModalMode("login");
+                    setAuthModalOpen(true);
+                  }}
+                  type="button"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthModalMode("signup");
+                    setAuthModalOpen(true);
+                  }}
+                  type="button"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 shadow-sm transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
             <EnvironmentSwitcher />
           </div>
         </div>
@@ -346,18 +401,9 @@ export default function Home() {
             </h3>
             <p className="mt-2 text-xs leading-5 text-slate-400">
               {questions.length === 0
-                ? "Create and publish questions in the Faculty Portal to begin practicing in this environment."
+                ? "No published challenges currently available. Please check back later."
                 : "Try adjusting your search query, difficulty filters, or topic tags to find challenges."}
             </p>
-            {questions.length === 0 && (
-              <Link
-                href="/faculty/questions"
-                className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors"
-              >
-                <span>Open Faculty Portal</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            )}
           </div>
         ) : (
           <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
@@ -457,6 +503,13 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={(std) => setStudent(std)}
+        initialMode={authModalMode}
+      />
     </div>
   );
 }
