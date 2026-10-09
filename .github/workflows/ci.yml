@@ -26,7 +26,8 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r ZAP-BE/requirements.txt
       - name: Run backend tests
-        run: pytest -v
+        working-directory: ZAP-BE
+        run: python -m pytest -v
 
   frontend-tests:
     name: Frontend Build & Test
