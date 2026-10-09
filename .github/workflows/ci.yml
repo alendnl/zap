@@ -27,7 +27,14 @@ jobs:
         run: pip install -r ZAP-BE/requirements.txt
       - name: Run backend tests
         working-directory: ZAP-BE
-        run: python -m pytest -v
+        run: |
+          python -m pytest -v || {
+            python -m pytest -v --tb=short 2>&1 | head -n 40 > /tmp/err.txt
+            while IFS= read -r line; do
+              echo "::error::$line"
+            done < /tmp/err.txt
+            exit 2
+          }
 
   frontend-tests:
     name: Frontend Build & Test
