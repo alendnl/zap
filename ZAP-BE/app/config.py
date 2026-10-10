@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "https://codezap-arena.vercel.app",
         "https://www.codezap-arena.vercel.app",
+        "https://run.codezap.in",
+        "https://www.codezap.in/"
     ]
     CORS_ORIGIN_REGEX: str | None = r"https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app"
 
