@@ -54,6 +54,21 @@ def test_vercel_preview_origin_passes_cors_preflight():
     assert response.headers["access-control-allow-origin"] == "https://codezap-arena-git-main-alendnl.vercel.app"
 
 
+def test_codezap_in_origin_passes_cors_preflight():
+    for origin in ["https://run.codezap.in", "https://codezap.in", "https://www.codezap.in"]:
+        response = _cors_test_client().options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-zap-env",
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == origin
+
+
 def test_untrusted_origin_is_not_allowed_by_cors():
     response = _cors_test_client().options(
         "/api/v1/submissions",

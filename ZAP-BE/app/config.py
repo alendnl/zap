@@ -20,9 +20,12 @@ class Settings(BaseSettings):
         "https://codezap-arena.vercel.app",
         "https://www.codezap-arena.vercel.app",
         "https://run.codezap.in",
-        "https://www.codezap.in/"
+        "https://codezap.in",
+        "https://www.codezap.in",
     ]
-    CORS_ORIGIN_REGEX: str | None = r"https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app"
+    CORS_ORIGIN_REGEX: str | None = (
+        r"https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app"
+    )
 
     # Shared Cloud Tasks / executor config (single API + single executor)
     GCP_PROJECT_ID: str = ""
