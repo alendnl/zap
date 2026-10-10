@@ -158,29 +158,29 @@ export const VanillaCompiler: React.FC = () => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-50 dark:bg-[#070b14] overflow-hidden text-slate-800 dark:text-slate-200">
+    <div className="h-full w-full flex flex-col bg-[#f6f8fa] dark:bg-[#0d1117] overflow-hidden text-[#1f2328] dark:text-[#e6edf3]">
       {/* Top Action Bar */}
-      <div className="h-12 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur px-5 flex items-center justify-between flex-shrink-0">
+      <div className="h-11 border-b border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] px-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse" />
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Vanilla Compiler
+            <Terminal className="w-3.5 h-3.5 text-[#656d76] dark:text-[#8b949e]" />
+            <span className="text-xs font-semibold">
+              Vanilla compiler
             </span>
           </div>
 
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+          <div className="h-3.5 w-px bg-[#d0d7de] dark:bg-[#30363d] mx-0.5" />
 
           {/* Language Selector */}
           <div className="flex items-center gap-1.5">
-            <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 select-none">
+            <span className="text-[11px] text-[#656d76] dark:text-[#8b949e]">
               Language:
-            </label>
+            </span>
             <select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
               disabled={isRunning}
-              className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors cursor-pointer"
+              className="bg-[#f6f8fa] dark:bg-[#0b0e14] text-[#1f2328] dark:text-[#e6edf3] border border-[#d0d7de] dark:border-[#30363d] rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7] cursor-pointer"
             >
               <option value="python">Python (3.14)</option>
               <option value="c">C (GCC)</option>
@@ -196,10 +196,10 @@ export const VanillaCompiler: React.FC = () => {
             type="button"
             onClick={handleReset}
             disabled={isRunning}
-            title="Reset code to default Hello World"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors disabled:opacity-50"
+            title="Reset code to default template"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3] hover:bg-[#f6f8fa] dark:hover:bg-[#21262d] transition-colors disabled:opacity-50"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3 h-3" />
             <span>Reset</span>
           </button>
 
@@ -207,10 +207,10 @@ export const VanillaCompiler: React.FC = () => {
             type="button"
             onClick={handleRun}
             disabled={isRunning}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-md bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-[#0969da] dark:bg-[#2f81f7] text-white hover:opacity-90 transition-opacity active:scale-[0.98] disabled:opacity-50"
           >
-            <Play className={`w-3.5 h-3.5 ${isRunning ? "animate-spin" : "fill-current"}`} />
-            <span>{isRunning ? "Running..." : "Run Code"}</span>
+            <Play className={`w-3 h-3 ${isRunning ? "animate-spin" : "fill-current"}`} />
+            <span>{isRunning ? "Running..." : "Run code"}</span>
           </button>
         </div>
       </div>
@@ -218,10 +218,10 @@ export const VanillaCompiler: React.FC = () => {
       {/* Main Split Layout: Left Editor, Right Inputs/Outputs */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Code Editor */}
-        <div className="flex-1 h-full border-r border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden bg-white dark:bg-[#0c111d]">
-          <div className="h-8 border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/40 px-4 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-mono">
-              source.
+        <div className="flex-1 h-full border-r border-[#d0d7de] dark:border-[#30363d] flex flex-col overflow-hidden bg-white dark:bg-[#0b0e14]">
+          <div className="h-7 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] px-3 flex items-center justify-between text-[11px] text-[#656d76] dark:text-[#8b949e]">
+            <span className="font-mono text-[11px]">
+              main.
               {language === "python"
                 ? "py"
                 : language === "c"
@@ -232,7 +232,7 @@ export const VanillaCompiler: React.FC = () => {
                 ? "java"
                 : "js"}
             </span>
-            <span className="text-[10px] uppercase font-bold text-slate-400">
+            <span className="text-[10px] font-mono capitalize">
               {language}
             </span>
           </div>
@@ -241,123 +241,100 @@ export const VanillaCompiler: React.FC = () => {
             <MonacoEditor
               height="100%"
               language={getMonacoLang(language)}
-              theme={theme === "dark" ? "vs-dark" : "light"}
+              theme={theme === "dark" ? "vs-dark" : "vs"}
               value={currentCode}
               onChange={(val) => handleCodeChange(val || "")}
               options={{
                 minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "JetBrains Mono, Menlo, Monaco, 'Courier New', monospace",
+                fontSize: 13,
+                fontFamily: "JetBrains Mono, SF Mono, Menlo, monospace",
                 lineNumbers: "on",
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 tabSize: 4,
-                padding: { top: 12 },
+                padding: { top: 8 },
               }}
             />
           </div>
         </div>
 
         {/* Right Side: Split into Top (Input) & Bottom (Output) */}
-        <div className="w-[45%] min-w-[340px] max-w-[650px] h-full flex flex-col bg-slate-50 dark:bg-[#090d16] overflow-hidden">
-          {/* Top Half: Standard Input (stdin) */}
-          <div className="h-1/2 flex flex-col border-b border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="h-9 border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/60 px-4 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-3.5 h-3.5 text-slate-500" />
-                <span>Standard Input (stdin)</span>
-              </div>
+        <div className="w-[42%] min-w-[320px] max-w-[560px] h-full flex flex-col bg-[#f6f8fa] dark:bg-[#0d1117] overflow-hidden">
+          {/* Top Half: Standard Input */}
+          <div className="h-1/2 flex flex-col border-b border-[#d0d7de] dark:border-[#30363d] overflow-hidden">
+            <div className="h-7 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] px-3 flex items-center justify-between text-[11px] font-medium text-[#656d76] dark:text-[#8b949e] flex-shrink-0">
+              <span>Standard input</span>
               {stdin && (
                 <button
                   type="button"
                   onClick={() => setStdin("")}
-                  title="Clear input"
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[11px] flex items-center gap-1 transition-colors"
+                  className="text-[10px] text-[#656d76] dark:text-[#8b949e] hover:text-[#cf222e] dark:hover:text-[#f85149] transition-colors"
                 >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Clear</span>
+                  Clear
                 </button>
               )}
             </div>
 
-            <div className="flex-1 p-3">
+            <div className="flex-1 p-2.5">
               <textarea
                 value={stdin}
                 onChange={(e) => setStdin(e.target.value)}
-                placeholder="Enter input to pass to your program via standard input..."
-                className="w-full h-full resize-none p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500/50"
+                placeholder="Data provided to standard input (stdin)..."
+                className="w-full h-full resize-none p-2.5 rounded border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#0b0e14] font-mono text-xs text-[#1f2328] dark:text-[#e6edf3] placeholder-[#8c959f] focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7]"
               />
             </div>
           </div>
 
-          {/* Bottom Half: Standard Output (stdout & stderr) */}
-          <div className="h-1/2 flex flex-col overflow-hidden bg-white dark:bg-[#070b14]">
-            <div className="h-9 border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/60 px-4 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 flex-shrink-0">
-              <div className="flex items-center gap-2.5">
+          {/* Bottom Half: Standard Output */}
+          <div className="h-1/2 flex flex-col overflow-hidden bg-white dark:bg-[#0b0e14]">
+            <div className="h-7 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] px-3 flex items-center justify-between text-[11px] font-medium text-[#656d76] dark:text-[#8b949e] flex-shrink-0">
+              <div className="flex items-center gap-2">
                 <span>Output</span>
                 {result && (
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${
                       result.status === "SUCCESS"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                        ? "text-[#1a7f37] dark:text-[#3fb950] bg-[#dafbe1] dark:bg-[#2ea043]/15 border-[#1a7f37]/20 dark:border-[#3fb950]/30"
+                        : "text-[#cf222e] dark:text-[#f85149] bg-[#ffebe9] dark:bg-[#f85149]/15 border-[#cf222e]/20 dark:border-[#f85149]/30"
                     }`}
                   >
-                    {result.status === "SUCCESS" ? (
-                      <CheckCircle2 className="w-3 h-3" />
-                    ) : (
-                      <XCircle className="w-3 h-3" />
-                    )}
-                    {result.status}
+                    {result.status === "SUCCESS" ? "Success" : "Error"}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {result && result.executionTimeMs > 0 && (
-                  <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                    <Clock className="w-3 h-3" />
-                    <span>{result.executionTimeMs}ms</span>
-                  </div>
+                  <span className="text-[10px] font-mono text-[#8c959f]">
+                    {result.executionTimeMs} ms
+                  </span>
                 )}
                 {(result?.stdout || result?.stderr) && (
                   <button
                     type="button"
                     onClick={copyOutput}
-                    title="Copy output"
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[11px] flex items-center gap-1 transition-colors"
+                    className="text-[10px] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                   >
-                    {copied ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-500" />
-                        <span className="text-emerald-500">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </>
-                    )}
+                    {copied ? "Copied" : "Copy"}
                   </button>
                 )}
               </div>
             </div>
 
             {/* Output Screen */}
-            <div className="flex-1 p-3 overflow-y-auto font-mono text-xs leading-relaxed">
+            <div className="flex-1 p-2.5 overflow-y-auto font-mono text-xs leading-relaxed">
               {isRunning ? (
-                <div className="h-full flex items-center justify-center text-slate-400 dark:text-slate-500 gap-2">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
-                  <span>Compiling and executing code...</span>
+                <div className="h-full flex items-center justify-center text-[#8c959f] text-xs">
+                  <span>Running code...</span>
                 </div>
               ) : result ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {result.stdout && (
                     <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Standard Output:
+                      <div className="text-[10px] text-[#8c959f] mb-1">
+                        stdout
                       </div>
-                      <pre className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 whitespace-pre-wrap select-text">
+                      <pre className="p-2.5 rounded bg-[#f6f8fa] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#e6edf3] whitespace-pre-wrap select-text">
                         {result.stdout}
                       </pre>
                     </div>
@@ -365,28 +342,24 @@ export const VanillaCompiler: React.FC = () => {
 
                   {result.stderr && (
                     <div>
-                      <div className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-1">
-                        Errors / Diagnostics:
+                      <div className="text-[10px] text-[#cf222e] dark:text-[#f85149] mb-1">
+                        stderr / diagnostics
                       </div>
-                      <pre className="p-3 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 whitespace-pre-wrap select-text">
+                      <pre className="p-2.5 rounded bg-[#ffebe9] dark:bg-[#f85149]/10 border border-[#cf222e]/20 text-[#cf222e] dark:text-[#f85149] whitespace-pre-wrap select-text">
                         {result.stderr}
                       </pre>
                     </div>
                   )}
 
                   {!result.stdout && !result.stderr && (
-                    <div className="text-slate-400 dark:text-slate-500 italic p-3 text-center">
-                      (Program finished with exit code {result.exitCode} and produced no output)
+                    <div className="text-[#8c959f] text-[11px] p-2 text-center">
+                      Process exited with code {result.exitCode} (no output).
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 text-center space-y-1 select-none">
-                  <Terminal className="w-8 h-8 stroke-1 text-slate-300 dark:text-slate-700 mb-1" />
-                  <p className="text-xs font-medium">No output yet</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-600">
-                    Click &ldquo;Run Code&rdquo; above to execute your program.
-                  </p>
+                <div className="h-full flex items-center justify-center text-[#8c959f] text-xs">
+                  <span>Output will appear here after running.</span>
                 </div>
               )}
             </div>

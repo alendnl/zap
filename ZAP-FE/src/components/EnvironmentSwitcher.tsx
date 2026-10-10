@@ -25,9 +25,7 @@ export function EnvironmentSwitcher() {
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-lg border p-1 ${
-        isQa ? "border-amber-800/60 bg-amber-950/30" : "border-emerald-800/60 bg-emerald-950/30"
-      }`}
+      className="inline-flex items-center gap-0.5 rounded-md border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] p-0.5 text-xs"
       role="group"
       aria-label="Select environment"
     >
@@ -39,12 +37,10 @@ export function EnvironmentSwitcher() {
             type="button"
             onClick={() => selectEnvironment(option)}
             aria-pressed={active}
-            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+            className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
               active
-                ? option === "qa"
-                  ? "bg-amber-500/20 text-amber-300"
-                  : "bg-emerald-500/20 text-emerald-300"
-                : "text-slate-500 hover:text-slate-300"
+                ? "bg-[#f3f4f6] dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] font-semibold"
+                : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
             }`}
           >
             {option === "production" ? "Prod" : "QA"}
@@ -52,7 +48,7 @@ export function EnvironmentSwitcher() {
         );
       })}
       <span
-        className={`ml-1 mr-1 h-2 w-2 rounded-full ${isQa ? "bg-amber-400" : "bg-emerald-400"}`}
+        className={`ml-1 mr-1.5 h-1.5 w-1.5 rounded-full ${isQa ? "bg-amber-500" : "bg-emerald-500"}`}
         aria-label={`${isQa ? "QA" : "Production"} environment active`}
       />
     </div>

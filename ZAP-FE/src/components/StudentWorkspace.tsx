@@ -69,66 +69,96 @@ var solution = function() {
 
 const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   ACCEPTED: {
-    bg: "bg-emerald-500/10 dark:bg-emerald-500/15",
-    text: "text-emerald-700 dark:text-emerald-400 font-semibold",
-    border: "border-emerald-500/30 dark:border-emerald-500/30",
+    bg: "bg-[#dafbe1] dark:bg-[#2ea043]/15",
+    text: "text-[#1a7f37] dark:text-[#3fb950]",
+    border: "border-[#1a7f37]/25 dark:border-[#3fb950]/30",
   },
   WRONG_ANSWER: {
-    bg: "bg-rose-500/10 dark:bg-rose-500/15",
-    text: "text-rose-700 dark:text-rose-400 font-semibold",
-    border: "border-rose-500/30 dark:border-rose-500/30",
+    bg: "bg-[#ffebe9] dark:bg-[#f85149]/15",
+    text: "text-[#cf222e] dark:text-[#f85149]",
+    border: "border-[#cf222e]/25 dark:border-[#f85149]/30",
   },
   COMPILE_ERROR: {
-    bg: "bg-orange-500/10 dark:bg-orange-500/15",
-    text: "text-orange-700 dark:text-orange-400 font-semibold",
-    border: "border-orange-500/30 dark:border-orange-500/30",
+    bg: "bg-[#fff8c5] dark:bg-[#bb8009]/15",
+    text: "text-[#9a6700] dark:text-[#d29922]",
+    border: "border-[#9a6700]/25 dark:border-[#d29922]/30",
   },
   RUNTIME_ERROR: {
-    bg: "bg-red-500/10 dark:bg-red-500/15",
-    text: "text-red-700 dark:text-red-400 font-semibold",
-    border: "border-red-500/30 dark:border-red-500/30",
+    bg: "bg-[#ffebe9] dark:bg-[#f85149]/15",
+    text: "text-[#cf222e] dark:text-[#f85149]",
+    border: "border-[#cf222e]/25 dark:border-[#f85149]/30",
   },
   TIME_LIMIT_EXCEEDED: {
-    bg: "bg-amber-500/10 dark:bg-amber-500/15",
-    text: "text-amber-700 dark:text-amber-400 font-semibold",
-    border: "border-amber-500/30 dark:border-amber-500/30",
+    bg: "bg-[#fff8c5] dark:bg-[#bb8009]/15",
+    text: "text-[#9a6700] dark:text-[#d29922]",
+    border: "border-[#9a6700]/25 dark:border-[#d29922]/30",
   },
   MEMORY_LIMIT_EXCEEDED: {
-    bg: "bg-amber-500/10 dark:bg-amber-500/15",
-    text: "text-amber-700 dark:text-amber-400 font-semibold",
-    border: "border-amber-500/30 dark:border-amber-500/30",
+    bg: "bg-[#fff8c5] dark:bg-[#bb8009]/15",
+    text: "text-[#9a6700] dark:text-[#d29922]",
+    border: "border-[#9a6700]/25 dark:border-[#d29922]/30",
   },
   OUTPUT_LIMIT_EXCEEDED: {
-    bg: "bg-amber-500/10 dark:bg-amber-500/15",
-    text: "text-amber-700 dark:text-amber-400 font-semibold",
-    border: "border-amber-500/30 dark:border-amber-500/30",
+    bg: "bg-[#fff8c5] dark:bg-[#bb8009]/15",
+    text: "text-[#9a6700] dark:text-[#d29922]",
+    border: "border-[#9a6700]/25 dark:border-[#d29922]/30",
   },
   SYSTEM_ERROR: {
-    bg: "bg-rose-500/15 dark:bg-rose-500/20",
-    text: "text-rose-700 dark:text-rose-400 font-semibold",
-    border: "border-rose-500/40 dark:border-rose-500/40",
+    bg: "bg-[#ffebe9] dark:bg-[#f85149]/15",
+    text: "text-[#cf222e] dark:text-[#f85149]",
+    border: "border-[#cf222e]/25 dark:border-[#f85149]/30",
   },
   QUEUED: {
-    bg: "bg-sky-500/10 dark:bg-sky-500/15",
-    text: "text-sky-700 dark:text-sky-400 font-semibold",
-    border: "border-sky-500/30 dark:border-sky-500/30",
+    bg: "bg-[#ddf4ff] dark:bg-[#388bfd]/15",
+    text: "text-[#0969da] dark:text-[#2f81f7]",
+    border: "border-[#0969da]/25 dark:border-[#2f81f7]/30",
   },
   RUNNING: {
-    bg: "bg-sky-500/10 dark:bg-sky-500/15",
-    text: "text-sky-700 dark:text-sky-400 font-semibold",
-    border: "border-sky-500/30 dark:border-sky-500/30",
+    bg: "bg-[#ddf4ff] dark:bg-[#388bfd]/15",
+    text: "text-[#0969da] dark:text-[#2f81f7]",
+    border: "border-[#0969da]/25 dark:border-[#2f81f7]/30",
   },
   FAILED: {
-    bg: "bg-rose-500/10 dark:bg-rose-500/15",
-    text: "text-rose-700 dark:text-rose-400 font-semibold",
-    border: "border-rose-500/30 dark:border-rose-500/30",
+    bg: "bg-[#ffebe9] dark:bg-[#f85149]/15",
+    text: "text-[#cf222e] dark:text-[#f85149]",
+    border: "border-[#cf222e]/25 dark:border-[#f85149]/30",
   },
   IDLE: {
-    bg: "bg-slate-100 dark:bg-slate-800/50",
-    text: "text-slate-600 dark:text-slate-400",
-    border: "border-slate-300 dark:border-slate-700",
+    bg: "bg-[#f6f8fa] dark:bg-[#21262d]",
+    text: "text-[#656d76] dark:text-[#8b949e]",
+    border: "border-[#d0d7de] dark:border-[#30363d]",
   },
 };
+
+function formatVerdict(v?: string): string {
+  if (!v) return "";
+  switch (v) {
+    case "ACCEPTED":
+      return "Accepted";
+    case "WRONG_ANSWER":
+      return "Wrong answer";
+    case "COMPILE_ERROR":
+      return "Compile error";
+    case "RUNTIME_ERROR":
+      return "Runtime error";
+    case "TIME_LIMIT_EXCEEDED":
+      return "Time limit exceeded";
+    case "MEMORY_LIMIT_EXCEEDED":
+      return "Memory limit exceeded";
+    case "OUTPUT_LIMIT_EXCEEDED":
+      return "Output limit exceeded";
+    case "SYSTEM_ERROR":
+      return "System error";
+    case "QUEUED":
+      return "Queued";
+    case "RUNNING":
+      return "Evaluating";
+    case "FAILED":
+      return "Failed";
+    default:
+      return v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
+  }
+}
 
 function cleanStarter(codeStr?: string): string {
   if (!codeStr) return "";
@@ -382,96 +412,101 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const difficultyLabel =
+    question.difficulty.charAt(0) + question.difficulty.slice(1).toLowerCase();
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#f6f8fa] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3]">
       {/* Top Header Bar */}
-      <header className="h-11 border-b border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 flex items-center px-4 gap-3 flex-shrink-0 backdrop-blur">
+      <header className="h-11 border-b border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] flex items-center px-3.5 gap-3 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           {onBackToCatalog ? (
             <button
               onClick={onBackToCatalog}
               type="button"
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 px-2.5 py-1 rounded-md transition-colors"
+              className="px-2 py-0.5 text-xs font-medium text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3] bg-[#f6f8fa] dark:bg-[#21262d] border border-[#d0d7de] dark:border-[#30363d] rounded transition-colors"
             >
               ← Problems
             </button>
           ) : (
             <Link
               href="/"
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 px-2.5 py-1 rounded-md transition-colors"
+              className="px-2 py-0.5 text-xs font-medium text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3] bg-[#f6f8fa] dark:bg-[#21262d] border border-[#d0d7de] dark:border-[#30363d] rounded transition-colors"
             >
               ← Problems
             </Link>
           )}
-          <span className="text-sky-500 dark:text-sky-400 font-black text-lg tracking-tight select-none">ZAP</span>
-          <span className="text-slate-300 dark:text-slate-700 text-xs">|</span>
-          <span className="text-slate-800 dark:text-slate-200 text-xs font-medium truncate max-w-sm">{question.title}</span>
+
+          <span className="w-5 h-5 rounded bg-[#0969da] text-white flex items-center justify-center font-mono font-bold text-[11px] select-none">
+            Z
+          </span>
+
+          <div className="h-3.5 w-px bg-[#d0d7de] dark:bg-[#30363d]" />
+
+          <span className="text-xs font-semibold truncate max-w-sm">
+            {question.title}
+          </span>
+
           <span
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase ${
+            className={`text-[11px] font-medium px-2 py-0.5 rounded border ${
               question.difficulty === "HARD"
-                ? "text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10"
+                ? "text-[#cf222e] dark:text-[#f85149] bg-[#ffebe9] dark:bg-[#f85149]/15 border-[#cf222e]/20"
                 : question.difficulty === "MEDIUM"
-                ? "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10"
-                : "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                ? "text-[#9a6700] dark:text-[#d29922] bg-[#fff8c5] dark:bg-[#bb8009]/15 border-[#9a6700]/20"
+                : "text-[#1a7f37] dark:text-[#3fb950] bg-[#dafbe1] dark:bg-[#2ea043]/15 border-[#1a7f37]/20"
             }`}
           >
-            {question.difficulty}
+            {difficultyLabel}
           </span>
 
           {isSolved && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
-              Solved
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border border-[#1a7f37]/20 bg-[#dafbe1] dark:bg-[#2ea043]/15 text-[#1a7f37] dark:text-[#3fb950]">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Solved</span>
             </span>
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2.5">
           {restoredNotice && (
-            <span className="text-emerald-700 dark:text-emerald-400 text-xs truncate bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
-              <Check className="w-3 h-3" />
+            <span className="text-xs text-[#1a7f37] dark:text-[#3fb950] font-mono px-2 py-0.5 rounded bg-[#dafbe1] dark:bg-[#2ea043]/15 border border-[#1a7f37]/20">
               {restoredNotice}
             </span>
           )}
 
           {errorNotice && (
-            <span className="text-amber-700 dark:text-amber-400 text-xs truncate bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+            <span className="text-xs text-[#cf222e] dark:text-[#f85149] font-mono px-2 py-0.5 rounded bg-[#ffebe9] dark:bg-[#f85149]/15 border border-[#cf222e]/20">
               {errorNotice}
             </span>
           )}
 
           {student ? (
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 px-2.5 py-1 rounded-lg text-xs">
-              <div className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-[10px]">
-                {student.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] leading-tight">
-                  {student.name}
-                </span>
-                <span className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight">
-                  {student.studentId} · {student.collegeName}
-                </span>
-              </div>
+            <div className="hidden sm:flex items-center gap-2 border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] px-2 py-0.5 rounded text-xs">
+              <span className="font-medium text-[11px] text-[#1f2328] dark:text-[#e6edf3]">
+                {student.name}
+              </span>
+              <span className="text-[#8c959f] text-[10px] font-mono">
+                {student.studentId}
+              </span>
               <button
                 onClick={() => {
                   authApi.logout();
                   if (onBackToCatalog) onBackToCatalog();
                 }}
-                title="Sign Out"
+                title="Sign out"
                 type="button"
-                className="ml-1 text-slate-400 hover:text-rose-500 p-0.5"
+                className="ml-1 text-[#656d76] dark:text-[#8b949e] hover:text-[#cf222e] dark:hover:text-[#f85149] p-0.5"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3 h-3" />
               </button>
             </div>
           ) : (
             <button
               onClick={() => setAuthModalOpen(true)}
               type="button"
-              className="text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-lg shadow-sm transition-colors"
+              className="text-xs font-medium bg-[#0969da] text-white px-2.5 py-1 rounded hover:opacity-90"
             >
-              Sign In
+              Sign in
             </button>
           )}
 
@@ -488,7 +523,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
         </div>
 
         {/* Divider */}
-        <div className="w-px bg-slate-200 dark:bg-slate-800 flex-shrink-0" />
+        <div className="w-px bg-[#d0d7de] dark:bg-[#30363d] flex-shrink-0" />
 
         {/* Right Editor + Output & Submissions Drawer */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -507,29 +542,27 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
           </div>
 
           {/* Persistent Bottom Drawer Bar (Console & Submissions Tabs) */}
-          <div className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 flex-shrink-0 flex flex-col">
+          <div className="border-t border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] flex-shrink-0 flex flex-col">
             {/* Tab Toolbar */}
-            <div className="h-10 px-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60">
-              <div className="flex items-center gap-2">
+            <div className="h-10 px-4 flex items-center justify-between border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#0d1117]">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     setBottomTab("console");
                     setIsDrawerOpen(true);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                     bottomTab === "console" && isDrawerOpen
-                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900"
+                      ? "bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] border border-[#d0d7de] dark:border-[#30363d]"
+                      : "text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] hover:bg-[#f6f8fa] dark:hover:bg-[#21262d]"
                   }`}
                 >
-                  <Terminal className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                  <span>Test Results & Console</span>
+                  <Terminal className="w-3.5 h-3.5 text-[#0969da] dark:text-[#58a6ff]" />
+                  <span>Test results & console</span>
                   {currentSubmission?.status && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase ${verdictStyle.text}`}
-                    >
-                      ({currentSubmission.verdict || currentSubmission.status})
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${verdictStyle.text}`}>
+                      ({formatVerdict(currentSubmission.verdict || currentSubmission.status)})
                     </span>
                   )}
                 </button>
@@ -540,19 +573,19 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                     setBottomTab("submissions");
                     setIsDrawerOpen(true);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                     bottomTab === "submissions" && isDrawerOpen
-                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900"
+                      ? "bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] border border-[#d0d7de] dark:border-[#30363d]"
+                      : "text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] hover:bg-[#f6f8fa] dark:hover:bg-[#21262d]"
                   }`}
                 >
-                  <History className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                  <History className="w-3.5 h-3.5 text-[#0969da] dark:text-[#58a6ff]" />
                   <span>Submissions</span>
-                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.2 rounded-full border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] bg-[#f6f8fa] dark:bg-[#21262d] text-[#656d76] dark:text-[#8d96a0] px-1.5 py-0.2 rounded border border-[#d0d7de] dark:border-[#30363d]">
                     {submissionsHistory.length}
                   </span>
                   {isSolved && (
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
+                    <CheckCircle2 className="w-3 h-3 text-[#1a7f37] dark:text-[#3fb950]" />
                   )}
                 </button>
               </div>
@@ -560,8 +593,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen((prev) => !prev)}
-                title={isDrawerOpen ? "Collapse Drawer" : "Expand Drawer"}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title={isDrawerOpen ? "Collapse drawer" : "Expand drawer"}
+                className="text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] p-1 rounded hover:bg-[#f6f8fa] dark:hover:bg-[#21262d] transition-colors"
               >
                 {isDrawerOpen ? (
                   <ChevronDown className="w-4 h-4" />
@@ -574,53 +607,53 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
             {/* Expanded Drawer Content */}
             {isDrawerOpen && (
               <div
-                className="bg-white dark:bg-slate-950/95 px-5 py-3 overflow-y-auto"
+                className="bg-white dark:bg-[#0d1117] px-4 py-3 overflow-y-auto"
                 style={{ height: "260px" }}
               >
                 {/* 1. CONSOLE / TEST RESULTS TAB */}
                 {bottomTab === "console" && (
                   <div>
                     {!currentSubmission ? (
-                      <div className="py-10 text-center text-slate-400 dark:text-slate-500 text-xs">
-                        Click &quot;Run Code&quot; to test your solution with sample test cases or &quot;Submit&quot; for complete evaluation.
+                      <div className="py-10 text-center text-[#656d76] dark:text-[#8d96a0] text-xs">
+                        Click &quot;Run code&quot; to test your solution with sample test cases or &quot;Submit solution&quot; for complete evaluation.
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2.5">
                         {/* Top Verdict & Summary Bar */}
-                        <div className="flex items-center justify-between pb-2 mb-1 border-b border-slate-200 dark:border-slate-800/80">
+                        <div className="flex items-center justify-between pb-2 mb-1 border-b border-[#d0d7de] dark:border-[#30363d]">
                           <div className="flex items-center gap-3">
                             <span
-                              className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${verdictStyle.border} ${verdictStyle.bg} ${verdictStyle.text}`}
+                              className={`text-xs font-medium px-2 py-0.5 rounded border ${verdictStyle.border} ${verdictStyle.bg} ${verdictStyle.text}`}
                             >
-                              {currentSubmission.verdict || currentSubmission.status}
+                              {formatVerdict(currentSubmission.verdict || currentSubmission.status)}
                             </span>
 
                             {currentSubmission.executionTimeMs != null && (
-                              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                                ⏱ {currentSubmission.executionTimeMs} ms
+                              <span className="text-xs text-[#656d76] dark:text-[#8d96a0] font-mono">
+                                Runtime: {currentSubmission.executionTimeMs} ms
                               </span>
                             )}
 
                             {currentSubmission.tests && (
-                              <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                              <span className="text-xs text-[#656d76] dark:text-[#8d96a0]">
                                 Tests:{" "}
                                 <span
                                   className={
                                     currentSubmission.tests.passed === currentSubmission.tests.total
-                                      ? "text-emerald-600 dark:text-emerald-400 font-semibold"
-                                      : "text-amber-600 dark:text-amber-400 font-semibold"
+                                      ? "text-[#1a7f37] dark:text-[#3fb950] font-medium"
+                                      : "text-[#9a6700] dark:text-[#d29922] font-medium"
                                   }
                                 >
                                   {currentSubmission.tests.passed}
                                 </span>{" "}
-                                / {currentSubmission.tests.total} passed
+                                of {currentSubmission.tests.total} passed
                               </span>
                             )}
                           </div>
 
                           {isRunning && (
-                            <div className="flex items-center gap-1.5 text-xs text-sky-500 dark:text-sky-400 animate-pulse font-medium">
-                              <span className="w-2 h-2 rounded-full bg-sky-500" />
+                            <div className="flex items-center gap-1.5 text-xs text-[#0969da] dark:text-[#58a6ff] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#0969da] dark:bg-[#58a6ff] animate-pulse" />
                               Evaluating solution in sandbox...
                             </div>
                           )}
@@ -629,10 +662,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                         {/* Compile Error Output */}
                         {currentSubmission.compileOutput && (
                           <div className="mb-2">
-                            <div className="text-xs font-semibold text-orange-600 dark:text-orange-400 mb-1">
-                              Compilation Output:
+                            <div className="text-xs font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                              Compilation output:
                             </div>
-                            <pre className="font-mono text-xs text-orange-800 dark:text-orange-300 bg-orange-500/10 p-2.5 rounded-lg border border-orange-500/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                            <pre className="font-mono text-xs text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/5 dark:bg-[#f85149]/10 p-2.5 rounded border border-[#cf222e]/20 dark:border-[#f85149]/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
                               {currentSubmission.compileOutput}
                             </pre>
                           </div>
@@ -641,10 +674,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                         {/* System / Execution Error */}
                         {currentSubmission.errorMessage && (
                           <div className="mb-2">
-                            <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mb-1">
-                              Error Message:
+                            <div className="text-xs font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                              Error message:
                             </div>
-                            <pre className="font-mono text-xs text-rose-800 dark:text-rose-300 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                            <pre className="font-mono text-xs text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/5 dark:bg-[#f85149]/10 p-2.5 rounded border border-[#cf222e]/20 dark:border-[#f85149]/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
                               {currentSubmission.errorMessage}
                             </pre>
                           </div>
@@ -654,7 +687,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                         {currentSubmission.testResults && currentSubmission.testResults.length > 0 && (
                           <div className="flex flex-col gap-2 mt-1">
                             {/* Test Case Tabs */}
-                            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 border-b border-slate-200 dark:border-slate-800/60">
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#d0d7de] dark:border-[#30363d]">
                               {currentSubmission.testResults.map((tc, idx) => {
                                 const isSelected = idx === selectedCaseIdx;
                                 return (
@@ -662,25 +695,25 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                                     key={tc.id || idx}
                                     type="button"
                                     onClick={() => setSelectedCaseIdx(idx)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                                       isSelected
-                                        ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm border border-slate-300 dark:border-slate-700"
-                                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 border border-transparent"
+                                        ? "bg-[#f6f8fa] dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] border border-[#d0d7de] dark:border-[#30363d]"
+                                        : "text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] border border-transparent"
                                     }`}
                                   >
                                     <span
-                                      className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                                         tc.passed
-                                          ? "bg-emerald-500"
-                                          : "bg-rose-500"
+                                          ? "bg-[#1a7f37] dark:bg-[#3fb950]"
+                                          : "bg-[#cf222e] dark:bg-[#f85149]"
                                       }`}
                                     />
                                     <span>Case {idx + 1}</span>
                                     <span
-                                      className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md ${
+                                      className={`text-[10px] px-1 py-0.2 rounded ${
                                         tc.passed
-                                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                          : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+                                          ? "text-[#1a7f37] dark:text-[#3fb950]"
+                                          : "text-[#cf222e] dark:text-[#f85149]"
                                       }`}
                                     >
                                       {tc.passed ? "Passed" : "Failed"}
@@ -697,45 +730,45 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                                 <div className="flex flex-col gap-2.5 pt-1">
                                   {/* Input */}
                                   <div>
-                                    <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                    <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1">
                                       Input:
                                     </div>
-                                    <pre className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                                      {activeCase.input != null ? activeCase.input : "(Hidden Test Case)"}
+                                    <pre className="bg-[#f6f8fa] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] p-2.5 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap">
+                                      {activeCase.input != null ? activeCase.input : "(Hidden test case)"}
                                     </pre>
                                   </div>
 
                                   {/* Expected vs Actual Grid */}
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
-                                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                                        Expected Output:
+                                      <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1">
+                                        Expected output:
                                       </div>
-                                      <pre className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                                      <pre className="bg-[#f6f8fa] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] p-2.5 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap">
                                         {activeCase.expectedOutput != null
                                           ? activeCase.expectedOutput
-                                          : "(Hidden Test Case)"}
+                                          : "(Hidden test case)"}
                                       </pre>
                                     </div>
 
                                     <div>
-                                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
-                                        <span>Your Output:</span>
+                                      <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1 flex items-center justify-between">
+                                        <span>Your output:</span>
                                         <span
-                                          className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md ${
+                                          className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
                                             activeCase.passed
-                                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                              : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+                                              ? "text-[#1a7f37] dark:text-[#3fb950] bg-[#1a7f37]/10"
+                                              : "text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/10"
                                           }`}
                                         >
-                                          {activeCase.passed ? "Match" : "Diff"}
+                                          {activeCase.passed ? "Match" : "Mismatch"}
                                         </span>
                                       </div>
                                       <pre
-                                        className={`bg-slate-50 dark:bg-slate-900 border p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap ${
+                                        className={`bg-[#f6f8fa] dark:bg-[#161b22] border p-2.5 rounded text-xs font-mono whitespace-pre-wrap ${
                                           activeCase.passed
-                                            ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
-                                            : "border-rose-500/30 text-rose-700 dark:text-rose-300"
+                                            ? "border-[#1a7f37]/30 text-[#1a7f37] dark:text-[#3fb950]"
+                                            : "border-[#cf222e]/30 text-[#cf222e] dark:text-[#f85149]"
                                         }`}
                                       >
                                         {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
@@ -748,10 +781,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                                   {/* Diagnostics / Stderr */}
                                   {activeCase.error && (
                                     <div>
-                                      <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mb-1">
-                                        Diagnostics / Stderr:
+                                      <div className="text-[11px] font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                                        Diagnostics / stderr:
                                       </div>
-                                      <pre className="bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap">
+                                      <pre className="bg-[#cf222e]/5 dark:bg-[#f85149]/10 border border-[#cf222e]/20 dark:border-[#f85149]/20 text-[#cf222e] dark:text-[#f85149] p-2.5 rounded text-xs font-mono whitespace-pre-wrap">
                                         {activeCase.error}
                                       </pre>
                                     </div>
@@ -770,31 +803,31 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                 {bottomTab === "submissions" && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Past Submissions ({submissionsHistory.length})
+                      <span className="text-xs font-medium text-[#1f2328] dark:text-[#f0f6fc]">
+                        Past submissions ({submissionsHistory.length})
                       </span>
                       <button
                         type="button"
                         onClick={() => void loadSubmissions()}
                         disabled={loadingSubmissions}
-                        className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-500 font-medium disabled:opacity-50"
+                        className="text-xs text-[#0969da] dark:text-[#58a6ff] hover:underline font-medium disabled:opacity-50"
                       >
                         {loadingSubmissions ? "Refreshing..." : "Refresh"}
                       </button>
                     </div>
 
                     {loadingSubmissions && submissionsHistory.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+                      <div className="py-8 text-center text-[#656d76] dark:text-[#8d96a0] text-xs">
                         Loading submission history...
                       </div>
                     ) : submissionsHistory.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
-                        No submissions yet. Submit your code to see results and track your progress.
+                      <div className="py-8 text-center text-[#656d76] dark:text-[#8d96a0] text-xs">
+                        No submissions yet. Submit your code to track results and save solution progress.
                       </div>
                     ) : (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                      <div className="border border-[#d0d7de] dark:border-[#30363d] rounded overflow-hidden">
                         <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <thead className="bg-[#f6f8fa] dark:bg-[#161b22] border-b border-[#d0d7de] dark:border-[#30363d] text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0]">
                             <tr>
                               <th className="px-3 py-2">Status</th>
                               <th className="px-3 py-2">Language</th>
@@ -804,7 +837,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                               <th className="px-3 py-2 text-right">Actions</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800/70">
+                          <tbody className="divide-y divide-[#d0d7de] dark:divide-[#30363d]">
                             {submissionsHistory.map((sub) => {
                               const vKey = sub.verdict || sub.status;
                               const vStyle = VERDICT_STYLES[vKey] || VERDICT_STYLES["IDLE"];
@@ -818,43 +851,43 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                                 : "-";
 
                               return (
-                                <tr key={sub.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                                  <td className="px-3 py-2.5">
+                                <tr key={sub.id} className="hover:bg-[#f6f8fa] dark:hover:bg-[#161b22]/60 transition-colors">
+                                  <td className="px-3 py-2">
                                     <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${vStyle.border} ${vStyle.bg} ${vStyle.text}`}
+                                      className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-medium border ${vStyle.border} ${vStyle.bg} ${vStyle.text}`}
                                     >
                                       {sub.verdict === "ACCEPTED" && (
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
+                                        <CheckCircle2 className="w-3 h-3 text-[#1a7f37] dark:text-[#3fb950]" />
                                       )}
-                                      {sub.verdict || sub.status}
+                                      {formatVerdict(sub.verdict || sub.status)}
                                     </span>
                                   </td>
-                                  <td className="px-3 py-2.5 font-mono text-slate-700 dark:text-slate-300 uppercase">
+                                  <td className="px-3 py-2 font-mono text-[#1f2328] dark:text-[#f0f6fc]">
                                     {sub.language}
                                   </td>
-                                  <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-mono">
+                                  <td className="px-3 py-2 text-[#656d76] dark:text-[#8d96a0] font-mono">
                                     {sub.executionTimeMs != null ? `${sub.executionTimeMs} ms` : "-"}
                                   </td>
-                                  <td className="px-3 py-2.5 text-slate-300 font-mono">
+                                  <td className="px-3 py-2 text-[#656d76] dark:text-[#8d96a0] font-mono">
                                     {sub.tests
                                       ? `${sub.tests.passed} / ${sub.tests.total}`
                                       : "-"}
                                   </td>
-                                  <td className="px-3 py-2.5 text-slate-400 text-[11px]">
+                                  <td className="px-3 py-2 text-[#656d76] dark:text-[#8d96a0] text-[11px]">
                                     {dateStr}
                                   </td>
-                                  <td className="px-3 py-2.5 text-right space-x-2">
+                                  <td className="px-3 py-2 text-right space-x-1.5">
                                     <button
                                       type="button"
                                       onClick={() => setViewingSubmission(sub)}
-                                      className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-medium border border-slate-300 dark:border-slate-700 transition-colors"
+                                      className="px-2 py-0.5 rounded bg-[#f6f8fa] dark:bg-[#21262d] hover:bg-[#e4e7eb] dark:hover:bg-[#30363d] text-[#1f2328] dark:text-[#f0f6fc] text-[11px] font-medium border border-[#d0d7de] dark:border-[#30363d] transition-colors"
                                     >
-                                      View Code
+                                      View code
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => restoreSubmissionToEditor(sub)}
-                                      className="px-2.5 py-1 rounded-md bg-sky-50 dark:bg-sky-600/20 hover:bg-sky-100 dark:hover:bg-sky-600/30 text-sky-600 dark:text-sky-300 text-[11px] font-medium border border-sky-300 dark:border-sky-500/40 transition-colors"
+                                      className="px-2 py-0.5 rounded text-[#0969da] dark:text-[#58a6ff] hover:bg-[#0969da]/10 dark:hover:bg-[#58a6ff]/10 text-[11px] font-medium border border-[#0969da]/30 dark:border-[#58a6ff]/30 transition-colors"
                                     >
                                       Restore
                                     </button>
@@ -876,54 +909,54 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
 
       {/* Submission Code Modal */}
       {viewingSubmission && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh] shadow-2xl overflow-hidden text-slate-800 dark:text-slate-200">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-              <div className="flex items-center gap-2.5">
-                <Code2 className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Submission Details · {viewingSubmission.language.toUpperCase()}
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-lg w-full max-w-2xl flex flex-col max-h-[85vh] shadow-xl overflow-hidden text-[#1f2328] dark:text-[#f0f6fc]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#0d1117]">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-[#0969da] dark:text-[#58a6ff]" />
+                <span className="text-xs font-semibold text-[#1f2328] dark:text-[#f0f6fc]">
+                  Submission details ({viewingSubmission.language})
                 </span>
                 <span
-                  className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full border ${
+                  className={`text-[10px] font-medium px-1.5 py-0.2 rounded border ${
                     VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.text
                   } ${VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.bg} ${
                     VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.border
                   }`}
                 >
-                  {viewingSubmission.verdict || viewingSubmission.status}
+                  {formatVerdict(viewingSubmission.verdict || viewingSubmission.status)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setViewingSubmission(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                className="text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] p-1 rounded"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 flex-1 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+              <div className="grid grid-cols-3 gap-3 bg-[#f6f8fa] dark:bg-[#0d1117] p-3 rounded border border-[#d0d7de] dark:border-[#30363d] text-xs">
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Runtime</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-300 font-semibold">
+                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Runtime</span>
+                  <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
                     {viewingSubmission.executionTimeMs != null
                       ? `${viewingSubmission.executionTimeMs} ms`
                       : "-"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Tests Passed</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-300 font-semibold">
+                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Tests passed</span>
+                  <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
                     {viewingSubmission.tests
                       ? `${viewingSubmission.tests.passed} / ${viewingSubmission.tests.total}`
                       : "-"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Submitted At</span>
-                  <span className="text-slate-800 dark:text-slate-300 text-[11px]">
+                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Submitted at</span>
+                  <span className="text-[#1f2328] dark:text-[#f0f6fc] text-[11px]">
                     {viewingSubmission.createdAt
                       ? new Date(viewingSubmission.createdAt).toLocaleString()
                       : "-"}
@@ -933,16 +966,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Submitted Code:</span>
+                  <span className="text-xs font-medium text-[#656d76] dark:text-[#8d96a0]">Submitted code:</span>
                   <button
                     type="button"
                     onClick={() => copyCodeToClipboard(viewingSubmission.sourceCode)}
-                    className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                    className="flex items-center gap-1 text-[11px] text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc]"
                   >
                     {copiedCode ? (
                        <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+                        <Check className="w-3.5 h-3.5 text-[#1a7f37] dark:text-[#3fb950]" />
+                        <span className="text-[#1a7f37] dark:text-[#3fb950]">Copied</span>
                       </>
                     ) : (
                       <>
@@ -952,27 +985,27 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                     )}
                   </button>
                 </div>
-                <pre className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-h-72 overflow-y-auto">
+                <pre className="bg-[#f6f8fa] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] p-3 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap max-h-72 overflow-y-auto">
                   {viewingSubmission.sourceCode}
                 </pre>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#0d1117]">
               <button
                 type="button"
                 onClick={() => setViewingSubmission(null)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-300 dark:border-slate-700"
+                className="px-3 py-1.5 rounded bg-[#f6f8fa] dark:bg-[#21262d] hover:bg-[#e4e7eb] dark:hover:bg-[#30363d] text-[#1f2328] dark:text-[#f0f6fc] text-xs font-medium border border-[#d0d7de] dark:border-[#30363d]"
               >
                 Close
               </button>
               <button
                 type="button"
                 onClick={() => restoreSubmissionToEditor(viewingSubmission)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0969da] hover:bg-[#0854b0] text-white text-xs font-medium shadow-xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Restore into Editor
+                Restore to editor
               </button>
             </div>
           </div>

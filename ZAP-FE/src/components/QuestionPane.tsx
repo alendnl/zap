@@ -25,53 +25,58 @@ interface QuestionPaneProps {
 }
 
 export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
-  const getBadgeColor = (difficulty: string) => {
+  const getBadgeClass = (difficulty: string) => {
     switch (difficulty) {
       case "EASY":
-        return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+        return "text-[#1a7f37] dark:text-[#3fb950] bg-[#dafbe1] dark:bg-[#2ea043]/15 border-[#1a7f37]/20 dark:border-[#3fb950]/30";
       case "MEDIUM":
-        return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30";
+        return "text-[#9a6700] dark:text-[#d29922] bg-[#fff8c5] dark:bg-[#bb8009]/15 border-[#9a6700]/20 dark:border-[#d29922]/30";
       case "HARD":
-        return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30";
+        return "text-[#cf222e] dark:text-[#f85149] bg-[#ffebe9] dark:bg-[#f85149]/15 border-[#cf222e]/20 dark:border-[#f85149]/30";
       default:
-        return "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700";
+        return "text-[#656d76] dark:text-[#8b949e] bg-[#f6f8fa] dark:bg-[#21262d] border-[#d0d7de] dark:border-[#30363d]";
     }
   };
 
+  const difficultyLabel =
+    question.difficulty.charAt(0) + question.difficulty.slice(1).toLowerCase();
+
   return (
-    <div className="h-full flex flex-col overflow-y-auto bg-white dark:bg-slate-900/60 border-r border-slate-200 dark:border-slate-800 p-6 space-y-6">
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
+    <div className="h-full flex flex-col overflow-y-auto bg-white dark:bg-[#161b22] border-r border-[#d0d7de] dark:border-[#30363d] p-5 space-y-5 text-[#1f2328] dark:text-[#e6edf3]">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
           <span
-            className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${getBadgeColor(
+            className={`text-[11px] font-medium px-2 py-0.5 rounded border ${getBadgeClass(
               question.difficulty
             )}`}
           >
-            {question.difficulty}
+            {difficultyLabel}
           </span>
           <div className="flex gap-1.5 flex-wrap">
             {question.tags.map((tag) => (
               <span
                 key={tag}
-                className="text-xs bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700/60 px-2 py-0.5 rounded"
+                className="text-[11px] text-[#656d76] dark:text-[#8b949e] bg-[#f6f8fa] dark:bg-[#21262d] border border-[#d0d7de] dark:border-[#30363d] px-1.5 py-0.5 rounded"
               >
-                #{tag}
+                {tag}
               </span>
             ))}
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{question.title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-[#1f2328] dark:text-[#e6edf3]">
+          {question.title}
+        </h1>
       </div>
 
-      <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+      <div className="text-xs leading-relaxed text-[#1f2328] dark:text-[#c9d1d9] whitespace-pre-wrap">
         {question.statement}
       </div>
 
       {question.examples && question.examples.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+        <div className="space-y-3">
+          <h2 className="text-xs font-semibold text-[#656d76] dark:text-[#8b949e]">
             Examples
-          </h3>
+          </h2>
           {question.examples.map((ex, idx) => {
             const exampleImage =
               ex.image ||
@@ -86,35 +91,35 @@ export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
             return (
               <div
                 key={idx}
-                className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 rounded-lg p-3.5 space-y-2 text-xs"
+                className="bg-[#f6f8fa] dark:bg-[#0b0e14] border border-[#d0d7de] dark:border-[#30363d] rounded p-3 space-y-1.5 text-xs font-mono"
               >
-                <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400 mb-1 uppercase tracking-wider">
-                  Example {idx + 1}:
+                <div className="text-[11px] font-sans font-semibold text-[#0969da] dark:text-[#2f81f7] mb-1">
+                  Example {idx + 1}
                 </div>
                 {exampleImage && (
-                  <div className="my-2.5 flex justify-center bg-white dark:bg-slate-900/80 p-2 rounded border border-slate-200 dark:border-slate-800">
+                  <div className="my-2 flex justify-center bg-white dark:bg-[#161b22] p-2 rounded border border-[#d0d7de] dark:border-[#30363d]">
                     <img
                       src={exampleImage}
                       alt={`Example ${idx + 1} diagram`}
-                      className="max-h-56 max-w-full object-contain rounded"
+                      className="max-h-52 max-w-full object-contain rounded"
                     />
                   </div>
                 )}
-                <div className="font-mono text-slate-800 dark:text-slate-200">
-                  <span className="text-slate-400 dark:text-slate-500 font-semibold select-none">
+                <div>
+                  <span className="text-[#8c959f] select-none">
                     Input:{" "}
                   </span>
-                  {ex.input}
+                  <span>{ex.input}</span>
                 </div>
-                <div className="font-mono text-slate-800 dark:text-slate-200">
-                  <span className="text-slate-400 dark:text-slate-500 font-semibold select-none">
+                <div>
+                  <span className="text-[#8c959f] select-none">
                     Output:{" "}
                   </span>
-                  {ex.output}
+                  <span>{ex.output}</span>
                 </div>
                 {ex.explanation && (
-                  <div className="text-slate-600 dark:text-slate-400 italic">
-                    <span className="text-slate-400 dark:text-slate-500 not-italic font-semibold select-none">
+                  <div className="font-sans text-[#656d76] dark:text-[#8b949e] pt-1">
+                    <span className="text-[#8c959f] font-mono select-none">
                       Explanation:{" "}
                     </span>
                     {ex.explanation}
@@ -128,10 +133,10 @@ export const QuestionPane: React.FC<QuestionPaneProps> = ({ question }) => {
 
       {question.constraints && question.constraints.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+          <h2 className="text-xs font-semibold text-[#656d76] dark:text-[#8b949e]">
             Constraints
-          </h3>
-          <ul className="list-disc list-inside space-y-1 text-xs font-mono text-slate-600 dark:text-slate-400">
+          </h2>
+          <ul className="list-disc list-inside space-y-1 text-xs font-mono text-[#656d76] dark:text-[#8b949e]">
             {question.constraints.map((c, i) => (
               <li key={i}>{c}</li>
             ))}

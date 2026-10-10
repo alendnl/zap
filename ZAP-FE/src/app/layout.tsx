@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="h-screen w-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 antialiased overflow-hidden transition-colors duration-200">
+      <body className="min-h-screen bg-[#f6f8fa] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] antialiased selection:bg-blue-500/20">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

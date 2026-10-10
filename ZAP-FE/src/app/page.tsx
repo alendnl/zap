@@ -6,19 +6,13 @@ import {
   Search,
   Code2,
   Terminal,
-  Sparkles,
-  ChevronRight,
-  Filter,
   CheckCircle2,
   Layers,
-  ArrowRight,
   Loader2,
   LogOut,
   BookOpen,
-  Play,
-  Laptop,
-  Cpu,
-  FileCode,
+  Circle,
+  ExternalLink,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
@@ -31,79 +25,61 @@ import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
 import { StudentAuthView } from "@/components/StudentAuthView";
 import type { Student } from "@/types/auth";
-import type { Question, QuestionSummary, Difficulty } from "@/types/question";
+import type { Question, QuestionSummary } from "@/types/question";
 
 type NavigationTopic = "dsa" | "basic" | "compiler";
 
-const DIFFICULTY_CONFIG: Record<
+const DIFFICULTY_BADGES: Record<
   string,
-  { label: string; text: string; bg: string; border: string; pill: string }
+  { label: string; className: string }
 > = {
   EASY: {
     label: "Easy",
-    text: "text-emerald-700 dark:text-emerald-400",
-    bg: "bg-emerald-500/10 dark:bg-emerald-500/15",
-    border: "border-emerald-500/30",
-    pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+    className:
+      "text-[#1a7f37] dark:text-[#3fb950] bg-[#dafbe1] dark:bg-[#2ea043]/15 border-[#1a7f37]/20 dark:border-[#3fb950]/30",
   },
   MEDIUM: {
     label: "Medium",
-    text: "text-amber-700 dark:text-amber-400",
-    bg: "bg-amber-500/10 dark:bg-amber-500/15",
-    border: "border-amber-500/30",
-    pill: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    className:
+      "text-[#9a6700] dark:text-[#d29922] bg-[#fff8c5] dark:bg-[#bb8009]/15 border-[#9a6700]/20 dark:border-[#d29922]/30",
   },
   HARD: {
     label: "Hard",
-    text: "text-rose-700 dark:text-rose-400",
-    bg: "bg-rose-500/10 dark:bg-rose-500/15",
-    border: "border-rose-500/30",
-    pill: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
+    className:
+      "text-[#cf222e] dark:text-[#f85149] bg-[#ffebe9] dark:bg-[#f85149]/15 border-[#cf222e]/20 dark:border-[#f85149]/30",
   },
 };
 
-const BASIC_PROGRAMMING_MODULES = [
+const BASIC_CONCEPTS = [
   {
-    title: "Variables, Data Types & I/O",
-    desc: "Understand standard input & output, primitives, type casting, and arithmetic operations.",
-    tag: "Fundamentals",
-    badge: "Module 1",
-    examples: ["Print formatted strings", "Read integer & string from stdin", "Calculate sum & averages"],
+    title: "Input, output, and types",
+    summary: "Standard I/O streams, primitive types, numeric representations, and type casting.",
+    topics: ["Formatted output and format specifiers", "Reading single and multi-token input", "Type casting and precision handling"],
   },
   {
-    title: "Conditionals & Decision Making",
-    desc: "Master if-else logic, comparison operators, and multi-branch decision structures.",
-    tag: "Control Flow",
-    badge: "Module 2",
-    examples: ["Odd or Even Checker", "Find Largest of Three Numbers", "Leap Year Evaluator"],
+    title: "Conditionals and branching",
+    summary: "Control flow decisions, relational comparisons, boolean algebra, and switch structures.",
+    topics: ["Multi-condition branching with if-else", "Logical short-circuit evaluations", "Switch-case jump structures"],
   },
   {
-    title: "Loops, Iterations & Patterns",
-    desc: "Work with while, for, and nested loops to generate number series and star patterns.",
-    tag: "Iterations",
-    badge: "Module 3",
-    examples: ["Factorial & Multiplication Table", "Pyramid Star Pattern", "Reverse an Integer"],
+    title: "Loops and iterations",
+    summary: "Definite and indefinite iteration, loop invariants, nested iterations, and break control.",
+    topics: ["While and for loop mechanics", "Nested loops for matrix traversals", "Break, continue, and early exits"],
   },
   {
-    title: "Functions & Recursion",
-    desc: "Structure code into modular functions with return values, arguments, and base cases.",
-    tag: "Functions",
-    badge: "Module 4",
-    examples: ["Prime Number Checker Function", "GCD using Euclidean Algorithm", "Fibonacci Sequence"],
+    title: "Functions and recursion",
+    summary: "Modular decomposition, pass-by-value vs reference, call stacks, and base cases.",
+    topics: ["Function signatures and return contracts", "Stack frames and local variable scope", "Single and tree recursion base cases"],
   },
   {
-    title: "Arrays & String Traversal",
-    desc: "Inspect array indices, sequential searches, reversals, and character frequency counting.",
-    tag: "Data Basics",
-    badge: "Module 5",
-    examples: ["Find Min & Max in Array", "Palindrome String Verification", "Count Vowels & Consonants"],
+    title: "Arrays and strings",
+    summary: "Contiguous memory allocations, indexing, buffer bounds, and character arrays.",
+    topics: ["In-place traversals and linear scans", "String terminator handling and length", "Two-pointer reversals and bounds"],
   },
   {
-    title: "Math & Logic Puzzles",
-    desc: "Solve classical logic puzzles, bitwise tricks, and mathematical divisibility rules.",
-    tag: "Logic",
-    badge: "Module 6",
-    examples: ["Armstrong Number Checker", "Sum of Digits", "Bitwise Odd/Even & Swaps"],
+    title: "Arithmetic and number logic",
+    summary: "Modular arithmetic, greatest common divisor algorithms, prime checking, and bit operations.",
+    topics: ["Euclidean algorithm for GCD", "Primality testing up to square root of N", "Digit extraction and bitwise shifts"],
   },
 ];
 
@@ -214,7 +190,6 @@ export default function Home() {
       const list = await questionsApi.list("PUBLISHED", true);
       setQuestions(list || []);
 
-      // If user came with a problem link and is authenticated, open it
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
         const problemParam = urlParams.get("problem") || urlParams.get("id");
@@ -270,12 +245,12 @@ export default function Home() {
     };
   }, [student, loadQuestionList, loadUserSolvedStatus]);
 
-  // Filter out internal non-question entries like "vanilla-compiler"
+  // Exclude internal playground questions like "vanilla-compiler"
   const dsaQuestions = useMemo(() => {
     return questions.filter((q) => q.slug !== "vanilla-compiler");
   }, [questions]);
 
-  // Unique tags for filter pills
+  // Unique tags
   const allTags = useMemo(() => {
     const tagsSet = new Set<string>();
     dsaQuestions.forEach((q) => {
@@ -324,12 +299,12 @@ export default function Home() {
   // 1. Initializing auth state from localStorage
   if (isAuthInitializing) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-500 dark:text-sky-400 font-black text-xl animate-pulse">
+      <div className="min-h-screen bg-[#f6f8fa] dark:bg-[#0d1117] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 rounded-md bg-[#0969da] text-white font-mono text-xs font-bold flex items-center justify-center animate-pulse">
             Z
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Initializing ZAP Arena…</p>
+          <p className="text-xs text-[#656d76] dark:text-[#8b949e]">Loading workspace...</p>
         </div>
       </div>
     );
@@ -361,35 +336,34 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080c16] text-slate-800 dark:text-slate-100 flex flex-col transition-colors duration-200">
-      {/* Centralized Header Bar */}
-      <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Logo & Platform Name */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+    <div className="min-h-screen bg-[#f6f8fa] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] flex flex-col">
+      {/* Top Workbench Navigation Bar */}
+      <header className="sticky top-0 z-30 border-b border-[#d0d7de] dark:border-[#30363d] bg-white/95 dark:bg-[#161b22]/95 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between gap-4">
+          {/* Brand & Section Switcher */}
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-sm">
+              <span className="w-5 h-5 rounded bg-[#0969da] dark:bg-[#2f81f7] text-white flex items-center justify-center font-mono font-bold text-[11px] select-none">
                 Z
-              </div>
-              <span className="text-sky-600 dark:text-sky-400 font-black text-lg tracking-tight select-none">
+              </span>
+              <span className="font-semibold text-sm tracking-tight select-none">
                 ZAP
               </span>
             </div>
 
-            {/* Central Segmented Topic Selector */}
-            <nav className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80">
+            {/* Segmented Topic Navigation */}
+            <nav className="flex items-center gap-1 bg-[#f3f4f6] dark:bg-[#0b0e14] p-0.5 rounded-md border border-[#d0d7de] dark:border-[#30363d]">
               <button
                 type="button"
                 onClick={() => handleTabSwitch("dsa")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
                   activeTab === "dsa"
-                    ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200 dark:border-slate-700"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    ? "bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] font-semibold shadow-xs"
+                    : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
-                <span>DSA Problems</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+                <span>DSA problems</span>
+                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#e1e4e8] dark:bg-[#21262d] text-[#656d76] dark:text-[#8b949e]">
                   {dsaQuestions.length}
                 </span>
               </button>
@@ -397,58 +371,48 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("basic")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
                   activeTab === "basic"
-                    ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200 dark:border-slate-700"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    ? "bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] font-semibold shadow-xs"
+                    : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Basic Programming</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
-                  Track
-                </span>
+                <span>Basic programming</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTabSwitch("compiler")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
                   activeTab === "compiler"
-                    ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200 dark:border-slate-700"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    ? "bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] font-semibold shadow-xs"
+                    : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                 }`}
               >
-                <Terminal className="w-3.5 h-3.5" />
-                <span>Vanilla Compiler</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
-                  5 Langs
-                </span>
+                <span>Vanilla compiler</span>
               </button>
             </nav>
           </div>
 
-          {/* Right Action Icons: Profile, Environment, Theme Toggle */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 px-2.5 py-1 rounded-xl text-xs">
-              <div className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-xs">
+          {/* Right Tools: Session, Environment, Theme */}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] px-2.5 py-1 rounded-md text-xs">
+              <span className="w-4 h-4 rounded-full bg-[#0969da]/15 text-[#0969da] dark:text-[#2f81f7] text-[10px] font-bold flex items-center justify-center">
                 {student.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden md:flex flex-col text-left">
-                <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-tight">
-                  {student.name}
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                  {student.studentId} · {student.collegeName}
-                </span>
-              </div>
+              </span>
+              <span className="font-medium text-[11px] text-[#1f2328] dark:text-[#e6edf3] truncate max-w-[140px]">
+                {student.name}
+              </span>
+              <span className="text-[#8c959f] text-[10px] font-mono">
+                {student.studentId}
+              </span>
               <button
-                onClick={() => authApi.logout()}
-                title="Sign Out"
                 type="button"
-                className="ml-1.5 text-slate-400 hover:text-rose-500 p-0.5 rounded transition-colors"
+                onClick={() => authApi.logout()}
+                title="Sign out"
+                className="ml-1 text-[#656d76] dark:text-[#8b949e] hover:text-[#cf222e] dark:hover:text-[#f85149] p-0.5"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3 h-3" />
               </button>
             </div>
 
@@ -458,80 +422,69 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content Area based on Active Tab */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         {/* 1. DSA PROBLEMS TAB */}
         {activeTab === "dsa" && (
-          <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
-            {/* Hero Section */}
-            <div className="mb-8">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Interview Preparation Track</span>
-                </div>
-                {dsaQuestions.length > 0 && (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>
-                      Solved {solvedCount} / {dsaQuestions.length} Challenges
-                    </span>
-                  </div>
-                )}
+          <main className="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
+            {/* Header Description */}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#d0d7de] dark:border-[#30363d]">
+              <div>
+                <h1 className="text-lg font-semibold text-[#1f2328] dark:text-[#e6edf3] tracking-tight">
+                  Data structures and algorithms
+                </h1>
+                <p className="mt-0.5 text-xs text-[#656d76] dark:text-[#8b949e] max-w-2xl">
+                  Curated interview problems with custom test suites and isolated execution across C, C++, Java, Python, and JavaScript.
+                </p>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                DSA & Algorithmic Challenges
-              </h1>
-              <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-                Test your algorithmic skills with preloaded problems. Review test cases, submit your solution, and receive immediate verdict evaluations across all 5 languages.
-              </p>
+
+              {dsaQuestions.length > 0 && (
+                <div className="text-xs font-mono text-[#656d76] dark:text-[#8b949e]">
+                  Progress: {solvedCount} of {dsaQuestions.length} solved
+                </div>
+              )}
             </div>
 
-            {/* Search & Filters Bar */}
-            <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between mb-4">
               {/* Search Box */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-3.5 h-3.5 text-[#8c959f] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search challenges by title, slug, or tag..."
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors"
+                  placeholder="Filter by title, slug, or tag..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md text-xs text-[#1f2328] dark:text-[#e6edf3] placeholder-[#8c959f] focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7] transition-colors"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328]"
                   >
                     Clear
                   </button>
                 )}
               </div>
 
-              {/* Difficulty Filter Tabs */}
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800/80 flex-shrink-0">
+              {/* Difficulty Segment Filter */}
+              <div className="flex items-center gap-1 bg-white dark:bg-[#161b22] p-0.5 rounded-md border border-[#d0d7de] dark:border-[#30363d] text-xs">
                 {(["ALL", "EASY", "MEDIUM", "HARD"] as const).map((diff) => {
                   const isSelected = difficultyFilter === diff;
                   const count = difficultyCounts[diff];
                   return (
                     <button
                       key={diff}
+                      type="button"
                       onClick={() => setDifficultyFilter(diff)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
                         isSelected
-                          ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700"
-                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                          ? "bg-[#f3f4f6] dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] font-semibold"
+                          : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328]"
                       }`}
                     >
                       <span>{diff === "ALL" ? "All" : diff.charAt(0) + diff.slice(1).toLowerCase()}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected
-                            ? "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-                            : "bg-slate-200 dark:bg-slate-800 text-slate-500"
-                        }`}
-                      >
+                      <span className="text-[10px] font-mono text-[#8c959f]">
                         {count}
                       </span>
                     </button>
@@ -540,34 +493,35 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tag Filters */}
+            {/* Tags Strip */}
             {allTags.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
-                  <Filter className="w-3 h-3" />
-                  Tags:
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 text-xs scrollbar-thin">
+                <span className="text-[11px] text-[#656d76] dark:text-[#8b949e] mr-1 flex-shrink-0">
+                  Topics:
                 </span>
                 <button
+                  type="button"
                   onClick={() => setSelectedTag(null)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0 ${
+                  className={`px-2 py-0.5 rounded text-[11px] transition-colors flex-shrink-0 ${
                     selectedTag === null
-                      ? "bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30"
-                      : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                      ? "bg-[#0969da]/10 dark:bg-[#2f81f7]/15 text-[#0969da] dark:text-[#2f81f7] font-medium"
+                      : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                   }`}
                 >
-                  All Topics
+                  All
                 </button>
                 {allTags.map((tag) => (
                   <button
                     key={tag}
+                    type="button"
                     onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0 ${
+                    className={`px-2 py-0.5 rounded text-[11px] transition-colors flex-shrink-0 border ${
                       selectedTag === tag
-                        ? "bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30"
-                        : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                        ? "border-[#0969da]/30 bg-[#0969da]/10 text-[#0969da] dark:text-[#2f81f7] font-medium"
+                        : "border-transparent text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                     }`}
                   >
-                    #{tag}
+                    {tag}
                   </button>
                 ))}
               </div>
@@ -575,11 +529,11 @@ export default function Home() {
 
             {/* Error Notice */}
             {error && (
-              <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+              <div className="mb-4 p-3 rounded-md bg-[#ffebe9] dark:bg-[#f85149]/10 border border-[#cf222e]/30 text-[#cf222e] dark:text-[#f85149] text-xs flex items-center justify-between">
                 <span>{error}</span>
                 <button
                   onClick={() => void loadQuestionList()}
-                  className="underline hover:no-underline font-semibold"
+                  className="font-medium hover:underline ml-2"
                 >
                   Retry
                 </button>
@@ -588,119 +542,105 @@ export default function Home() {
 
             {/* Questions Table */}
             {loadingList ? (
-              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-12 text-center shadow-sm">
-                <Loader2 className="w-6 h-6 animate-spin text-sky-500 mx-auto mb-3" />
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Loading problems catalog...</p>
+              <div className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-8 text-center text-xs text-[#656d76] dark:text-[#8b949e]">
+                <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-[#0969da]" />
+                <span>Loading problems catalog...</span>
               </div>
             ) : filteredQuestions.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-12 text-center shadow-sm">
-                <Code2 className="w-8 h-8 text-slate-400 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No challenges matched your filter</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                  Try adjusting your search keywords, clearing tags, or switching difficulty filter to ALL.
-                </p>
+              <div className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-8 text-center text-xs text-[#656d76] dark:text-[#8b949e]">
+                <span>No problems match the current filter.</span>
               </div>
             ) : (
-              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm">
+              <div className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md overflow-hidden">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/70 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none">
-                  <div className="col-span-1">#</div>
-                  <div className="col-span-5 md:col-span-6">Title & Topics</div>
+                <div className="grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] text-[11px] font-semibold text-[#656d76] dark:text-[#8b949e]">
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-6 md:col-span-7">Title</div>
                   <div className="col-span-2">Difficulty</div>
-                  <div className="hidden md:block col-span-2">Test Cases</div>
-                  <div className="col-span-4 md:col-span-1 text-right">Action</div>
+                  <div className="hidden md:block col-span-1 text-right font-mono">Tests</div>
+                  <div className="col-span-3 md:col-span-1 text-right">Action</div>
                 </div>
 
-                {/* Question Rows */}
-                <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                  {filteredQuestions.map((q, idx) => {
-                    const diffConfig = DIFFICULTY_CONFIG[q.difficulty] || DIFFICULTY_CONFIG.EASY;
-                    const isOpening = loadingProblemId === q.id || loadingProblemId === q.slug;
-                    const isSolved = solvedQuestionIds.has(q.id) || solvedQuestionIds.has(q.slug);
+                {/* Table Body */}
+                <div className="divide-y divide-[#d0d7de]/60 dark:divide-[#30363d]/60">
+                  {filteredQuestions.map((q) => {
+                    const diffConfig =
+                      DIFFICULTY_BADGES[q.difficulty] || DIFFICULTY_BADGES.EASY;
+                    const isOpening =
+                      loadingProblemId === q.id || loadingProblemId === q.slug;
+                    const isSolved =
+                      solvedQuestionIds.has(q.id) || solvedQuestionIds.has(q.slug);
 
                     return (
                       <div
                         key={q.id}
                         onClick={() => !isOpening && void openQuestion(q.id)}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                        className="grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-[#f6f8fa]/80 dark:hover:bg-[#21262d]/50 transition-colors cursor-pointer group text-xs"
                       >
-                        {/* Index */}
-                        <div className="col-span-1 text-xs font-mono text-slate-400 dark:text-slate-500">
-                          {idx + 1}
+                        {/* Status */}
+                        <div className="col-span-1">
+                          {isSolved ? (
+                            <CheckCircle2
+                              className="w-4 h-4 text-[#1a7f37] dark:text-[#3fb950]"
+                              aria-label="Solved"
+                            />
+                          ) : (
+                            <Circle
+                              className="w-4 h-4 text-[#d0d7de] dark:text-[#30363d]"
+                              aria-label="Not solved"
+                            />
+                          )}
                         </div>
 
-                        {/* Title & Tags */}
-                        <div className="col-span-5 md:col-span-6 min-w-0 pr-2">
-                          <div className="flex items-center gap-2">
-                            {isSolved && (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-                            )}
-                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate">
-                              {q.title}
-                            </span>
+                        {/* Title and Tags */}
+                        <div className="col-span-6 md:col-span-7 min-w-0 pr-2">
+                          <div className="font-medium text-[#1f2328] dark:text-[#e6edf3] group-hover:text-[#0969da] dark:group-hover:text-[#2f81f7] transition-colors truncate">
+                            {q.title}
                           </div>
                           {q.tags && q.tags.length > 0 && (
-                            <div className="flex items-center gap-1.5 mt-1 overflow-hidden">
+                            <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
                               {q.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="text-[10px] font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 px-2 py-0.5 rounded"
+                                  className="text-[10px] text-[#656d76] dark:text-[#8b949e]"
                                 >
-                                  #{tag}
+                                  {tag}
                                 </span>
                               ))}
-                              {q.tags.length > 3 && (
-                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                  +{q.tags.length - 3}
-                                </span>
-                              )}
                             </div>
                           )}
                         </div>
 
-                        {/* Difficulty Badge */}
+                        {/* Difficulty */}
                         <div className="col-span-2">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${diffConfig.text} ${diffConfig.bg} ${diffConfig.border}`}
+                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium border ${diffConfig.className}`}
                           >
                             {diffConfig.label}
                           </span>
                         </div>
 
                         {/* Test Cases Count */}
-                        <div className="hidden md:block col-span-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                          {q.testCasesCount != null
-                            ? `${q.testCasesCount} ${q.testCasesCount === 1 ? "case" : "cases"}`
-                            : "Ready"}
+                        <div className="hidden md:block col-span-1 text-right text-[11px] font-mono text-[#656d76] dark:text-[#8b949e]">
+                          {q.testCasesCount != null ? q.testCasesCount : "—"}
                         </div>
 
-                        {/* Action Button */}
-                        <div className="col-span-4 md:col-span-1 text-right">
+                        {/* Action */}
+                        <div className="col-span-3 md:col-span-1 text-right">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               void openQuestion(q.id);
                             }}
                             disabled={isOpening}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-50 ${
+                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border ${
                               isSolved
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20"
-                                : "bg-sky-600 hover:bg-sky-500 text-white"
+                                ? "border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#21262d] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328]"
+                                : "border-[#0969da] dark:border-[#2f81f7] bg-[#0969da] dark:bg-[#2f81f7] text-white hover:opacity-90"
                             }`}
                           >
-                            {isOpening ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : isSolved ? (
-                              <>
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Solved</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>Solve</span>
-                                <ChevronRight className="w-3.5 h-3.5" />
-                              </>
-                            )}
+                            {isOpening ? "Loading" : isSolved ? "Review" : "Solve"}
                           </button>
                         </div>
                       </div>
@@ -714,97 +654,72 @@ export default function Home() {
 
         {/* 2. BASIC PROGRAMMING TAB */}
         {activeTab === "basic" && (
-          <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
-            {/* Track Header */}
-            <div className="mb-8">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold mb-3">
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Foundations & Syntax Track</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                Basic Programming Curriculum
+          <main className="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
+            {/* Header Description */}
+            <div className="mb-6 pb-4 border-b border-[#d0d7de] dark:border-[#30363d]">
+              <h1 className="text-lg font-semibold text-[#1f2328] dark:text-[#e6edf3] tracking-tight">
+                Basic programming concepts
               </h1>
-              <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-                Build rock-solid problem solving foundations. Practice loops, nested conditions, functions, pattern printing, and array manipulations across C, C++, Java, Python, and JavaScript.
+              <p className="mt-0.5 text-xs text-[#656d76] dark:text-[#8b949e] max-w-2xl">
+                Foundational programming exercises covering core language constructs, conditionals, loops, functions, and elementary arrays.
               </p>
             </div>
 
-            {/* Preparation Banner Notice */}
-            <div className="bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-purple-500/10 border border-sky-500/20 dark:border-sky-500/30 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-              <div className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5">
-                  <Laptop className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Basic Programming Challenges Track
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl leading-relaxed">
-                    Custom beginner exercises are ready to be populated. You can also jump straight into the Vanilla Compiler playground to write and run any basic code in all 5 languages right now.
-                  </p>
-                </div>
+            {/* Information Notice */}
+            <div className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                  Question sets for this section are being prepared
+                </p>
+                <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-0.5">
+                  You can test and run any basic code directly using the vanilla compiler in C, C++, Java, Python, or JavaScript.
+                </p>
               </div>
-
               <button
                 type="button"
                 onClick={() => handleTabSwitch("compiler")}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition-all whitespace-nowrap active:scale-[0.98]"
+                className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#0969da] dark:bg-[#2f81f7] text-white hover:opacity-90 transition-opacity flex-shrink-0"
               >
-                <Terminal className="w-4 h-4" />
-                <span>Open Vanilla Compiler</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                Open compiler
               </button>
             </div>
 
-            {/* Curriculum Module Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {BASIC_PROGRAMMING_MODULES.map((mod, i) => (
+            {/* Concepts Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {BASIC_CONCEPTS.map((concept) => (
                 <div
-                  key={mod.title}
-                  className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
+                  key={concept.title}
+                  className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                        {mod.badge}
-                      </span>
-                      <span className="text-[11px] font-semibold text-sky-600 dark:text-sky-400">
-                        #{mod.tag}
-                      </span>
-                    </div>
-
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">
-                      {mod.title}
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
-                      {mod.desc}
+                    <h2 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                      {concept.title}
+                    </h2>
+                    <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-1 leading-relaxed">
+                      {concept.summary}
                     </p>
 
-                    <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
-                        Core Exercises:
-                      </span>
-                      {mod.examples.map((ex) => (
+                    <div className="mt-3 pt-3 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 space-y-1">
+                      {concept.topics.map((t) => (
                         <div
-                          key={ex}
-                          className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300"
+                          key={t}
+                          className="text-[11px] text-[#1f2328] dark:text-[#c9d1d9] flex items-center gap-1.5"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
-                          <span className="truncate">{ex}</span>
+                          <span className="w-1 h-1 rounded-full bg-[#8c959f] flex-shrink-0" />
+                          <span className="truncate">{t}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-slate-500 font-medium">Coming next</span>
+                  <div className="mt-4 pt-2.5 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 flex items-center justify-between">
+                    <span className="text-[11px] text-[#8c959f]">Coming in next prompt</span>
                     <button
                       type="button"
                       onClick={() => handleTabSwitch("compiler")}
-                      className="text-sky-600 dark:text-sky-400 hover:underline font-semibold flex items-center gap-1"
+                      className="text-[11px] text-[#0969da] dark:text-[#2f81f7] hover:underline font-medium"
                     >
-                      <span>Try in Compiler</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
+                      Test in compiler
                     </button>
                   </div>
                 </div>
@@ -815,7 +730,7 @@ export default function Home() {
 
         {/* 3. VANILLA COMPILER TAB */}
         {activeTab === "compiler" && (
-          <div className="flex-1 w-full" style={{ height: "calc(100vh - 3.5rem)" }}>
+          <div className="flex-1 w-full" style={{ height: "calc(100vh - 3rem)" }}>
             <VanillaCompiler />
           </div>
         )}

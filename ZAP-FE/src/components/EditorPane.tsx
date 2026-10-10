@@ -59,18 +59,18 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-slate-950">
+    <div className="h-full flex flex-col bg-white dark:bg-[#0b0e14]">
       {/* Editor Header Toolbar */}
-      <div className="h-12 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 select-none">
+      <div className="h-11 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] px-3.5 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] text-[#656d76] dark:text-[#8b949e]">
             Language:
-          </label>
+          </span>
           <select
             value={language}
             onChange={(e) => onLanguageChange(e.target.value)}
             disabled={isRunning}
-            className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:opacity-50 transition-colors cursor-pointer"
+            className="bg-white dark:bg-[#0b0e14] text-[#1f2328] dark:text-[#e6edf3] border border-[#d0d7de] dark:border-[#30363d] rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7] disabled:opacity-50 cursor-pointer"
           >
             <option value="c">C (GCC)</option>
             <option value="python">Python (3.14)</option>
@@ -80,9 +80,9 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
           </select>
 
           {statusText && (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-sky-600 dark:text-sky-400 border border-slate-300 dark:border-slate-700 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-sky-500" />
-              {statusText}
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono text-[#656d76] dark:text-[#8b949e]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0969da] dark:bg-[#2f81f7] animate-pulse" />
+              <span>{statusText}</span>
             </div>
           )}
         </div>
@@ -92,27 +92,29 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             <button
               onClick={onReset}
               disabled={isRunning}
-              title={`Reset ${language.toUpperCase()} code to template`}
+              title={`Reset ${language.toUpperCase()} code`}
               type="button"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-medium rounded-md border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-[#21262d] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3] text-xs font-medium rounded border border-[#d0d7de] dark:border-[#30363d] transition-colors disabled:opacity-50"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3 h-3" />
               <span>Reset</span>
             </button>
           )}
           <button
+            type="button"
             onClick={onRun}
             disabled={isRunning}
-            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
+            className="px-3 py-1 bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] text-xs font-medium rounded border border-[#d0d7de] dark:border-[#30363d] hover:bg-[#f6f8fa] dark:hover:bg-[#30363d] transition-colors disabled:opacity-50"
           >
-            {isRunning ? "Running..." : "Run Code"}
+            {isRunning ? "Running..." : "Run code"}
           </button>
           <button
+            type="button"
             onClick={onSubmit}
             disabled={isRunning}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-md shadow-sm transition-colors disabled:opacity-50"
+            className="px-3.5 py-1 bg-[#1a7f37] dark:bg-[#238636] hover:opacity-90 text-white text-xs font-medium rounded transition-opacity disabled:opacity-50"
           >
-            {isRunning ? "Evaluating..." : "Submit"}
+            {isRunning ? "Evaluating..." : "Submit solution"}
           </button>
         </div>
       </div>
@@ -122,16 +124,17 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
         <MonacoEditor
           height="100%"
           language={getMonacoLanguage(language)}
-          theme={theme === "dark" ? "vs-dark" : "light"}
+          theme={theme === "dark" ? "vs-dark" : "vs"}
           value={code}
           onChange={(val) => onCodeChange(val || "")}
           options={{
             minimap: { enabled: false },
-            fontSize: 14,
-            fontFamily: "JetBrains Mono, Menlo, Monaco, 'Courier New', monospace",
+            fontSize: 13,
+            fontFamily: "JetBrains Mono, SF Mono, Menlo, monospace",
             scrollBeyondLastLine: false,
             automaticLayout: true,
             tabSize: 4,
+            padding: { top: 8 },
           }}
         />
       </div>
