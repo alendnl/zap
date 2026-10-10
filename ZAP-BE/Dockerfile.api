@@ -7,6 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    build-essential \
+    default-jdk-headless \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

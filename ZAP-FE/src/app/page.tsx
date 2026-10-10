@@ -336,10 +336,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8fa] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] flex flex-col">
+    <div
+      className={`bg-[#f6f8fa] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] flex flex-col ${
+        activeTab === "compiler" ? "h-screen overflow-hidden" : "min-h-screen"
+      }`}
+    >
       {/* Top Workbench Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b border-[#d0d7de] dark:border-[#30363d] bg-white/95 dark:bg-[#161b22]/95 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 border-b border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] flex-shrink-0">
+        <div
+          className={`mx-auto px-4 h-12 flex items-center justify-between gap-4 ${
+            activeTab === "compiler" ? "w-full" : "max-w-6xl"
+          }`}
+        >
           {/* Brand & Section Switcher */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -389,7 +397,7 @@ export default function Home() {
                     : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
                 }`}
               >
-                <span>Vanilla compiler</span>
+                <span>Compiler</span>
               </button>
             </nav>
           </div>
@@ -672,7 +680,7 @@ export default function Home() {
                   Question sets for this section are being prepared
                 </p>
                 <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-0.5">
-                  You can test and run any basic code directly using the vanilla compiler in C, C++, Java, Python, or JavaScript.
+                  You can test and run any basic code directly using the compiler in C, C++, Java, Python, or JavaScript.
                 </p>
               </div>
               <button
@@ -728,9 +736,9 @@ export default function Home() {
           </main>
         )}
 
-        {/* 3. VANILLA COMPILER TAB */}
+        {/* 3. COMPILER TAB */}
         {activeTab === "compiler" && (
-          <div className="flex-1 w-full" style={{ height: "calc(100vh - 3rem)" }}>
+          <div className="flex-1 min-h-0 w-full overflow-hidden">
             <VanillaCompiler />
           </div>
         )}
