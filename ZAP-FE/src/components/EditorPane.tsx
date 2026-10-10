@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import { RotateCcw } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 // Dynamically load Monaco Editor with SSR disabled
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -37,6 +38,8 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   isRunning,
   statusText,
 }) => {
+  const { theme } = useTheme();
+
   const getMonacoLanguage = (lang: string) => {
     switch (lang.toLowerCase()) {
       case "c":
@@ -56,16 +59,18 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-950">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-950">
       {/* Editor Header Toolbar */}
-      <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-4 flex items-center justify-between">
+      <div className="h-12 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 px-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <label className="text-xs font-semibold text-slate-400 select-none">Language:</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 select-none">
+            Language:
+          </label>
           <select
             value={language}
             onChange={(e) => onLanguageChange(e.target.value)}
             disabled={isRunning}
-            className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:opacity-50"
+            className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:opacity-50 transition-colors cursor-pointer"
           >
             <option value="c">C (GCC)</option>
             <option value="python">Python (3.14)</option>
@@ -75,8 +80,8 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
           </select>
 
           {statusText && (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-xs text-sky-400 border border-slate-700 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-sky-600 dark:text-sky-400 border border-slate-300 dark:border-slate-700 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-sky-500" />
               {statusText}
             </div>
           )}
@@ -89,7 +94,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
               disabled={isRunning}
               title={`Reset ${language.toUpperCase()} code to template`}
               type="button"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded border border-slate-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-medium rounded-md border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
@@ -98,14 +103,14 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
           <button
             onClick={onRun}
             disabled={isRunning}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded border border-slate-700 transition-colors disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
           >
             {isRunning ? "Running..." : "Run Code"}
           </button>
           <button
             onClick={onSubmit}
             disabled={isRunning}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-sm transition-colors disabled:opacity-50"
+            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-md shadow-sm transition-colors disabled:opacity-50"
           >
             {isRunning ? "Evaluating..." : "Submit"}
           </button>
@@ -117,12 +122,13 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
         <MonacoEditor
           height="100%"
           language={getMonacoLanguage(language)}
-          theme="vs-dark"
+          theme={theme === "dark" ? "vs-dark" : "light"}
           value={code}
           onChange={(val) => onCodeChange(val || "")}
           options={{
             minimap: { enabled: false },
             fontSize: 14,
+            fontFamily: "JetBrains Mono, Menlo, Monaco, 'Courier New', monospace",
             scrollBeyondLastLine: false,
             automaticLayout: true,
             tabSize: 4,

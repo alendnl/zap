@@ -6,6 +6,7 @@ from app.db.mongodb import get_database_for_env
 from app.auth.router import router as auth_router
 from app.questions.router import router as questions_router
 from app.submissions.router import router as submissions_router
+from app.compiler.router import router as compiler_router
 
 settings = get_settings()
 
@@ -49,4 +50,5 @@ def health_check():
 app.include_router(questions_router)
 app.include_router(submissions_router)
 app.include_router(auth_router)
+app.include_router(compiler_router)
 
