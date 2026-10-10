@@ -655,6 +655,193 @@ int main() {
     return 0;
 }
 """
+    elif re.search(r'\bfib\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << sol.fib((int)n) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfactorial\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << sol.factorial((int)n) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisArmstrong\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << (sol.isArmstrong((int)n) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\breverse\s*\(', source) or re.search(r'\breverseInteger\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << sol.reverse((int)n) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindGcdAndLcm\s*\(', source):
+        driver += r"""
+    long long a, b;
+    if (std::cin >> a >> b) {
+        auto res = sol.findGcdAndLcm((int)a, (int)b);
+        std::cout << "[" << res[0] << ", " << res[1] << "]" << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindSecondLargest\s*\(', source):
+        driver += r"""
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        for (char &c : line) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss(line);
+        std::vector<int> nums;
+        int val;
+        while (ss >> val) nums.push_back(val);
+        std::cout << sol.findSecondLargest(nums) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bswapNumbers\s*\(', source):
+        driver += r"""
+    long long a, b;
+    if (std::cin >> a >> b) {
+        auto res = sol.swapNumbers((int)a, (int)b);
+        std::cout << "[" << res[0] << ", " << res[1] << "]" << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisRotation\s*\(', source):
+        driver += r"""
+    std::string s1, s2;
+    if (std::getline(std::cin, s1) && std::getline(std::cin, s2)) {
+        while (!s1.empty() && (s1.back() == '\r' || s1.back() == '\n')) s1.pop_back();
+        while (!s2.empty() && (s2.back() == '\r' || s2.back() == '\n')) s2.pop_back();
+        if (s1.size() >= 2 && s1.front() == '"' && s1.back() == '"') s1 = s1.substr(1, s1.size() - 2);
+        if (s2.size() >= 2 && s2.front() == '"' && s2.back() == '"') s2 = s2.substr(1, s2.size() - 2);
+        std::cout << (sol.isRotation(s1, s2) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsumOfDigits\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << sol.sumOfDigits((int)n) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcountEvenOdd\s*\(', source):
+        driver += r"""
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        for (char &c : line) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss(line);
+        std::vector<int> nums;
+        int val;
+        while (ss >> val) nums.push_back(val);
+        auto res = sol.countEvenOdd(nums);
+        std::cout << "[" << res[0] << ", " << res[1] << "]" << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisLeapYear\s*\(', source):
+        driver += r"""
+    long long year;
+    if (std::cin >> year) {
+        std::cout << (sol.isLeapYear((int)year) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisSorted\s*\(', source):
+        driver += r"""
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        for (char &c : line) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss(line);
+        std::vector<int> nums;
+        int val;
+        while (ss >> val) nums.push_back(val);
+        std::cout << (sol.isSorted(nums) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcleanString\s*\(', source):
+        driver += r"""
+    std::string s;
+    if (std::getline(std::cin, s)) {
+        while (!s.empty() && (s.back() == '\r' || s.back() == '\n')) s.pop_back();
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"') s = s.substr(1, s.size() - 2);
+        std::cout << sol.cleanString(s) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindMissingNumber\s*\(', source):
+        driver += r"""
+    std::string line1, line2;
+    if (std::getline(std::cin, line1) && std::getline(std::cin, line2)) {
+        int n = std::stoi(line1);
+        for (char &c : line2) if (c == '[' || c == ']' || c == ',') c = ' ';
+        std::stringstream ss(line2);
+        std::vector<int> nums;
+        int val;
+        while (ss >> val) nums.push_back(val);
+        std::cout << sol.findMissingNumber(n, nums) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisNumeric\s*\(', source):
+        driver += r"""
+    std::string s;
+    if (std::getline(std::cin, s)) {
+        while (!s.empty() && (s.back() == '\r' || s.back() == '\n')) s.pop_back();
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"') s = s.substr(1, s.size() - 2);
+        std::cout << (sol.isNumeric(s) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bromanToInt\s*\(', source):
+        driver += r"""
+    std::string s;
+    if (std::getline(std::cin, s)) {
+        while (!s.empty() && (s.back() == '\r' || s.back() == '\n')) s.pop_back();
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"') s = s.substr(1, s.size() - 2);
+        std::cout << sol.romanToInt(s) << std::endl;
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisPowerOfTwo\s*\(', source):
+        driver += r"""
+    long long n;
+    if (std::cin >> n) {
+        std::cout << (sol.isPowerOfTwo((int)n) ? "true" : "false") << std::endl;
+    }
+    return 0;
+}
+"""
     else:
         return source
 
@@ -832,6 +1019,228 @@ int main() {
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     solution();
+    return 0;
+}
+"""
+    elif re.search(r'\bfib\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%d\n", fib((int)n));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfactorial\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%lld\n", factorial((int)n));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisArmstrong\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%s\n", isArmstrong((int)n) ? "true" : "false");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\breverse\s*\(', source) or re.search(r'\breverseInteger\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%d\n", reverse((int)n));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindGcdAndLcm\s*\(', source):
+        driver += r"""
+    long long a, b;
+    if (scanf("%lld %lld", &a, &b) == 2) {
+        int returnSize = 0;
+        int* res = findGcdAndLcm((int)a, (int)b, &returnSize);
+        if (res) printf("[%d, %d]\n", res[0], res[1]);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindSecondLargest\s*\(', source):
+        driver += r"""
+    char line[65536];
+    if (fgets(line, sizeof(line), stdin)) {
+        int nums[4096];
+        int n = 0;
+        for (int i = 0; line[i]; i++) if (line[i] == '[' || line[i] == ']' || line[i] == ',') line[i] = ' ';
+        char* token = strtok(line, " \t\r\n");
+        while (token) {
+            nums[n++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        printf("%d\n", findSecondLargest(nums, n));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bswapNumbers\s*\(', source):
+        driver += r"""
+    long long a, b;
+    if (scanf("%lld %lld", &a, &b) == 2) {
+        int returnSize = 0;
+        int* res = swapNumbers((int)a, (int)b, &returnSize);
+        if (res) printf("[%d, %d]\n", res[0], res[1]);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisRotation\s*\(', source):
+        driver += r"""
+    char line1[4096], line2[4096];
+    if (fgets(line1, sizeof(line1), stdin) && fgets(line2, sizeof(line2), stdin)) {
+        int len1 = strlen(line1);
+        while (len1 > 0 && (line1[len1-1] == '\r' || line1[len1-1] == '\n')) line1[--len1] = '\0';
+        int len2 = strlen(line2);
+        while (len2 > 0 && (line2[len2-1] == '\r' || line2[len2-1] == '\n')) line2[--len2] = '\0';
+        char *s1 = line1;
+        if (len1 >= 2 && s1[0] == '"' && s1[len1-1] == '"') { s1[len1-1] = '\0'; s1++; }
+        char *s2 = line2;
+        if (len2 >= 2 && s2[0] == '"' && s2[len2-1] == '"') { s2[len2-1] = '\0'; s2++; }
+        printf("%s\n", isRotation(s1, s2) ? "true" : "false");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bsumOfDigits\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%d\n", sumOfDigits((int)n));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcountEvenOdd\s*\(', source):
+        driver += r"""
+    char line[65536];
+    if (fgets(line, sizeof(line), stdin)) {
+        int nums[4096];
+        int n = 0;
+        for (int i = 0; line[i]; i++) if (line[i] == '[' || line[i] == ']' || line[i] == ',') line[i] = ' ';
+        char* token = strtok(line, " \t\r\n");
+        while (token) {
+            nums[n++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        int returnSize = 0;
+        int* res = countEvenOdd(nums, n, &returnSize);
+        if (res) printf("[%d, %d]\n", res[0], res[1]);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisLeapYear\s*\(', source):
+        driver += r"""
+    long long year;
+    if (scanf("%lld", &year) == 1) {
+        printf("%s\n", isLeapYear((int)year) ? "true" : "false");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisSorted\s*\(', source):
+        driver += r"""
+    char line[65536];
+    if (fgets(line, sizeof(line), stdin)) {
+        int nums[4096];
+        int n = 0;
+        for (int i = 0; line[i]; i++) if (line[i] == '[' || line[i] == ']' || line[i] == ',') line[i] = ' ';
+        char* token = strtok(line, " \t\r\n");
+        while (token) {
+            nums[n++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        printf("%s\n", isSorted(nums, n) ? "true" : "false");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcleanString\s*\(', source):
+        driver += r"""
+    char buf[65536];
+    if (fgets(buf, sizeof(buf), stdin)) {
+        int len = strlen(buf);
+        while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n')) { buf[--len] = '\0'; }
+        char *str = buf;
+        if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
+            str[len-1] = '\0';
+            str++;
+        }
+        char *res = cleanString(str);
+        if (res) printf("%s\n", res);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bfindMissingNumber\s*\(', source):
+        driver += r"""
+    char line1[256], line2[65536];
+    if (fgets(line1, sizeof(line1), stdin) && fgets(line2, sizeof(line2), stdin)) {
+        int n = atoi(line1);
+        int nums[4096];
+        int nNums = 0;
+        for (int i = 0; line2[i]; i++) if (line2[i] == '[' || line2[i] == ']' || line2[i] == ',') line2[i] = ' ';
+        char* token = strtok(line2, " \t\r\n");
+        while (token) {
+            nums[nNums++] = atoi(token);
+            token = strtok(NULL, " \t\r\n");
+        }
+        printf("%d\n", findMissingNumber(n, nums, nNums));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisNumeric\s*\(', source):
+        driver += r"""
+    char buf[65536];
+    if (fgets(buf, sizeof(buf), stdin)) {
+        int len = strlen(buf);
+        while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n')) { buf[--len] = '\0'; }
+        char *str = buf;
+        if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
+            str[len-1] = '\0';
+            str++;
+        }
+        printf("%s\n", isNumeric(str) ? "true" : "false");
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bromanToInt\s*\(', source):
+        driver += r"""
+    char buf[65536];
+    if (fgets(buf, sizeof(buf), stdin)) {
+        int len = strlen(buf);
+        while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n')) { buf[--len] = '\0'; }
+        char *str = buf;
+        if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
+            str[len-1] = '\0';
+            str++;
+        }
+        printf("%d\n", romanToInt(str));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bisPowerOfTwo\s*\(', source):
+        driver += r"""
+    long long n;
+    if (scanf("%lld", &n) == 1) {
+        printf("%s\n", isPowerOfTwo((int)n) ? "true" : "false");
+    }
     return 0;
 }
 """
@@ -1058,6 +1467,8 @@ def _prepare_java_harness(source: str) -> str:
             System.out.println(val.toString().toLowerCase());
         } else if (val instanceof int[]) {
             System.out.println(java.util.Arrays.toString((int[]) val));
+        } else if (val instanceof long[]) {
+            System.out.println(java.util.Arrays.toString((long[]) val));
         } else if (val instanceof char[]) {
             char[] ca = (char[]) val;
             StringBuilder sb = new StringBuilder("[");

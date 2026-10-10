@@ -263,6 +263,9 @@ export default function Home() {
 
   const handleTabSwitch = (newTab: NavigationTopic) => {
     setActiveTab(newTab);
+    setSearchQuery("");
+    setDifficultyFilter("ALL");
+    setSelectedTag(null);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", newTab);
@@ -281,23 +284,38 @@ export default function Home() {
     };
   }, [student, loadQuestionList, loadUserSolvedStatus]);
 
-  // Exclude internal playground questions like "vanilla-compiler"
+  // Separate questions into DSA problems and Basic Programming problems
   const dsaQuestions = useMemo(() => {
-    return questions.filter((q) => q.slug !== "vanilla-compiler");
+    return questions.filter(
+      (q) => q.slug !== "vanilla-compiler" && !q.tags?.includes("basic-programming")
+    );
   }, [questions]);
 
-  // Unique tags
+  const basicQuestions = useMemo(() => {
+    return questions.filter(
+      (q) => q.slug !== "vanilla-compiler" && q.tags?.includes("basic-programming")
+    );
+  }, [questions]);
+
+  const currentTopicQuestions = useMemo(() => {
+    if (activeTab === "basic") return basicQuestions;
+    return dsaQuestions;
+  }, [activeTab, basicQuestions, dsaQuestions]);
+
+  // Unique tags for current active topic
   const allTags = useMemo(() => {
     const tagsSet = new Set<string>();
-    dsaQuestions.forEach((q) => {
-      q.tags?.forEach((t) => tagsSet.add(t));
+    currentTopicQuestions.forEach((q) => {
+      q.tags?.forEach((t) => {
+        if (t !== "basic-programming") tagsSet.add(t);
+      });
     });
     return Array.from(tagsSet);
-  }, [dsaQuestions]);
+  }, [currentTopicQuestions]);
 
-  // Filtered DSA questions
+  // Filtered questions for current active topic
   const filteredQuestions = useMemo(() => {
-    return dsaQuestions.filter((q) => {
+    return currentTopicQuestions.filter((q) => {
       const matchesSearch =
         searchQuery.trim() === "" ||
         q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -312,25 +330,25 @@ export default function Home() {
 
       return matchesSearch && matchesDifficulty && matchesTag;
     });
-  }, [dsaQuestions, searchQuery, difficultyFilter, selectedTag]);
+  }, [currentTopicQuestions, searchQuery, difficultyFilter, selectedTag]);
 
-  // Solved Count
+  // Solved Count for current active topic
   const solvedCount = useMemo(() => {
-    return dsaQuestions.filter(
+    return currentTopicQuestions.filter(
       (q) => solvedQuestionIds.has(q.id) || solvedQuestionIds.has(q.slug)
     ).length;
-  }, [dsaQuestions, solvedQuestionIds]);
+  }, [currentTopicQuestions, solvedQuestionIds]);
 
-  // Difficulty counts
+  // Difficulty counts for current active topic
   const difficultyCounts = useMemo(() => {
-    const counts = { ALL: dsaQuestions.length, EASY: 0, MEDIUM: 0, HARD: 0 };
-    dsaQuestions.forEach((q) => {
+    const counts = { ALL: currentTopicQuestions.length, EASY: 0, MEDIUM: 0, HARD: 0 };
+    currentTopicQuestions.forEach((q) => {
       if (q.difficulty in counts) {
         counts[q.difficulty as "EASY" | "MEDIUM" | "HARD"]++;
       }
     });
     return counts;
-  }, [dsaQuestions]);
+  }, [currentTopicQuestions]);
 
   // 1. Initializing auth state from localStorage
   if (isAuthInitializing) {
@@ -423,6 +441,9 @@ export default function Home() {
                 }`}
               >
                 <span>Basic programming</span>
+                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#e1e4e8] dark:bg-[#21262d] text-[#656d76] dark:text-[#8b949e]">
+                  {basicQuestions.length}
+                </span>
               </button>
 
               <button
@@ -469,23 +490,27 @@ export default function Home() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* 1. DSA PROBLEMS TAB */}
-        {activeTab === "dsa" && (
+        {/* 1. DSA PROBLEMS TAB & 2. BASIC PROGRAMMING TAB */}
+        {(activeTab === "dsa" || activeTab === "basic") && (
           <main className="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
             {/* Header Description */}
             <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#d0d7de] dark:border-[#30363d]">
               <div>
                 <h1 className="text-lg font-semibold text-[#1f2328] dark:text-[#e6edf3] tracking-tight">
-                  Data structures and algorithms
+                  {activeTab === "dsa"
+                    ? "Data structures and algorithms"
+                    : "Basic programming concepts (Infosys SE Interview)"}
                 </h1>
                 <p className="mt-0.5 text-xs text-[#656d76] dark:text-[#8b949e] max-w-2xl">
-                  Curated interview problems with custom test suites and isolated execution across C, C++, Java, Python, and JavaScript.
+                  {activeTab === "dsa"
+                    ? "Curated interview problems with custom test suites and isolated execution across C, C++, Java, Python, and JavaScript."
+                    : "17 essential Infosys SE interview problems covering recursion, arithmetic logic, number properties, strings, and elementary arrays."}
                 </p>
               </div>
 
-              {dsaQuestions.length > 0 && (
+              {currentTopicQuestions.length > 0 && (
                 <div className="text-xs font-mono text-[#656d76] dark:text-[#8b949e]">
-                  Progress: {solvedCount} of {dsaQuestions.length} solved
+                  Progress: {solvedCount} of {currentTopicQuestions.length} solved
                 </div>
               )}
             </div>
@@ -644,14 +669,17 @@ export default function Home() {
                           </div>
                           {q.tags && q.tags.length > 0 && (
                             <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
-                              {q.tags.slice(0, 3).map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="text-[10px] text-[#656d76] dark:text-[#8b949e]"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
+                              {q.tags
+                                .filter((t) => t !== "basic-programming")
+                                .slice(0, 3)
+                                .map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="text-[10px] text-[#656d76] dark:text-[#8b949e]"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
                             </div>
                           )}
                         </div>
@@ -694,82 +722,61 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </main>
-        )}
 
-        {/* 2. BASIC PROGRAMMING TAB */}
-        {activeTab === "basic" && (
-          <main className="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
-            {/* Header Description */}
-            <div className="mb-6 pb-4 border-b border-[#d0d7de] dark:border-[#30363d]">
-              <h1 className="text-lg font-semibold text-[#1f2328] dark:text-[#e6edf3] tracking-tight">
-                Basic programming concepts
-              </h1>
-              <p className="mt-0.5 text-xs text-[#656d76] dark:text-[#8b949e] max-w-2xl">
-                Foundational programming exercises covering core language constructs, conditionals, loops, functions, and elementary arrays.
-              </p>
-            </div>
-
-            {/* Information Notice */}
-            <div className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-[#1f2328] dark:text-[#e6edf3]">
-                  Question sets for this section are being prepared
-                </p>
-                <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-0.5">
-                  You can test and run any basic code directly using the compiler in C, C++, Java, Python, or JavaScript.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("compiler")}
-                className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#0969da] dark:bg-[#2f81f7] text-white hover:opacity-90 transition-opacity flex-shrink-0"
-              >
-                Open compiler
-              </button>
-            </div>
-
-            {/* Concepts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {BASIC_CONCEPTS.map((concept) => (
-                <div
-                  key={concept.title}
-                  className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 flex flex-col justify-between"
-                >
-                  <div>
-                    <h2 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
-                      {concept.title}
-                    </h2>
-                    <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-1 leading-relaxed">
-                      {concept.summary}
-                    </p>
-
-                    <div className="mt-3 pt-3 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 space-y-1">
-                      {concept.topics.map((t) => (
-                        <div
-                          key={t}
-                          className="text-[11px] text-[#1f2328] dark:text-[#c9d1d9] flex items-center gap-1.5"
-                        >
-                          <span className="w-1 h-1 rounded-full bg-[#8c959f] flex-shrink-0" />
-                          <span className="truncate">{t}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-2.5 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 flex items-center justify-between">
-                    <span className="text-[11px] text-[#8c959f]">Coming in next prompt</span>
-                    <button
-                      type="button"
-                      onClick={() => handleTabSwitch("compiler")}
-                      className="text-[11px] text-[#0969da] dark:text-[#2f81f7] hover:underline font-medium"
-                    >
-                      Test in compiler
-                    </button>
-                  </div>
+            {/* Concepts Grid for Basic Programming Tab */}
+            {activeTab === "basic" && (
+              <div className="mt-10 pt-8 border-t border-[#d0d7de] dark:border-[#30363d]">
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                    Foundational Programming Concepts
+                  </h2>
+                  <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-0.5">
+                    Core computer science building blocks tested in technical and system engineer screening interviews.
+                  </p>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {BASIC_CONCEPTS.map((concept) => (
+                    <div
+                      key={concept.title}
+                      className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 flex flex-col justify-between"
+                    >
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                          {concept.title}
+                        </h3>
+                        <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-1 leading-relaxed">
+                          {concept.summary}
+                        </p>
+
+                        <div className="mt-3 pt-3 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 space-y-1">
+                          {concept.topics.map((t) => (
+                            <div
+                              key={t}
+                              className="text-[11px] text-[#1f2328] dark:text-[#c9d1d9] flex items-center gap-1.5"
+                            >
+                              <span className="w-1 h-1 rounded-full bg-[#8c959f] flex-shrink-0" />
+                              <span className="truncate">{t}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-2.5 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 flex items-center justify-between">
+                        <span className="text-[11px] text-[#8c959f]">Interactive Practice</span>
+                        <button
+                          type="button"
+                          onClick={() => handleTabSwitch("compiler")}
+                          className="text-[11px] text-[#0969da] dark:text-[#2f81f7] hover:underline font-medium"
+                        >
+                          Open in compiler
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </main>
         )}
 
