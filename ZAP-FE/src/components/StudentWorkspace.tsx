@@ -33,6 +33,7 @@ import {
 interface StudentWorkspaceProps {
   question: QuestionData;
   onBackToCatalog?: () => void;
+  initialSubmissions?: Submission[];
 }
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -165,7 +166,11 @@ function cleanStarter(codeStr?: string): string {
   return codeStr.replace(/^\s*pass\s*$/gm, "");
 }
 
-export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, onBackToCatalog }) => {
+export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
+  question,
+  onBackToCatalog,
+  initialSubmissions,
+}) => {
   const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [language, setLanguage] = useState("python");
@@ -178,14 +183,28 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
     [question.starterCode]
   );
 
+  // Compute restored codes immediately using initialSubmissions or starter template
+  const computeInitialCodes = useCallback(() => {
+    const supported = ["c", "python", "java", "cpp", "node"];
+    const initial: Record<string, string> = {};
+    for (const l of supported) {
+      initial[l] = getStarterCode(l);
+    }
+    if (initialSubmissions && initialSubmissions.length > 0) {
+      for (const lang of supported) {
+        const latest = initialSubmissions.find(
+          (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
+        );
+        if (latest && latest.sourceCode) {
+          initial[lang] = latest.sourceCode;
+        }
+      }
+    }
+    return initial;
+  }, [initialSubmissions, getStarterCode]);
+
   // Independent code buffer per language so switching tabs NEVER loses code!
-  const [codes, setCodes] = useState<Record<string, string>>(() => ({
-    c: getStarterCode("c"),
-    python: getStarterCode("python"),
-    java: getStarterCode("java"),
-    cpp: getStarterCode("cpp"),
-    node: getStarterCode("node"),
-  }));
+  const [codes, setCodes] = useState<Record<string, string>>(computeInitialCodes);
 
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -193,13 +212,21 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
   const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
   const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
 
-  // Submissions drawer tabs & history state
-  const [submissionsHistory, setSubmissionsHistory] = useState<Submission[]>([]);
+  // Submissions drawer tabs & history state - pre-populated from initialSubmissions
+  const [submissionsHistory, setSubmissionsHistory] = useState<Submission[]>(() => {
+    if (initialSubmissions && initialSubmissions.length > 0) {
+      return initialSubmissions.filter((s) => s.mode === "SUBMIT");
+    }
+    return [];
+  });
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [bottomTab, setBottomTab] = useState<"console" | "submissions">("console");
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [viewingSubmission, setViewingSubmission] = useState<Submission | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  // Tracks if code restoration has already occurred so we NEVER overwrite active edits
+  const hasRestoredCodeRef = useRef<boolean>(!!initialSubmissions);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -220,56 +247,60 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
     return () => cleanupPolling();
   }, [cleanupPolling]);
 
-  // Fetch past submissions & runs for this problem by this student
-  const loadSubmissions = useCallback(async () => {
-    if (!student) return;
-    setLoadingSubmissions(true);
-    try {
-      const list = await submissionsApi.list({
-        questionId: question.id,
-        userId: student.studentId,
-        limit: 100,
-      });
-      const allSubmissions = list || [];
-      const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
-      setSubmissionsHistory(submitsOnly);
+  // Fetch past submissions. Note: restoreCodes is FALSE by default to avoid overwriting user edits!
+  const loadSubmissions = useCallback(
+    async (options?: { restoreCodes?: boolean }) => {
+      if (!student) return;
+      setLoadingSubmissions(true);
+      try {
+        const list = await submissionsApi.list({
+          questionId: question.id,
+          userId: student.studentId,
+          limit: 100,
+        });
+        const allSubmissions = list || [];
+        const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
+        setSubmissionsHistory(submitsOnly);
 
-      // Restore latest code for each language from past runs or submissions
-      setCodes((prev) => {
-        const nextCodes = { ...prev };
-        const supported = ["c", "python", "java", "cpp", "node"];
-        for (const lang of supported) {
-          const latest = allSubmissions.find(
-            (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
-          );
-          if (latest && latest.sourceCode) {
-            nextCodes[lang] = latest.sourceCode;
-          }
+        // ONLY restore code if explicitly requested (e.g., initial mount without preloaded submissions)
+        if (options?.restoreCodes) {
+          setCodes((prev) => {
+            const nextCodes = { ...prev };
+            const supported = ["c", "python", "java", "cpp", "node"];
+            for (const lang of supported) {
+              const latest = allSubmissions.find(
+                (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
+              );
+              if (latest && latest.sourceCode) {
+                nextCodes[lang] = latest.sourceCode;
+              }
+            }
+            return nextCodes;
+          });
         }
-        return nextCodes;
-      });
-    } catch (err) {
-      console.error("Failed to load submissions history", err);
-    } finally {
-      setLoadingSubmissions(false);
-    }
-  }, [question.id, student]);
+      } catch (err) {
+        console.error("Failed to load submissions history", err);
+      } finally {
+        setLoadingSubmissions(false);
+      }
+    },
+    [question.id, student]
+  );
 
+  // If initialSubmissions was not provided (e.g. direct URL visit), fetch and restore once on mount
   useEffect(() => {
-    void loadSubmissions();
+    if (!hasRestoredCodeRef.current) {
+      hasRestoredCodeRef.current = true;
+      void loadSubmissions({ restoreCodes: true });
+    }
   }, [loadSubmissions]);
 
-  // When question changes, reset to question starter templates
+  // When question changes, reset workspace state
   useEffect(() => {
     setCurrentSubmission(null);
     setErrorNotice(null);
     setSelectedCaseIdx(0);
-    const initialCodes: Record<string, string> = {};
-    for (const l of ["c", "python", "java", "cpp", "node"]) {
-      initialCodes[l] = getStarterCode(l);
-    }
-    setCodes(initialCodes);
-  }, [question.id, getStarterCode]);
+  }, [question.id]);
 
   const currentCode = codes[language] ?? getStarterCode(language);
 
@@ -365,8 +396,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({ question, on
                 setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
               }
 
-              // Reload submissions to refresh history & completion status
-              void loadSubmissions();
+              // Reload submissions to refresh history & completion status without touching editor code
+              void loadSubmissions({ restoreCodes: false });
             }
           } catch (pollErr: unknown) {
             const message = pollErr instanceof Error ? pollErr.message : "Unknown polling error.";

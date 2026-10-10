@@ -19,7 +19,7 @@ import { VanillaCompiler } from "@/components/VanillaCompiler";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
-import { submissionsApi } from "@/services/submissionsApi";
+import { submissionsApi, Submission } from "@/services/submissionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
@@ -87,6 +87,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<NavigationTopic>("dsa");
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionData | null>(null);
+  const [initialSubmissions, setInitialSubmissions] = useState<Submission[] | undefined>(undefined);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +165,41 @@ export default function Home() {
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
     setLoadingProblemId(questionIdOrSlug);
     try {
-      const fullQuestion = await questionsApi.get(questionIdOrSlug);
+      const curStudent = getStoredStudent();
+
+      // Launch question fetch and submissions fetch concurrently in parallel
+      const questionPromise = questionsApi.get(questionIdOrSlug);
+      const submissionsPromise = curStudent
+        ? submissionsApi
+            .list({
+              questionId: questionIdOrSlug,
+              userId: curStudent.studentId,
+              limit: 100,
+            })
+            .catch(() => [])
+        : Promise.resolve([]);
+
+      const [fullQuestion, submissionsList] = await Promise.all([
+        questionPromise,
+        submissionsPromise,
+      ]);
+
+      let finalSubmissions = submissionsList;
+      if (
+        curStudent &&
+        finalSubmissions.length === 0 &&
+        fullQuestion.id !== questionIdOrSlug
+      ) {
+        finalSubmissions = await submissionsApi
+          .list({
+            questionId: fullQuestion.id,
+            userId: curStudent.studentId,
+            limit: 100,
+          })
+          .catch(() => []);
+      }
+
+      setInitialSubmissions(finalSubmissions);
       setSelectedQuestion(toQuestionData(fullQuestion));
 
       if (typeof window !== "undefined") {
@@ -215,6 +250,7 @@ export default function Home() {
 
   const handleBackToCatalog = useCallback(() => {
     setSelectedQuestion(null);
+    setInitialSubmissions(undefined);
     setIntendedProblem(null);
     void loadUserSolvedStatus();
     if (typeof window !== "undefined") {
@@ -331,6 +367,7 @@ export default function Home() {
       <StudentWorkspace
         question={selectedQuestion}
         onBackToCatalog={handleBackToCatalog}
+        initialSubmissions={initialSubmissions}
       />
     );
   }
