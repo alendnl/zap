@@ -109,6 +109,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "ZAP-BE/requirements.txt"
       - uses: actions/setup-java@v4
         with:
           distribution: "temurin"
@@ -129,6 +131,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+          cache: "npm"
       - run: npm install
       - name: Build frontend
         run: npm run build --workspace=ZAP-FE
@@ -177,48 +180,78 @@ jobs:
           service_account: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure deployment permissions
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure deployment permissions in parallel
         run: |
           set -euo pipefail
+          echo "Configuring service accounts and queues in parallel..."
           for runtime in "$API_RUNTIME_SA" "$EXECUTOR_RUNTIME_SA"; do
             gcloud iam service-accounts add-iam-policy-binding "$runtime" \
               --project="$PROJECT_ID" \
               --member="serviceAccount:${DEPLOYER_SA}" \
-              --role=roles/iam.serviceAccountUser --quiet
+              --role=roles/iam.serviceAccountUser --quiet &
           done
           gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
             --project="$PROJECT_ID" \
             --member="serviceAccount:${DEPLOYER_SA}" \
-            --role=roles/iam.serviceAccountUser --quiet
+            --role=roles/iam.serviceAccountUser --quiet &
           gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
             --project="$PROJECT_ID" \
             --member="serviceAccount:${API_RUNTIME_SA}" \
-            --role=roles/iam.serviceAccountUser --quiet
+            --role=roles/iam.serviceAccountUser --quiet &
           gcloud iam service-accounts add-iam-policy-binding "$TASK_CALLER_SA" \
             --project="$PROJECT_ID" \
             --member="serviceAccount:${TASK_CALLER_SA}" \
-            --role=roles/iam.serviceAccountTokenCreator --quiet
+            --role=roles/iam.serviceAccountTokenCreator --quiet &
           for queue in zap-submissions zap-submissions-lower; do
             gcloud tasks queues add-iam-policy-binding "$queue" \
               --project="$PROJECT_ID" --location="$REGION" \
               --member="serviceAccount:${API_RUNTIME_SA}" \
-              --role=roles/cloudtasks.enqueuer --quiet
+              --role=roles/cloudtasks.enqueuer --quiet &
           done
+          wait
 
-      - name: Build and push images
+      - name: Build and push images in parallel
         run: |
           set -euo pipefail
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}"
           EXECUTOR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}"
-          docker build --platform linux/amd64 -t "$API_IMAGE" -f ZAP-BE/Dockerfile.api ZAP-BE/
-          docker build --platform linux/amd64 -t "$EXECUTOR_IMAGE" -f ZAP-BE/Dockerfile.executor-api ZAP-BE/
-          docker push "$API_IMAGE"
-          docker push "$EXECUTOR_IMAGE"
 
-      - name: Deploy executor
+          echo "Building API and Executor container images in parallel with Buildx layer caching..."
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from=type=gha,scope=zap-be-api \
+            --cache-to=type=gha,mode=max,scope=zap-be-api \
+            -t "$API_IMAGE" \
+            -f ZAP-BE/Dockerfile.api \
+            --push \
+            ZAP-BE/ &
+          PID_API=$!
+
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from=type=gha,scope=zap-be-executor \
+            --cache-to=type=gha,mode=max,scope=zap-be-executor \
+            -t "$EXECUTOR_IMAGE" \
+            -f ZAP-BE/Dockerfile.executor-api \
+            --push \
+            ZAP-BE/ &
+          PID_EXEC=$!
+
+          wait "$PID_API"
+          echo "API image built and pushed successfully."
+
+          wait "$PID_EXEC"
+          echo "Executor image built and pushed successfully."
+
+      - name: Deploy services in parallel
         run: |
           set -euo pipefail
+          echo "Deploying executor and API Cloud Run services in parallel..."
+
           gcloud run deploy "$EXECUTOR_SERVICE" \
             --project="$PROJECT_ID" --region="$REGION" \
             --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
@@ -226,7 +259,24 @@ jobs:
             --min=0 --max=5 --cpu=4 --memory=4Gi --concurrency=1 --timeout=360 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions-lower,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
-            --quiet
+            --quiet &
+          PID_EXEC=$!
+
+          gcloud run deploy "$API_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
+            --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
+            --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
+            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
+            --update-env-vars='^~^ENVIRONMENT=production~DEBUG=false~GCP_PROJECT_ID=zap-platform-prod~GCP_LOCATION=us-central1~EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute~TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app~TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com~DEFAULT_ENVIRONMENT=production~QA_DATABASE_NAME=zap_platform_lower~QA_QUEUE_NAME=zap-submissions-lower~PRODUCTION_DATABASE_NAME=zap_platform_prod~PRODUCTION_QUEUE_NAME=zap-submissions~CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app","https://www.codezap-arena.vercel.app","https://run.codezap.in","https://codezap.in","https://www.codezap.in"]~CORS_ORIGIN_REGEX=https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app' \
+            --quiet &
+          PID_API=$!
+
+          wait "$PID_EXEC"
+          echo "Executor deployed successfully."
+
+          wait "$PID_API"
+          echo "API deployed successfully."
 
       - name: Grant task caller access to executor
         run: |
@@ -235,18 +285,6 @@ jobs:
             --project="$PROJECT_ID" --region="$REGION" \
             --member="serviceAccount:${TASK_CALLER_SA}" \
             --role=roles/run.invoker --quiet
-
-      - name: Deploy API
-        run: |
-          set -euo pipefail
-          gcloud run deploy "$API_SERVICE" \
-            --project="$PROJECT_ID" --region="$REGION" \
-            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
-            --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
-            --min=0 --max=20 --cpu=1 --memory=512Mi --concurrency=80 \
-            --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars='^~^ENVIRONMENT=production~DEBUG=false~GCP_PROJECT_ID=zap-platform-prod~GCP_LOCATION=us-central1~EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute~TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app~TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com~DEFAULT_ENVIRONMENT=production~QA_DATABASE_NAME=zap_platform_lower~QA_QUEUE_NAME=zap-submissions-lower~PRODUCTION_DATABASE_NAME=zap_platform_prod~PRODUCTION_QUEUE_NAME=zap-submissions~CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app","https://www.codezap-arena.vercel.app","https://run.codezap.in","https://codezap.in","https://www.codezap.in"]~CORS_ORIGIN_REGEX=https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app' \
-            --quiet
 
       - name: Verify deployment
         run: |

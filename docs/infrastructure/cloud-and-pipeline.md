@@ -99,18 +99,17 @@ flowchart TD
     H -- Yes --> I[Job: deploy (Cloud Run)]
     H -- No --> J[Halt & Reject Deployment]
 
-    subgraph DeployJob["GCP Cloud Run Deploy Workflow"]
+    subgraph DeployJob["GCP Cloud Run Deploy Workflow (Parallelized)"]
         I1[Auth via Workload Identity Federation]
-        I2[Configure IAM Service Account User bindings]
-        I3[Build Linux/AMD64 Docker Images]
-        I4[Push to Artifact Registry]
-        I5[Deploy zap-executor to Cloud Run]
+        I2[Parallel IAM User & Queue Bindings]
+        I3[Parallel Docker Buildx with GHA Layer Cache]
+        I4[Push Directly to Artifact Registry]
+        I5[Parallel Cloud Run Deploy: zap-executor & zap-api]
         I6[Grant Task Caller run.invoker access]
-        I7[Deploy zap-api to Cloud Run]
-        I8[Post-Deploy Health & CORS Preflight Validation]
+        I7[Post-Deploy Health & CORS Preflight Validation]
     end
 
-    I --> I1 --> I2 --> I3 --> I4 --> I5 --> I6 --> I7 --> I8
+    I --> I1 --> I2 --> I3 --> I4 --> I5 --> I6 --> I7
 ```
 
 ### 3.1 Path Filtering Rules
