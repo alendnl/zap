@@ -21,9 +21,12 @@ Handles student code submissions and run requests:
 - `POST /api/v1/submissions` (HTTP 202 Accepted) — Submit code for evaluation.
   - Body: `{ questionId, language, mode: "RUN"|"SUBMIT", sourceCode, userId }`.
   - Response: `{ submissionId, status: "QUEUED" }`.
+  - Rate Limiting (per user):
+    - Max 2 submissions within 10 seconds (returns HTTP 429: `"Too many submissions, please wait 5 seconds"` with `Retry-After: 5`).
+    - Max 6 submissions within 60 seconds (returns HTTP 429: `"Too many submissions, please wait 30 seconds"` with `Retry-After: 30`).
   - Behavior: Saves submission with status `QUEUED` and enqueues execution task to Cloud Tasks.
-- `GET /api/v1/submissions/{submission_id}` — Poll execution progress and results.
-- `GET /api/v1/submissions?userId=&questionId=&mode=&limit=50` — Query submission history with filtering.
+- `GET /api/v1/submissions/{submission_id}` — Get full submission details, code, and individual test case results.
+- `GET /api/v1/submissions?userId=&questionId=&mode=&limit=50` — Query submission history with filtering. Returns lightweight `SubmissionSummary[]` (omits large `sourceCode` and detailed `testResults` for fast responses).
 - `POST /api/v1/submissions/{submission_id}/cancel` — Abort a pending or queued submission.
 
 ### 1.3 Direct Playground Compiler (`/api/v1/compiler/run`)

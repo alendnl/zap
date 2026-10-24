@@ -19,7 +19,7 @@ import { VanillaCompiler } from "@/components/VanillaCompiler";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
-import { submissionsApi, Submission } from "@/services/submissionsApi";
+import { SubmissionSummary } from "@/services/submissionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
@@ -87,7 +87,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<NavigationTopic>("dsa");
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionData | null>(null);
-  const [initialSubmissions, setInitialSubmissions] = useState<Submission[] | undefined>(undefined);
+  const [initialSubmissions, setInitialSubmissions] = useState<SubmissionSummary[] | undefined>(undefined);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,27 +104,8 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const loadUserSolvedStatus = useCallback(async () => {
-    const curStudent = getStoredStudent();
-    if (!curStudent) {
-      setSolvedQuestionIds(new Set());
-      return;
-    }
-    try {
-      const subs = await submissionsApi.list({
-        userId: curStudent.studentId,
-        mode: "SUBMIT",
-        limit: 100,
-      });
-      const solved = new Set<string>();
-      (subs || []).forEach((s) => {
-        if (s.verdict === "ACCEPTED") {
-          solved.add(s.questionId);
-        }
-      });
-      setSolvedQuestionIds(solved);
-    } catch (err) {
-      console.error("Failed to load user solved status", err);
-    }
+    // Solved status is not fetched on catalog mount to avoid unnecessary submissions calls
+    setSolvedQuestionIds(new Set());
   }, []);
 
   // Check stored session & URL query params on mount
@@ -154,52 +135,18 @@ export default function Home() {
       if (!current) {
         setSelectedQuestion(null);
         setSolvedQuestionIds(new Set());
-      } else {
-        void loadUserSolvedStatus();
       }
     };
     window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
     return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-  }, [loadUserSolvedStatus]);
+  }, []);
 
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
     setLoadingProblemId(questionIdOrSlug);
     try {
-      const curStudent = getStoredStudent();
-
-      // Launch question fetch and submissions fetch concurrently in parallel
-      const questionPromise = questionsApi.get(questionIdOrSlug);
-      const submissionsPromise = curStudent
-        ? submissionsApi
-            .list({
-              questionId: questionIdOrSlug,
-              userId: curStudent.studentId,
-              limit: 100,
-            })
-            .catch(() => [])
-        : Promise.resolve([]);
-
-      const [fullQuestion, submissionsList] = await Promise.all([
-        questionPromise,
-        submissionsPromise,
-      ]);
-
-      let finalSubmissions = submissionsList;
-      if (
-        curStudent &&
-        finalSubmissions.length === 0 &&
-        fullQuestion.id !== questionIdOrSlug
-      ) {
-        finalSubmissions = await submissionsApi
-          .list({
-            questionId: fullQuestion.id,
-            userId: curStudent.studentId,
-            limit: 100,
-          })
-          .catch(() => []);
-      }
-
-      setInitialSubmissions(finalSubmissions);
+      // Only fetch question details. Submissions are only loaded when user opens the Submissions tab.
+      const fullQuestion = await questionsApi.get(questionIdOrSlug);
+      setInitialSubmissions(undefined);
       setSelectedQuestion(toQuestionData(fullQuestion));
 
       if (typeof window !== "undefined") {

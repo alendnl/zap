@@ -7,6 +7,8 @@ from app.submissions.models import (
     SubmissionMode,
     SubmissionStatus,
     SubmissionVerdict,
+    SubmissionSummary,
+    SubmissionTestsSummary,
 )
 from app.submissions.queue import get_queue_for_env
 from app.config import get_settings
@@ -87,7 +89,7 @@ class SubmissionService:
         question_id: Optional[str] = None,
         mode: Optional[SubmissionMode] = None,
         limit: int = 50,
-    ) -> List[Submission]:
+    ) -> List[SubmissionSummary]:
         coll = self._get_collection()
         query = {}
         if user_id:
@@ -98,11 +100,23 @@ class SubmissionService:
             query["mode"] = mode.value if hasattr(mode, "value") else mode
 
         if coll is not None:
-            cursor = coll.find(query).sort("createdAt", -1).limit(limit)
+            projection = {
+                "_id": 0,
+                "id": 1,
+                "userId": 1,
+                "questionId": 1,
+                "language": 1,
+                "mode": 1,
+                "status": 1,
+                "verdict": 1,
+                "executionTimeMs": 1,
+                "tests": 1,
+                "createdAt": 1,
+            }
+            cursor = coll.find(query, projection).sort("createdAt", -1).limit(limit)
             results = []
             for doc in cursor:
-                doc.pop("_id", None)
-                results.append(Submission(**doc))
+                results.append(SubmissionSummary(**doc))
             return results
 
         matching = []
@@ -115,9 +129,19 @@ class SubmissionService:
                 expected_mode = mode.value if hasattr(mode, "value") else mode
                 if doc.get("mode") != expected_mode:
                     continue
-            clean = dict(doc)
-            clean.pop("_id", None)
-            matching.append(Submission(**clean))
+            summary_dict = {
+                "id": doc.get("id") or doc.get("_id"),
+                "userId": doc.get("userId", "student-123"),
+                "questionId": doc.get("questionId", ""),
+                "language": doc.get("language", ""),
+                "mode": doc.get("mode", SubmissionMode.SUBMIT),
+                "status": doc.get("status", SubmissionStatus.QUEUED),
+                "verdict": doc.get("verdict"),
+                "executionTimeMs": doc.get("executionTimeMs"),
+                "tests": doc.get("tests") or SubmissionTestsSummary(),
+                "createdAt": doc.get("createdAt", ""),
+            }
+            matching.append(SubmissionSummary(**summary_dict))
 
         matching.sort(key=lambda s: s.createdAt, reverse=True)
         return matching[:limit]

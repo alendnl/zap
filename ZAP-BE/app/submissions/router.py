@@ -9,9 +9,11 @@ from app.submissions.models import (
     SubmissionMode,
     SubmissionStatus,
     SubmissionVerdict,
+    SubmissionSummary,
 )
 from app.submissions.queue import get_queue_for_env
 from app.submissions.service import SubmissionService
+from app.submissions.rate_limiter import get_submission_rate_limiter, SubmissionRateLimiter
 
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
@@ -23,16 +25,21 @@ def get_submission_service(request: Request, db = Depends(get_database)) -> Subm
 @router.post("/", response_model=SubmissionCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 def submit_code(
     payload: SubmissionCreateRequest,
-    service: SubmissionService = Depends(get_submission_service)
+    request: Request,
+    service: SubmissionService = Depends(get_submission_service),
+    rate_limiter: SubmissionRateLimiter = Depends(get_submission_rate_limiter),
 ):
+    user_key = (payload.userId or "").strip() or (request.client.host if request.client else "anonymous")
+    rate_limiter.check_rate_limit(user_key)
+
     submission = service.create_submission(payload)
     return SubmissionCreateResponse(
         submissionId=submission.id,
         status=submission.status
     )
 
-@router.get("", response_model=List[Submission])
-@router.get("/", response_model=List[Submission])
+@router.get("", response_model=List[SubmissionSummary])
+@router.get("/", response_model=List[SubmissionSummary])
 def list_submissions(
     userId: Optional[str] = None,
     questionId: Optional[str] = None,

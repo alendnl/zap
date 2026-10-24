@@ -68,11 +68,17 @@ export function getEnvironment(): ZAPEnvironment {
 }
 ```
 
-### 3.2 Submission Polling (`services/submissionsApi.ts`)
+### 3.2 Submission Polling & Lifecycle (`StudentWorkspace.tsx`)
 Because code execution is asynchronous:
-1. `submissionsApi.create(payload)` returns `{ submissionId, status: "QUEUED" }`.
-2. The frontend polls `GET /api/v1/submissions/{submissionId}` at 600ms intervals.
-3. Polling halts as soon as `status` reaches `COMPLETED` or `FAILED`.
+1. When user clicks Run or Submit:
+   - Run and Submit buttons are immediately disabled (`isRunning: true`).
+   - `POST /api/v1/submissions` returns `{ submissionId, status: "QUEUED" }`.
+2. Sequential polling loop:
+   - Calls `GET /api/v1/submissions/{submissionId}` and waits for the response.
+   - If response status is terminal (`COMPLETED` or `FAILED`), polling stops immediately.
+   - If not terminal, calculates elapsed time of the GET call and waits up to `Math.max(0, 1000 - elapsedMs)` before the next attempt, ensuring at least 1 second between attempts without overlapping requests.
+3. Submissions history is loaded on-demand only when the user clicks the "Submissions" tab. Opening the home catalog or questions avoids unnecessary background submissions calls.
+4. Clicking "View details" on a submission fetches full details on-demand (`GET /api/v1/submissions/{id}`) and displays both test case data (inputs, expected, actual, stderr) and submitted code in the details modal.
 
 ---
 

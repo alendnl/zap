@@ -51,6 +51,19 @@ export interface SubmissionTestCaseResult {
   error?: string | null;
 }
 
+export interface SubmissionSummary {
+  id: string;
+  userId: string;
+  questionId: string;
+  language: string;
+  mode: SubmissionMode;
+  status: SubmissionStatus;
+  verdict?: SubmissionVerdict;
+  executionTimeMs?: number;
+  tests: SubmissionTestsSummary;
+  createdAt: string;
+}
+
 export interface Submission {
   id: string;
   userId: string;
@@ -101,7 +114,7 @@ export const submissionsApi = {
   get: (submissionId: string): Promise<Submission> =>
     apiFetch(`/api/v1/submissions/${submissionId}`),
 
-  list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number }): Promise<Submission[]> => {
+  list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number }): Promise<SubmissionSummary[]> => {
     const searchParams = new URLSearchParams();
     if (params?.questionId) searchParams.set("questionId", params.questionId);
     if (params?.userId) searchParams.set("userId", params.userId);

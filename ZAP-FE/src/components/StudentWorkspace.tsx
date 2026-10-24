@@ -26,6 +26,7 @@ import type { Student } from "@/types/auth";
 import {
   submissionsApi,
   Submission,
+  SubmissionSummary,
   isTerminalStatus,
   SubmissionMode,
 } from "@/services/submissionsApi";
@@ -33,7 +34,7 @@ import {
 interface StudentWorkspaceProps {
   question: QuestionData;
   onBackToCatalog?: () => void;
-  initialSubmissions?: Submission[];
+  initialSubmissions?: SubmissionSummary[];
 }
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -183,25 +184,15 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     [question.starterCode]
   );
 
-  // Compute restored codes immediately using initialSubmissions or starter template
+  // Initialize starter template per language
   const computeInitialCodes = useCallback(() => {
     const supported = ["c", "python", "java", "cpp", "node"];
     const initial: Record<string, string> = {};
     for (const l of supported) {
       initial[l] = getStarterCode(l);
     }
-    if (initialSubmissions && initialSubmissions.length > 0) {
-      for (const lang of supported) {
-        const latest = initialSubmissions.find(
-          (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
-        );
-        if (latest && latest.sourceCode) {
-          initial[lang] = latest.sourceCode;
-        }
-      }
-    }
     return initial;
-  }, [initialSubmissions, getStarterCode]);
+  }, [getStarterCode]);
 
   // Independent code buffer per language so switching tabs NEVER loses code!
   const [codes, setCodes] = useState<Record<string, string>>(computeInitialCodes);
@@ -212,23 +203,26 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
   const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
 
-  // Submissions drawer tabs & history state - pre-populated from initialSubmissions
-  const [submissionsHistory, setSubmissionsHistory] = useState<Submission[]>(() => {
-    if (initialSubmissions && initialSubmissions.length > 0) {
-      return initialSubmissions.filter((s) => s.mode === "SUBMIT");
-    }
-    return [];
-  });
+  // Submissions drawer tabs & history state
+  const [submissionsHistory, setSubmissionsHistory] = useState<SubmissionSummary[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [bottomTab, setBottomTab] = useState<"console" | "submissions">("console");
+  const bottomTabRef = useRef<"console" | "submissions">(bottomTab);
+  useEffect(() => {
+    bottomTabRef.current = bottomTab;
+  }, [bottomTab]);
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [viewingSubmission, setViewingSubmission] = useState<Submission | null>(null);
+  const [loadingDetailsSubId, setLoadingDetailsSubId] = useState<string | null>(null);
+  const [dialogTab, setDialogTab] = useState<"cases" | "code">("cases");
+  const [dialogCaseIdx, setDialogCaseIdx] = useState(0);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Tracks if code restoration has already occurred so we NEVER overwrite active edits
-  const hasRestoredCodeRef = useRef<boolean>(!!initialSubmissions);
-
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const submissionsLoadedRef = useRef<boolean>(false);
+  const submissionsStaleRef = useRef<boolean>(true);
+  const activePollIdRef = useRef<number>(0);
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleAuthChange = () => setStudent(getStoredStudent());
@@ -237,9 +231,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   }, []);
 
   const cleanupPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    activePollIdRef.current++;
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
     }
   }, []);
 
@@ -247,60 +242,38 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     return () => cleanupPolling();
   }, [cleanupPolling]);
 
-  // Fetch past submissions. Note: restoreCodes is FALSE by default to avoid overwriting user edits!
-  const loadSubmissions = useCallback(
-    async (options?: { restoreCodes?: boolean }) => {
-      if (!student) return;
-      setLoadingSubmissions(true);
-      try {
-        const list = await submissionsApi.list({
-          questionId: question.id,
-          userId: student.studentId,
-          limit: 100,
-        });
-        const allSubmissions = list || [];
-        const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
-        setSubmissionsHistory(submitsOnly);
-
-        // ONLY restore code if explicitly requested (e.g., initial mount without preloaded submissions)
-        if (options?.restoreCodes) {
-          setCodes((prev) => {
-            const nextCodes = { ...prev };
-            const supported = ["c", "python", "java", "cpp", "node"];
-            for (const lang of supported) {
-              const latest = allSubmissions.find(
-                (s) => s.language?.toLowerCase() === lang && s.sourceCode && s.sourceCode.trim()
-              );
-              if (latest && latest.sourceCode) {
-                nextCodes[lang] = latest.sourceCode;
-              }
-            }
-            return nextCodes;
-          });
-        }
-      } catch (err) {
-        console.error("Failed to load submissions history", err);
-      } finally {
-        setLoadingSubmissions(false);
-      }
-    },
-    [question.id, student]
-  );
-
-  // If initialSubmissions was not provided (e.g. direct URL visit), fetch and restore once on mount
-  useEffect(() => {
-    if (!hasRestoredCodeRef.current) {
-      hasRestoredCodeRef.current = true;
-      void loadSubmissions({ restoreCodes: true });
+  // Fetch past submissions ONLY when explicitly called (e.g. user clicks Submissions tab or Refresh)
+  const loadSubmissions = useCallback(async () => {
+    if (!student) return;
+    setLoadingSubmissions(true);
+    try {
+      const list = await submissionsApi.list({
+        questionId: question.id,
+        userId: student.studentId,
+        limit: 100,
+      });
+      const allSubmissions = list || [];
+      const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
+      setSubmissionsHistory(submitsOnly);
+      submissionsLoadedRef.current = true;
+      submissionsStaleRef.current = false;
+    } catch (err) {
+      console.error("Failed to load submissions history", err);
+    } finally {
+      setLoadingSubmissions(false);
     }
-  }, [loadSubmissions]);
+  }, [question.id, student]);
 
   // When question changes, reset workspace state
   useEffect(() => {
     setCurrentSubmission(null);
     setErrorNotice(null);
     setSelectedCaseIdx(0);
-  }, [question.id]);
+    setSubmissionsHistory([]);
+    submissionsLoadedRef.current = false;
+    submissionsStaleRef.current = true;
+    cleanupPolling();
+  }, [question.id, cleanupPolling]);
 
   const currentCode = codes[language] ?? getStarterCode(language);
 
@@ -344,6 +317,42 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     []
   );
 
+  const handleViewSubmission = useCallback(async (subId: string) => {
+    setLoadingDetailsSubId(subId);
+    try {
+      const full = await submissionsApi.get(subId);
+      setViewingSubmission(full);
+      setDialogTab("cases");
+      setDialogCaseIdx(0);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load submission details.";
+      setErrorNotice(msg);
+    } finally {
+      setLoadingDetailsSubId(null);
+    }
+  }, []);
+
+  const handleRestoreSubmission = useCallback(
+    async (sub: SubmissionSummary | Submission) => {
+      setLoadingDetailsSubId(sub.id);
+      try {
+        let full: Submission;
+        if ("sourceCode" in sub && (sub as Submission).sourceCode) {
+          full = sub as Submission;
+        } else {
+          full = await submissionsApi.get(sub.id);
+        }
+        restoreSubmissionToEditor(full);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to restore submission.";
+        setErrorNotice(msg);
+      } finally {
+        setLoadingDetailsSubId(null);
+      }
+    },
+    [restoreSubmissionToEditor]
+  );
+
   const triggerExecution = useCallback(
     async (mode: SubmissionMode) => {
       if (isRunning) return;
@@ -360,6 +369,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       setIsDrawerOpen(true);
       setCurrentSubmission({ status: "QUEUED", mode });
 
+      const currentPollId = ++activePollIdRef.current;
       try {
         const createRes = await submissionsApi.create({
           questionId: question.id,
@@ -372,37 +382,22 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         const subId = createRes.submissionId;
         setCurrentSubmission({ id: subId, status: createRes.status, mode });
 
-        // Poll for updates every 1 second (1000ms)
-        let pollCount = 0;
-        const MAX_POLLS = 60; // 60 seconds safety guard
-        pollIntervalRef.current = setInterval(async () => {
-          pollCount += 1;
-          if (pollCount > MAX_POLLS) {
-            cleanupPolling();
-            setIsRunning(false);
-            setErrorNotice("Execution timed out. Please try running again.");
-            return;
-          }
+        // Sequential polling loop: wait for response, keep interval >= 1s without overlapping
+        let isDone = false;
+        let attempts = 0;
+        const MAX_POLLS = 60; // 60 attempts safety guard
 
+        while (!isDone && attempts < MAX_POLLS && activePollIdRef.current === currentPollId) {
+          attempts++;
+          const callStart = Date.now();
+          let sub: Submission | null = null;
           try {
-            const sub = await submissionsApi.get(subId);
+            sub = await submissionsApi.get(subId);
+            if (activePollIdRef.current !== currentPollId) break;
             setCurrentSubmission(sub);
-
-            if (isTerminalStatus(sub.status)) {
-              cleanupPolling();
-              setIsRunning(false);
-              if (sub.testResults && sub.testResults.length > 0) {
-                const firstFail = sub.testResults.findIndex((tc) => !tc.passed);
-                setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
-              }
-
-              // Reload submissions to refresh history & completion status without touching editor code
-              void loadSubmissions({ restoreCodes: false });
-            }
           } catch (pollErr: unknown) {
+            if (activePollIdRef.current !== currentPollId) break;
             const message = pollErr instanceof Error ? pollErr.message : "Unknown polling error.";
-            cleanupPolling();
-            setIsRunning(false);
             setCurrentSubmission((submission) =>
               submission
                 ? {
@@ -412,17 +407,51 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 : submission
             );
             setErrorNotice(`Failed to fetch status for submission ${subId}: ${message}`);
+            isDone = true;
+            break;
           }
-        }, 1000);
+
+          if (isTerminalStatus(sub.status)) {
+            isDone = true;
+            if (sub.testResults && sub.testResults.length > 0) {
+              const firstFail = sub.testResults.findIndex((tc) => !tc.passed);
+              setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
+            }
+
+            // Only refresh history if user is actively on submissions tab
+            if (bottomTabRef.current === "submissions") {
+              void loadSubmissions();
+            } else {
+              submissionsStaleRef.current = true;
+            }
+            break;
+          }
+
+          // Maintain at least 1s between polling calls, but don't add redundant delay if call took >=1000ms
+          const callDuration = Date.now() - callStart;
+          const waitTime = Math.max(0, 1000 - callDuration);
+          if (waitTime > 0) {
+            await new Promise((resolve) => {
+              pollTimeoutRef.current = setTimeout(resolve, waitTime);
+            });
+          }
+        }
+
+        if (!isDone && attempts >= MAX_POLLS && activePollIdRef.current === currentPollId) {
+          setErrorNotice("Execution timed out. Please try running again.");
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown submission error.";
-        setErrorNotice(`Submission failed: ${message}`);
+        setErrorNotice(message);
         setCurrentSubmission((submission) => ({
           ...(submission ?? {}),
           status: "FAILED",
           errorMessage: message,
         }));
-        setIsRunning(false);
+      } finally {
+        if (activePollIdRef.current === currentPollId) {
+          setIsRunning(false);
+        }
       }
     },
     [isRunning, cleanupPolling, student, question.id, language, currentCode, loadSubmissions]
@@ -603,6 +632,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   onClick={() => {
                     setBottomTab("submissions");
                     setIsDrawerOpen(true);
+                    if (!submissionsLoadedRef.current || submissionsStaleRef.current) {
+                      void loadSubmissions();
+                    }
                   }}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                     bottomTab === "submissions" && isDrawerOpen
@@ -613,7 +645,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   <History className="w-3.5 h-3.5 text-[#0969da] dark:text-[#58a6ff]" />
                   <span>Submissions</span>
                   <span className="text-[10px] bg-[#f6f8fa] dark:bg-[#21262d] text-[#656d76] dark:text-[#8d96a0] px-1.5 py-0.2 rounded border border-[#d0d7de] dark:border-[#30363d]">
-                    {submissionsHistory.length}
+                    {submissionsLoadedRef.current ? submissionsHistory.length : "•"}
                   </span>
                   {isSolved && (
                     <CheckCircle2 className="w-3 h-3 text-[#1a7f37] dark:text-[#3fb950]" />
@@ -910,15 +942,17 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                                   <td className="px-3 py-2 text-right space-x-1.5">
                                     <button
                                       type="button"
-                                      onClick={() => setViewingSubmission(sub)}
-                                      className="px-2 py-0.5 rounded bg-[#f6f8fa] dark:bg-[#21262d] hover:bg-[#e4e7eb] dark:hover:bg-[#30363d] text-[#1f2328] dark:text-[#f0f6fc] text-[11px] font-medium border border-[#d0d7de] dark:border-[#30363d] transition-colors"
+                                      disabled={loadingDetailsSubId === sub.id}
+                                      onClick={() => void handleViewSubmission(sub.id)}
+                                      className="px-2 py-0.5 rounded bg-[#f6f8fa] dark:bg-[#21262d] hover:bg-[#e4e7eb] dark:hover:bg-[#30363d] text-[#1f2328] dark:text-[#f0f6fc] text-[11px] font-medium border border-[#d0d7de] dark:border-[#30363d] transition-colors disabled:opacity-50"
                                     >
-                                      View code
+                                      {loadingDetailsSubId === sub.id ? "Loading..." : "View details"}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => restoreSubmissionToEditor(sub)}
-                                      className="px-2 py-0.5 rounded text-[#0969da] dark:text-[#58a6ff] hover:bg-[#0969da]/10 dark:hover:bg-[#58a6ff]/10 text-[11px] font-medium border border-[#0969da]/30 dark:border-[#58a6ff]/30 transition-colors"
+                                      disabled={loadingDetailsSubId === sub.id}
+                                      onClick={() => void handleRestoreSubmission(sub)}
+                                      className="px-2 py-0.5 rounded text-[#0969da] dark:text-[#58a6ff] hover:bg-[#0969da]/10 dark:hover:bg-[#58a6ff]/10 text-[11px] font-medium border border-[#0969da]/30 dark:border-[#58a6ff]/30 transition-colors disabled:opacity-50"
                                     >
                                       Restore
                                     </button>
@@ -938,10 +972,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         </div>
       </div>
 
-      {/* Submission Code Modal */}
+      {/* Submission Details Modal with Test Results & Code */}
       {viewingSubmission && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-lg w-full max-w-2xl flex flex-col max-h-[85vh] shadow-xl overflow-hidden text-[#1f2328] dark:text-[#f0f6fc]">
+          <div className="bg-white dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-lg w-full max-w-3xl flex flex-col max-h-[90vh] shadow-xl overflow-hidden text-[#1f2328] dark:text-[#f0f6fc]">
+            {/* Modal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#0d1117]">
               <div className="flex items-center gap-2">
                 <Code2 className="w-4 h-4 text-[#0969da] dark:text-[#58a6ff]" />
@@ -967,61 +1002,244 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               </button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
-              <div className="grid grid-cols-3 gap-3 bg-[#f6f8fa] dark:bg-[#0d1117] p-3 rounded border border-[#d0d7de] dark:border-[#30363d] text-xs">
-                <div>
-                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Runtime</span>
-                  <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
-                    {viewingSubmission.executionTimeMs != null
-                      ? `${viewingSubmission.executionTimeMs} ms`
-                      : "-"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Tests passed</span>
-                  <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
-                    {viewingSubmission.tests
-                      ? `${viewingSubmission.tests.passed} / ${viewingSubmission.tests.total}`
-                      : "-"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Submitted at</span>
-                  <span className="text-[#1f2328] dark:text-[#f0f6fc] text-[11px]">
-                    {viewingSubmission.createdAt
-                      ? new Date(viewingSubmission.createdAt).toLocaleString()
-                      : "-"}
-                  </span>
-                </div>
-              </div>
-
+            {/* Metrics Bar */}
+            <div className="grid grid-cols-3 gap-3 px-4 py-2.5 bg-[#f6f8fa] dark:bg-[#0d1117] border-b border-[#d0d7de] dark:border-[#30363d] text-xs">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-[#656d76] dark:text-[#8d96a0]">Submitted code:</span>
-                  <button
-                    type="button"
-                    onClick={() => copyCodeToClipboard(viewingSubmission.sourceCode)}
-                    className="flex items-center gap-1 text-[11px] text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc]"
-                  >
-                    {copiedCode ? (
-                       <>
-                        <Check className="w-3.5 h-3.5 text-[#1a7f37] dark:text-[#3fb950]" />
-                        <span className="text-[#1a7f37] dark:text-[#3fb950]">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-                <pre className="bg-[#f6f8fa] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] p-3 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap max-h-72 overflow-y-auto">
-                  {viewingSubmission.sourceCode}
-                </pre>
+                <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Runtime</span>
+                <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
+                  {viewingSubmission.executionTimeMs != null
+                    ? `${viewingSubmission.executionTimeMs} ms`
+                    : "-"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Tests passed</span>
+                <span className="font-mono text-[#1f2328] dark:text-[#f0f6fc] font-medium">
+                  {viewingSubmission.tests
+                    ? `${viewingSubmission.tests.passed} / ${viewingSubmission.tests.total}`
+                    : "-"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[#656d76] dark:text-[#8d96a0] block text-[10px]">Submitted at</span>
+                <span className="text-[#1f2328] dark:text-[#f0f6fc] text-[11px]">
+                  {viewingSubmission.createdAt
+                    ? new Date(viewingSubmission.createdAt).toLocaleString()
+                    : "-"}
+                </span>
               </div>
             </div>
 
+            {/* Modal Navigation Tabs: Test Results vs Code */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22]">
+              <button
+                type="button"
+                onClick={() => setDialogTab("cases")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  dialogTab === "cases"
+                    ? "bg-[#0969da] text-white shadow-xs"
+                    : "text-[#656d76] dark:text-[#8d96a0] hover:bg-[#f6f8fa] dark:hover:bg-[#21262d]"
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Test results & data</span>
+                {viewingSubmission.tests && (
+                  <span className="text-[10px] opacity-90">
+                    ({viewingSubmission.tests.passed}/{viewingSubmission.tests.total})
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDialogTab("code")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  dialogTab === "code"
+                    ? "bg-[#0969da] text-white shadow-xs"
+                    : "text-[#656d76] dark:text-[#8d96a0] hover:bg-[#f6f8fa] dark:hover:bg-[#21262d]"
+                }`}
+              >
+                <Code2 className="w-3.5 h-3.5" />
+                <span>Submitted code</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+              {dialogTab === "cases" ? (
+                <div>
+                  {/* Compile Output */}
+                  {viewingSubmission.compileOutput && (
+                    <div className="mb-3">
+                      <div className="text-xs font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                        Compilation output:
+                      </div>
+                      <pre className="font-mono text-xs text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/5 dark:bg-[#f85149]/10 p-2.5 rounded border border-[#cf222e]/20 dark:border-[#f85149]/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                        {viewingSubmission.compileOutput}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {viewingSubmission.errorMessage && (
+                    <div className="mb-3">
+                      <div className="text-xs font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                        Error message:
+                      </div>
+                      <pre className="font-mono text-xs text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/5 dark:bg-[#f85149]/10 p-2.5 rounded border border-[#cf222e]/20 dark:border-[#f85149]/20 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                        {viewingSubmission.errorMessage}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Test Cases Results with Data */}
+                  {viewingSubmission.testResults && viewingSubmission.testResults.length > 0 ? (
+                    <div className="flex flex-col gap-2.5">
+                      {/* Case selector chips */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#d0d7de] dark:border-[#30363d]">
+                        {viewingSubmission.testResults.map((tc, idx) => {
+                          const isSelected = idx === dialogCaseIdx;
+                          return (
+                            <button
+                              key={tc.id || idx}
+                              type="button"
+                              onClick={() => setDialogCaseIdx(idx)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                                isSelected
+                                  ? "bg-[#f6f8fa] dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] border border-[#d0d7de] dark:border-[#30363d]"
+                                  : "text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc] border border-transparent"
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                  tc.passed
+                                    ? "bg-[#1a7f37] dark:bg-[#3fb950]"
+                                    : "bg-[#cf222e] dark:bg-[#f85149]"
+                                }`}
+                              />
+                              <span>Case {idx + 1}</span>
+                              <span
+                                className={`text-[10px] px-1 py-0.2 rounded ${
+                                  tc.passed
+                                    ? "text-[#1a7f37] dark:text-[#3fb950]"
+                                    : "text-[#cf222e] dark:text-[#f85149]"
+                                }`}
+                              >
+                                {tc.passed ? "Passed" : "Failed"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Selected Case Detail */}
+                      {viewingSubmission.testResults[dialogCaseIdx] && (() => {
+                        const activeCase = viewingSubmission.testResults[dialogCaseIdx];
+                        return (
+                          <div className="flex flex-col gap-2.5 pt-1">
+                            {/* Input */}
+                            <div>
+                              <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1">
+                                Input:
+                              </div>
+                              <pre className="bg-[#f6f8fa] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] p-2.5 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                {activeCase.input != null ? activeCase.input : "(Hidden test case input)"}
+                              </pre>
+                            </div>
+
+                            {/* Expected vs Actual Output */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1">
+                                  Expected output:
+                                </div>
+                                <pre className="bg-[#f6f8fa] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] p-2.5 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                  {activeCase.expectedOutput != null
+                                    ? activeCase.expectedOutput
+                                    : "(Hidden test case expected output)"}
+                                </pre>
+                              </div>
+
+                              <div>
+                                <div className="text-[11px] font-medium text-[#656d76] dark:text-[#8d96a0] mb-1 flex items-center justify-between">
+                                  <span>Your output:</span>
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                                      activeCase.passed
+                                        ? "text-[#1a7f37] dark:text-[#3fb950] bg-[#1a7f37]/10"
+                                        : "text-[#cf222e] dark:text-[#f85149] bg-[#cf222e]/10"
+                                    }`}
+                                  >
+                                    {activeCase.passed ? "Match" : "Mismatch"}
+                                  </span>
+                                </div>
+                                <pre
+                                  className={`bg-[#f6f8fa] dark:bg-[#0d1117] border p-2.5 rounded text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto ${
+                                    activeCase.passed
+                                      ? "border-[#1a7f37]/30 text-[#1a7f37] dark:text-[#3fb950]"
+                                      : "border-[#cf222e]/30 text-[#cf222e] dark:text-[#f85149]"
+                                  }`}
+                                >
+                                  {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
+                                    ? activeCase.actualOutput
+                                    : "(No stdout printed)"}
+                                </pre>
+                              </div>
+                            </div>
+
+                            {/* Error / Diagnostics */}
+                            {activeCase.error && (
+                              <div>
+                                <div className="text-[11px] font-medium text-[#cf222e] dark:text-[#f85149] mb-1">
+                                  Diagnostics / stderr:
+                                </div>
+                                <pre className="bg-[#cf222e]/5 dark:bg-[#f85149]/10 border border-[#cf222e]/20 dark:border-[#f85149]/20 text-[#cf222e] dark:text-[#f85149] p-2.5 rounded text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                  {activeCase.error}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-xs text-[#656d76] dark:text-[#8d96a0]">
+                      No individual test case results recorded for this submission.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium text-[#656d76] dark:text-[#8d96a0]">
+                      Submitted code ({viewingSubmission.language}):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyCodeToClipboard(viewingSubmission.sourceCode)}
+                      className="flex items-center gap-1 text-[11px] text-[#656d76] dark:text-[#8d96a0] hover:text-[#1f2328] dark:hover:text-[#f0f6fc]"
+                    >
+                      {copiedCode ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#1a7f37] dark:text-[#3fb950]" />
+                          <span className="text-[#1a7f37] dark:text-[#3fb950]">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="bg-[#f6f8fa] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] p-3 rounded text-xs font-mono text-[#1f2328] dark:text-[#f0f6fc] whitespace-pre-wrap max-h-80 overflow-y-auto">
+                    {viewingSubmission.sourceCode}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#0d1117]">
               <button
                 type="button"

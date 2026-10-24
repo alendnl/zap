@@ -83,3 +83,19 @@ class Submission(BaseModel):
     completedAt: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class SubmissionSummary(BaseModel):
+    id: str
+    userId: str = "student-123"
+    questionId: str
+    language: str
+    mode: SubmissionMode = SubmissionMode.SUBMIT
+    status: SubmissionStatus = SubmissionStatus.QUEUED
+    verdict: Optional[SubmissionVerdict] = None
+    executionTimeMs: Optional[int] = None
+    tests: SubmissionTestsSummary = Field(default_factory=SubmissionTestsSummary)
+    createdAt: str
+
+    model_config = ConfigDict(populate_by_name=True)
+

@@ -5,9 +5,11 @@ from app.main import app
 from app.db.mongodb import clear_database_cache, set_test_database, db_manager
 from app.submissions.models import SubmissionStatus, SubmissionVerdict
 from app.submissions.queue import MemorySubmissionQueue, _queue_instances
+from app.submissions.rate_limiter import get_submission_rate_limiter
 
 @pytest.fixture(autouse=True)
 def setup_mock_db():
+    get_submission_rate_limiter().reset()
     mock_client = mongomock.MongoClient()
     mock_db = mock_client["test_zap_platform"]
     set_test_database(mock_db)
@@ -16,6 +18,7 @@ def setup_mock_db():
     # Clear any per-environment caches so tests do not leak state.
     clear_database_cache()
     _queue_instances.clear()
+    get_submission_rate_limiter().reset()
 
 client = TestClient(app)
 
@@ -202,3 +205,96 @@ def test_list_submissions_filters():
     assert res.status_code == 200
     assert len(res.json()) == 1
     assert res.json()[0]["id"] == sub1["submissionId"]
+    # Ensure sourceCode and testResults are omitted from list summary
+    summary_item = res.json()[0]
+    assert "sourceCode" not in summary_item
+    assert "testResults" not in summary_item
+    assert "status" in summary_item
+    assert "language" in summary_item
+    assert "createdAt" in summary_item
+
+
+def test_rate_limiting_10_seconds_rule():
+    payload = {
+        "questionId": "valid-anagram",
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "print('hello')",
+        "userId": "rate-limit-user-1"
+    }
+
+    # 1st call -> allowed
+    res1 = client.post("/api/v1/submissions", json=payload)
+    assert res1.status_code == 202
+
+    # 2nd call -> allowed
+    res2 = client.post("/api/v1/submissions", json=payload)
+    assert res2.status_code == 202
+
+    # 3rd call within 10s -> blocked with 429
+    res3 = client.post("/api/v1/submissions", json=payload)
+    assert res3.status_code == 429
+    assert "Too many submissions, please wait 5 seconds" in res3.json()["detail"]
+    assert res3.headers.get("retry-after") == "5"
+
+    # Different user is not blocked
+    other_payload = dict(payload, userId="rate-limit-user-2")
+    res_other = client.post("/api/v1/submissions", json=other_payload)
+    assert res_other.status_code == 202
+
+
+def test_rate_limiting_60_seconds_rule(monkeypatch):
+    import time
+    from app.submissions.rate_limiter import get_submission_rate_limiter
+
+    limiter = get_submission_rate_limiter()
+    limiter.reset()
+
+    # Simulate 6 requests spaced across 50 seconds (e.g. at t=0, 11, 22, 33, 44, 55)
+    # so they don't violate the 2-in-10s rule, but total 6 in <60s
+    timestamps = [1000.0 + i * 11 for i in range(6)]
+    limiter._history["user-60s"] = list(timestamps)
+
+    # Now at t=1058, 7th attempt is within 60s of the first
+    monkeypatch.setattr(time, "time", lambda: 1058.0)
+
+    payload = {
+        "questionId": "valid-anagram",
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print('hello')",
+        "userId": "user-60s"
+    }
+    res = client.post("/api/v1/submissions", json=payload)
+    assert res.status_code == 429
+    assert "Too many submissions, please wait 30 seconds" in res.json()["detail"]
+    assert res.headers.get("retry-after") == "30"
+
+
+def test_rate_limiting_configurable_via_settings(monkeypatch):
+    from app.config import get_settings
+    settings = get_settings()
+
+    # Temporarily override settings: max 1 submission within 10s -> wait 8s
+    monkeypatch.setattr(settings, "RATE_LIMIT_BURST_MAX_SUBMISSIONS", 1)
+    monkeypatch.setattr(settings, "RATE_LIMIT_BURST_WAIT_SECONDS", 8)
+
+    payload = {
+        "questionId": "valid-anagram",
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "print('hello')",
+        "userId": "config-test-user"
+    }
+
+    # 1st call -> allowed
+    res1 = client.post("/api/v1/submissions", json=payload)
+    assert res1.status_code == 202
+
+    # 2nd call -> blocked because max submissions was set to 1
+    res2 = client.post("/api/v1/submissions", json=payload)
+    assert res2.status_code == 429
+    assert "Too many submissions, please wait 8 seconds" in res2.json()["detail"]
+    assert res2.headers.get("retry-after") == "8"
+
+

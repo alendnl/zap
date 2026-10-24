@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     PRODUCTION_DATABASE_NAME: str = "zap_platform_prod"
     PRODUCTION_QUEUE_NAME: str = "zap-submissions"
 
+    # Submission & code execution rate limiting
+    RATE_LIMIT_BURST_WINDOW_SECONDS: int = 10
+    RATE_LIMIT_BURST_MAX_SUBMISSIONS: int = 2
+    RATE_LIMIT_BURST_WAIT_SECONDS: int = 5
+
+    RATE_LIMIT_SUSTAINED_WINDOW_SECONDS: int = 60
+    RATE_LIMIT_SUSTAINED_MAX_SUBMISSIONS: int = 6
+    RATE_LIMIT_SUSTAINED_WAIT_SECONDS: int = 30
+
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
     def get_environment_config(self, env: str) -> EnvironmentConfig:
