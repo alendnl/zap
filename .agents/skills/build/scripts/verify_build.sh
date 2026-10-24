@@ -46,7 +46,7 @@ fi
 
 # Check for remaining git merge conflict markers in workspace
 echo "🔍 Checking for merge conflict markers..."
-if grep -rn "^<<<<<<< " --exclude-dir=".git" --exclude-dir=".worktrees" --exclude-dir=".tmp*" --exclude-dir="node_modules" --exclude="*.md" .; then
+if grep -rn "^<<<<<<< " --exclude-dir=".git" --exclude-dir=".venv" --exclude-dir=".worktrees" --exclude-dir=".tmp*" --exclude-dir="node_modules" --exclude="*.md" .; then
     echo "❌ ERROR: Unresolved merge conflict markers detected in source files!"
     ERRORS=$((ERRORS + 1))
 else

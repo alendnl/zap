@@ -81,32 +81,73 @@ flowchart LR
 
 ## 3. CI/CD Deployment Pipeline (`.github/workflows/ci.yml`)
 
-Every push to `main` runs automated test suites followed by atomic deployment:
+The deployment pipeline is optimized for efficiency and minimal resource usage using **path filtering** and **selective execution**:
 
 ```mermaid
 flowchart TD
-    A[Push to main] --> B[Job: backend-tests]
-    A --> C[Job: frontend-tests]
-    B & C --> D{Both Passed?}
-    D -- Yes --> E[Job: deploy]
-    D -- No --> F[Halt & Reject Deployment]
+    A[Git Push / PR] --> B{Path Filter}
+    B -- "Only docs / markdown / .agents" --> C[Workflow Skipped Completely]
+    B -- "Code or Pipeline Changes" --> D[Job: detect-changes]
 
-    subgraph DeployJob["Deploy Workflow"]
-        E1[Auth via Workload Identity Federation]
-        E2[Configure IAM Service Account User bindings]
-        E3[Build Linux/AMD64 Docker Images]
-        E4[Push to Artifact Registry]
-        E5[Deploy zap-executor to Cloud Run]
-        E6[Grant Task Caller run.invoker access]
-        E7[Deploy zap-api to Cloud Run]
-        E8[Post-Deploy Health & CORS Preflight Validation]
+    D --> E{What Changed?}
+
+    E -- "Backend Changed (ZAP-BE, pytest.ini)" --> F[Job: backend-tests]
+    E -- "Frontend Changed (ZAP-FE, package*.json)" --> G[Job: frontend-tests]
+    E -- "Pipeline or Shared (workflows, env)" --> F & G
+
+    F --> H{Backend Tests Pass & Branch == main?}
+    H -- Yes --> I[Job: deploy (Cloud Run)]
+    H -- No --> J[Halt & Reject Deployment]
+
+    subgraph DeployJob["GCP Cloud Run Deploy Workflow"]
+        I1[Auth via Workload Identity Federation]
+        I2[Configure IAM Service Account User bindings]
+        I3[Build Linux/AMD64 Docker Images]
+        I4[Push to Artifact Registry]
+        I5[Deploy zap-executor to Cloud Run]
+        I6[Grant Task Caller run.invoker access]
+        I7[Deploy zap-api to Cloud Run]
+        I8[Post-Deploy Health & CORS Preflight Validation]
     end
 
-    E --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7 --> E8
+    I --> I1 --> I2 --> I3 --> I4 --> I5 --> I6 --> I7 --> I8
 ```
 
-### Deployment Verification Gates
-The pipeline terminates with automated validation checks:
+### 3.1 Path Filtering Rules
+
+1. **Skipped Files (`paths-ignore`)**:
+   - `docs/**`, `**/*.md`, `AGENTS.md`, `README.md`
+   - `.agents/**`, `.claude/**`, `.issues/**`
+   - `.gitignore`, `.vscode/**`, `.idea/**`
+   - Pushes or PRs modifying *only* these paths do not trigger GitHub Actions runs at all, consuming 0 runner minutes.
+
+2. **Selective Component Detection (`detect-changes` Job)**:
+   - **Backend (`backend: true`)**: Triggered by changes to `ZAP-BE/**`, `pytest.ini`, `.github/workflows/**`, `.env*`.
+   - **Frontend (`frontend: true`)**: Triggered by changes to `ZAP-FE/**`, root `package.json`, `package-lock.json`, `.github/workflows/**`, `.env*`.
+   - **Selective Execution**:
+     - If only Frontend changes: `frontend-tests` runs; `backend-tests` and `deploy` are skipped.
+     - If only Backend changes: `backend-tests` runs, and `deploy` runs; `frontend-tests` is skipped.
+     - If both change (or workflow / shared files change): Both test suites run and `deploy` executes.
+
+3. **Manual Trigger (`workflow_dispatch`)**:
+   - Includes a `target` selection input:
+     - `auto` (default): Detects changes from commit history.
+     - `all`: Forces both frontend & backend test suites and backend deployment.
+     - `backend`: Runs backend tests and deployment only.
+     - `frontend`: Runs frontend tests only.
+
+### 3.2 Vercel Frontend Deployment Optimization
+
+Vercel deploys the frontend web app automatically on push to `main`. To prevent Vercel from rebuilding when only backend or documentation changes:
+
+- In **Vercel Project Settings ➔ Git ➔ Ignored Build Step**, set:
+  ```bash
+  git diff --quiet HEAD^ HEAD ./ZAP-FE
+  ```
+- When the command exits with `0` (no changes in `ZAP-FE`), Vercel automatically skips the build, saving build minutes and deployment bandwidth.
+
+### 3.3 Deployment Verification Gates
+The backend deployment terminates with automated validation checks:
 1. `curl --fail $API_URL/health` ➔ validates API health.
 2. `curl -X OPTIONS $API_URL/api/v1/submissions` with Vercel Origin ➔ verifies CORS preflight returns 200 OK.
 3. `gcloud tasks queues describe` ➔ validates queues are active.
