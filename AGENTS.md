@@ -2,33 +2,35 @@
 
 Welcome to **ZAP** (DSA & Technical Interview Preparation Platform).
 
-This repository includes an agent harness designed to support parallel feature development, systematic requirement gathering, clean implementation, and safe git worktree / merge conflict management.
+This repository is optimized for pair programming and autonomous execution with **Antigravity IDE** powered by Gemini models.
 
 ---
 
 ## 🚀 Quick Start for AI Agents
 
-When assigned a task or git request:
+When assigned a task or user prompt:
 
-1. **Requirement Gathering**: Activate the `requirement-gathering` skill to parse incoming requirements into **single or multiple GitHub issues** based on scope.
-2. **Parallel Task Execution**: For each GitHub issue, use the `git-worktree-parallel` skill to create isolated worktrees in `.worktrees/<issue-id>`.
-3. **Build & Implementation**: Activate the `build-issue` skill to implement code changes per issue, maintain loose coupling (FE vs BE vs Compiler), and run verification tests.
-4. **Integration & Merge Conflict Resolution**: Use the `merge-conflict-resolver` skill to cleanly merge feature branches into `main` and resolve any conflicts before pushing.
+1. **Understand & Contextualize**: Read the prompt requirement, inspect the relevant documentation in [`docs/`](file:///Users/apilav068@apac.comcast.com/zap/docs), and explore active code.
+2. **Build & Implement**: Activate the [`build`](file:///.agents/skills/build/SKILL.md) skill to plan, implement, and verify code changes while maintaining loose architectural coupling.
+3. **Frontend Design**: Use the [`frontend-design`](file:///.agents/skills/frontend-design/SKILL.md) skill when styling or redesigning UI components in `ZAP-FE`.
+4. **Clarifications (Strictly Gated)**: Only ask questions when requirements are genuinely ambiguous or involve significant trade-offs; always provide multiple choices.
+5. **Verify & Test**: Run `.venv/bin/pytest -v` and `npm run build --workspace=ZAP-FE` to ensure zero regressions before finishing.
 
 ---
 
 ## 📚 Project Architecture & Rules
 
-- **Project Specs**: See [`docs/01-ZAP-PROJECT-CONTEXT.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/01-ZAP-PROJECT-CONTEXT.md) and [`docs/02-ZAP-COMPILER-ARCHITECTURE.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/02-ZAP-COMPILER-ARCHITECTURE.md).
+- **Core Documentation**: See [`docs/README.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/README.md) for the hierarchical documentation index.
+- **System Architecture**: High-level and low-level specifications are detailed in [`docs/architecture/`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture).
 - **Core Rule**: The question management system and code execution compiler must remain **loosely coupled**.
-- **Frontend**: Next.js + React + TypeScript (`ZAP-FE`).
-- **Backend & Compiler**: FastAPI / Python backend (`ZAP-BE`).
+- **Frontend**: Next.js + React + TypeScript + Monaco Editor (`ZAP-FE`).
+- **Backend**: FastAPI / Python backend (`ZAP-BE`).
+- **Compiler / Executor**: Sandboxed multi-language execution engine (`ZAP-BE/executor`).
+- **Infrastructure**: Single deployment on GCP Cloud Run (`zap-api`, `zap-executor`), Google Cloud Tasks, and MongoDB Atlas with dynamic runtime environment routing (`production` / `qa`).
 
 ---
 
 ## 🛠️ Available Agent Skills
 
-- [`requirement-gathering`](file:///.agents/skills/requirement-gathering/SKILL.md): Parse requests & decompose specs into single or multiple GitHub issues.
-- [`build-issue`](file:///.agents/skills/build-issue/SKILL.md): Implement features cleanly per GitHub issue and run verification builds.
-- [`git-worktree-parallel`](file:///.agents/skills/git-worktree-parallel/SKILL.md): Isolated multi-task worktree management for parallel GitHub issues.
-- [`merge-conflict-resolver`](file:///.agents/skills/merge-conflict-resolver/SKILL.md): Integrate branches and resolve git conflicts.
+- [`build`](file:///.agents/skills/build/SKILL.md): Prompt-to-implementation workflow with gated clarification, test-driven verification, and capped iterations.
+- [`frontend-design`](file:///.agents/skills/frontend-design/SKILL.md): Distinctive, intentional UI/UX design guidance for Next.js and Tailwind CSS components.

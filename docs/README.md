@@ -1,73 +1,56 @@
-# ZAP Project Documentation
+# ZAP Platform Documentation
 
-This folder is the implementation handoff for the ZAP platform.
+Welcome to **ZAP** (DSA & Technical Interview Preparation Platform).
 
-ZAP is a DSA and technical-interview preparation platform. The first major product capability is an online coding environment with a reusable problem/question system and a scalable code-execution engine.
+ZAP provides an online code execution and competitive programming environment designed for high concurrency, low idle cost, and decoupled problem management.
 
-## Documents
+---
 
-1. `01-ZAP-PROJECT-CONTEXT.md`
-   - Centralized product and technology decisions.
-   - Scope, repositories, data model direction, deployment, and future growth.
+## 🏛️ Core Architectural Principles
 
-2. `02-ZAP-COMPILER-ARCHITECTURE.md`
-   - Compiler/execution subsystem only.
-   - High-level and low-level architecture diagrams.
-   - Submission lifecycle, scaling, sandboxing, testing, and failure handling.
+1. **Loose Coupling**: The Question Management system (metadata, problem statements, test cases) and the Code Execution Compiler are strictly separated. The compiler receives code, language, and test cases without domain knowledge of questions.
+2. **Untrusted Code Isolation**: Student code is never executed inside the main API. It runs inside an isolated, resource-constrained sandbox container (`zap-executor`).
+3. **Single Deployment, Multi-Tenant Runtime**: A single codebase on `main` deploys one API service and one Executor service on GCP Cloud Run. Environment switching (`production` vs `qa`) is performed dynamically via request headers (`X-ZAP-ENV`), routing jobs to separate MongoDB databases and Cloud Tasks queues.
+4. **Scale-to-Zero & Bursty Efficiency**: Cloud Run handles bursty coding session spikes while scaling to zero when idle, avoiding permanent idle server costs.
 
-3. `03-ZAP-COMPILER-LOW-LEVEL-DESIGN.md`
-   - API contracts, MongoDB question/submission models, execution states, worker behaviour, resource limits, and security requirements.
+---
 
-4. `04-ZAP-FUTURE-PLATFORM-ARCHITECTURE.md`
-   - Overall future ZAP platform direction.
-   - Courses, assessments, progress, faculty/admin, analytics, and reusable questions.
+## 🧭 System Topology
 
-5. `05-ZAP-IMPLEMENTATION-PLAN.md`
-   - Practical phased build plan for another AI/developer.
-   - Build the smallest correct system first; do not introduce unnecessary infrastructure.
-
-6. `06-ZAP-LOCAL-SETUP-GUIDE.md`
-   - Step-by-step local development setup for `ZAP-BE` and `ZAP-FE`.
-   - Virtualenv, dependencies, mocked MongoDB, hot reloading, and testing.
-
-7. `07-ZAP-PRODUCTION-AND-CLOUD-SETUP-GUIDE.md`
-   - Production cloud deployment topology (GCP Cloud Run, Artifact Registry, MongoDB Atlas, Secret Manager).
-   - Scale-to-zero containerization, sandbox security hardening, and load testing.
-
-8. `HANDOFF-issue-010-single-deployment-env-switcher.md`
-   - Single `main` branch deployment pipeline with a runtime Prod/QA switcher in the frontend.
-   - Only MongoDB database name and Cloud Tasks queue name differ per environment (`X-ZAP-ENV` header + task payload `environment`).
-
-## Core implementation rule
-
-The **question system and compiler/execution system must be loosely coupled**.
-
-A question contains problem metadata and test cases. The compiler service only receives an execution request and runs code according to the request. It must not contain question-specific logic.
-
-## Initial repositories
-
-```text
-ZAP-FE    -> Next.js + React + TypeScript frontend
-ZAP-BE    -> FastAPI/Python backend + compiler/executor code
+```mermaid
+flowchart TB
+    Client["Client Browser / Next.js (Vercel)"] -- "HTTPS + X-ZAP-ENV" --> API["zap-api (GCP Cloud Run)"]
+    API -- "Read / Write Question & Submissions" --> Mongo[(MongoDB Atlas)]
+    API -- "Enqueue Execution Task" --> Tasks["Google Cloud Tasks<br/>(zap-submissions / zap-submissions-lower)"]
+    Tasks -- "HTTP POST (OIDC Auth)" --> Exec["zap-executor (GCP Cloud Run)"]
+    Exec -- "Fetch Code & Tests" --> Mongo
+    Exec -- "Run in Temp Sandbox" --> Sandbox["Sandbox / Language Runners<br/>(Python, JS, Java, C++, C)"]
+    Exec -- "Write Verdict & Outputs" --> Mongo
+    Client -- "Poll Submission Status" --> API
 ```
 
-Keep the executor as a separate deployable service inside `ZAP-BE` initially. A separate repository is not required at the start.
+---
 
-## Important scope boundary
+## 📂 Hierarchical Documentation Index
 
-Do not build the full future course platform during the first compiler release.
+To keep context token-efficient and informative for both AI agents and engineers, documentation is organized hierarchically:
 
-Build the reusable foundations now:
+| Category | Document | Description |
+|---|---|---|
+| **System Architecture** | [`docs/architecture/system-design.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/system-design.md) | Monorepo layout, submission lifecycle, loose coupling contracts, and execution states. |
+| **Backend & Database** | [`docs/backend/api-and-database.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/backend/api-and-database.md) | FastAPI routing, MongoDB models (`questions`, `submissions`, `users`), auth, and multi-tenant environment routing. |
+| **Compiler & Execution Engine** | [`docs/backend/compiler-engine.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/backend/compiler-engine.md) | LeetCode-style auto-harness, sandbox isolation, judge engine, test case masking, and supported languages. |
+| **Frontend Application** | [`docs/frontend/architecture.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/frontend/architecture.md) | Next.js 15, React 19, Monaco Editor integration, student problem workspace, faculty manager, and env switcher. |
+| **Cloud Infrastructure & CI/CD** | [`docs/infrastructure/cloud-and-pipeline.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/infrastructure/cloud-and-pipeline.md) | GCP Cloud Run, Cloud Tasks, Secret Manager, Workload Identity, and GitHub Actions CD deployment pipeline. |
+| **Local Development** | [`docs/development/local-setup.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/development/local-setup.md) | Local environment bootstrap, mock MongoDB / queue fallbacks, pytest, and frontend build commands. |
 
-- authentication/authorization structure
-- question model
-- question CRUD
-- test-case model
-- submission model
-- compiler/execution API
-- faculty/admin question management
-- CI/CD
-- observability hooks
+---
 
-Then add course and learning features incrementally.
+## ⚡ Quick Reference
 
+- **Frontend Host**: Vercel (`codezap-arena.vercel.app`, `run.codezap.in`, `codezap.in`)
+- **Backend API**: GCP Cloud Run (`https://zap-api-394729648143.us-central1.run.app`)
+- **Executor Service**: GCP Cloud Run (`https://zap-executor-394729648143.us-central1.run.app` - Private/OIDC only)
+- **Supported Languages**: Python 3.14 (`python`), JavaScript (`node`), Java 21 (`java`), C++23 (`cpp`), C (`c`)
+- **Database**: MongoDB Atlas (`zap_platform_prod` for Production, `zap_platform_lower` for QA)
+- **Queue**: Google Cloud Tasks (`zap-submissions` for Production, `zap-submissions-lower` for QA)
