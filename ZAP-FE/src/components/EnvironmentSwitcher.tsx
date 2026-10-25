@@ -25,7 +25,7 @@ export function EnvironmentSwitcher() {
 
   return (
     <div
-      className="inline-flex items-center gap-0.5 rounded-md border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] p-0.5 text-xs"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-[#e2e8f0] dark:border-[#232f45] bg-[#f8fafc] dark:bg-[#1a2233] p-0.5 text-xs"
       role="group"
       aria-label="Select environment"
     >
@@ -37,10 +37,10 @@ export function EnvironmentSwitcher() {
             type="button"
             onClick={() => selectEnvironment(option)}
             aria-pressed={active}
-            className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-all cursor-pointer ${
               active
-                ? "bg-[#f3f4f6] dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] font-semibold"
-                : "text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3]"
+                ? "bg-white dark:bg-[#121824] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
             }`}
           >
             {option === "production" ? "Prod" : "QA"}

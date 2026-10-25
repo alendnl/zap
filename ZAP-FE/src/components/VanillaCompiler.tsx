@@ -20,7 +20,7 @@ import { useTheme } from "@/context/ThemeContext";
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-white dark:bg-[#0d1117] text-[#656d76] dark:text-[#8b949e] font-mono text-xs">
+    <div className="flex-1 flex items-center justify-center bg-white dark:bg-[#0b0f17] text-[#64748b] dark:text-[#94a3b8] font-mono text-xs">
       Loading editor...
     </div>
   ),

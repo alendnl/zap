@@ -313,12 +313,12 @@ export default function Home() {
   // 1. Initializing auth state from localStorage
   if (isAuthInitializing) {
     return (
-      <div className="min-h-screen bg-[#f6f8fa] dark:bg-[#0d1117] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
-          <div className="w-8 h-8 rounded-md bg-[#0969da] text-white font-mono text-xs font-bold flex items-center justify-center animate-pulse">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-mono text-xs font-bold flex items-center justify-center animate-pulse shadow-xs shadow-blue-600/25">
             Z
           </div>
-          <p className="text-xs text-[#656d76] dark:text-[#8b949e]">Loading workspace...</p>
+          <p className="text-xs text-[#64748b] dark:text-[#94a3b8]">Loading workspace...</p>
         </div>
       </div>
     );
@@ -700,12 +700,12 @@ export default function Home() {
 
             {/* Concepts Grid for Basic Programming Tab */}
             {activeTab === "basic" && (
-              <div className="mt-10 pt-8 border-t border-[#d0d7de] dark:border-[#30363d]">
+              <div className="mt-10 pt-8 border-t border-[#e2e8f0] dark:border-[#1e293b]">
                 <div className="mb-4">
-                  <h2 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                  <h2 className="text-sm font-bold text-[#0f172a] dark:text-white">
                     Foundational Programming Concepts
                   </h2>
-                  <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-0.5">
+                  <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-0.5">
                     Core computer science building blocks tested in technical and system engineer screening interviews.
                   </p>
                 </div>
@@ -714,37 +714,37 @@ export default function Home() {
                   {BASIC_CONCEPTS.map((concept) => (
                     <div
                       key={concept.title}
-                      className="border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#161b22] rounded-md p-4 flex flex-col justify-between"
+                      className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:border-blue-500/30 transition-all"
                     >
                       <div>
-                        <h3 className="text-sm font-semibold text-[#1f2328] dark:text-[#e6edf3]">
+                        <h3 className="text-sm font-bold text-[#0f172a] dark:text-white">
                           {concept.title}
                         </h3>
-                        <p className="text-xs text-[#656d76] dark:text-[#8b949e] mt-1 leading-relaxed">
+                        <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-1 leading-relaxed">
                           {concept.summary}
                         </p>
 
-                        <div className="mt-3 pt-3 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 space-y-1">
+                        <div className="mt-3 pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] space-y-1.5">
                           {concept.topics.map((t) => (
                             <div
                               key={t}
-                              className="text-[11px] text-[#1f2328] dark:text-[#c9d1d9] flex items-center gap-1.5"
+                              className="text-[11px] text-[#475569] dark:text-[#94a3b8] flex items-center gap-1.5"
                             >
-                              <span className="w-1 h-1 rounded-full bg-[#8c959f] flex-shrink-0" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                               <span className="truncate">{t}</span>
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-2.5 border-t border-[#d0d7de]/60 dark:border-[#30363d]/60 flex items-center justify-between">
-                        <span className="text-[11px] text-[#8c959f]">Interactive Practice</span>
+                      <div className="mt-4 pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] flex items-center justify-between">
+                        <span className="text-[11px] text-[#64748b] dark:text-[#94a3b8]">Interactive Practice</span>
                         <button
                           type="button"
                           onClick={() => handleTabSwitch("compiler")}
-                          className="text-[11px] text-[#0969da] dark:text-[#2f81f7] hover:underline font-medium"
+                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
                         >
-                          Open in compiler
+                          Open in compiler →
                         </button>
                       </div>
                     </div>
