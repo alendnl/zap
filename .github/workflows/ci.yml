@@ -116,7 +116,7 @@ jobs:
           distribution: "temurin"
           java-version: "21"
       - name: Install backend dependencies
-        run: pip install -r ZAP-BE/requirements.txt
+        run: pip install --prefer-binary -r ZAP-BE/requirements.txt
       - name: Run backend tests
         working-directory: ZAP-BE
         run: python -m pytest -v
@@ -132,7 +132,15 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm install
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: ZAP-FE/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('ZAP-FE/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
       - name: Build frontend
         run: npm run build --workspace=ZAP-FE
         env:
@@ -178,7 +186,6 @@ jobs:
         with:
           workload_identity_provider: projects/394729648143/locations/global/workloadIdentityPools/github-actions/providers/zap-repository
           service_account: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
-      - uses: google-github-actions/setup-gcloud@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -224,7 +231,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --cache-from=type=gha,scope=zap-be-api \
-            --cache-to=type=gha,mode=max,scope=zap-be-api \
+            --cache-to=type=gha,mode=min,scope=zap-be-api \
             -t "$API_IMAGE" \
             -f ZAP-BE/Dockerfile.api \
             --push \
@@ -234,7 +241,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --cache-from=type=gha,scope=zap-be-executor \
-            --cache-to=type=gha,mode=max,scope=zap-be-executor \
+            --cache-to=type=gha,mode=min,scope=zap-be-executor \
             -t "$EXECUTOR_IMAGE" \
             -f ZAP-BE/Dockerfile.executor-api \
             --push \
@@ -273,18 +280,18 @@ jobs:
           PID_API=$!
 
           wait "$PID_EXEC"
-          echo "Executor deployed successfully."
+          echo "Executor deployed successfully. Granting task invoker permission..."
+          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --member="serviceAccount:${TASK_CALLER_SA}" \
+            --role=roles/run.invoker --quiet &
+          PID_BIND=$!
 
           wait "$PID_API"
           echo "API deployed successfully."
 
-      - name: Grant task caller access to executor
-        run: |
-          set -euo pipefail
-          gcloud run services add-iam-policy-binding "$EXECUTOR_SERVICE" \
-            --project="$PROJECT_ID" --region="$REGION" \
-            --member="serviceAccount:${TASK_CALLER_SA}" \
-            --role=roles/run.invoker --quiet
+          wait "$PID_BIND"
+          echo "Task caller invoker binding confirmed."
 
       - name: Verify deployment
         run: |
@@ -296,7 +303,8 @@ jobs:
           test "$PREFLIGHT_STATUS" = "200" || { cat /tmp/cors-preflight.txt; exit 1; }
           for queue in zap-submissions zap-submissions-lower; do
             echo "Checking Cloud Tasks queue: $queue"
-            gcloud tasks queues describe "$queue" --project="$PROJECT_ID" --location="$REGION" --format='value(name)'
+            gcloud tasks queues describe "$queue" --project="$PROJECT_ID" --location="$REGION" --format='value(name)' &
           done
-          gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > /tmp/executor-service.json
+          gcloud run services describe "$EXECUTOR_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > /tmp/executor-service.json &
+          wait
           python -c 'import json,sys; d=json.load(open("/tmp/executor-service.json")); conditions=d.get("status",{}).get("conditions",[]); ready=next((c.get("status") for c in conditions if c.get("type")=="Ready"),None); print("Executor Ready condition:", ready); print("Conditions:", conditions); sys.exit(0 if ready=="True" else 1)'
