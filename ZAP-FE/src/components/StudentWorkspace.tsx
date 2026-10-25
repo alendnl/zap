@@ -909,20 +909,22 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             <button
               onClick={onBackToCatalog}
               type="button"
-              className="px-2.5 py-1 text-xs font-semibold text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-[#f8fafc] dark:bg-[#1a2233] border border-[#e2e8f0] dark:border-[#232f45] rounded-lg transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-[#f8fafc] dark:bg-[#1a2233] border border-[#e2e8f0] dark:border-[#232f45] rounded-xl transition-all cursor-pointer shadow-xs"
             >
-              ← Problems
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Back to Problems</span>
             </button>
           ) : (
             <Link
               href="/"
-              className="px-2.5 py-1 text-xs font-semibold text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-[#f8fafc] dark:bg-[#1a2233] border border-[#e2e8f0] dark:border-[#232f45] rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-[#f8fafc] dark:bg-[#1a2233] border border-[#e2e8f0] dark:border-[#232f45] rounded-xl transition-all shadow-xs"
             >
-              ← Problems
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Back to Problems</span>
             </Link>
           )}
 
-          <span className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-xs shadow-blue-600/25">
+          <span className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-sm shadow-blue-600/30">
             Z
           </span>
 

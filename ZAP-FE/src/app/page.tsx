@@ -13,6 +13,7 @@ import {
   BookOpen,
   Circle,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
@@ -366,12 +367,17 @@ export default function Home() {
           {/* Brand & Section Switcher */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <span className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-xs shadow-blue-600/25">
+              <span className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-sm shadow-blue-600/30">
                 Z
               </span>
-              <span className="font-bold text-sm tracking-tight select-none text-[#0f172a] dark:text-white">
-                ZAP
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-sm tracking-tight select-none text-[#0f172a] dark:text-white">
+                  ZAP
+                </span>
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  Arena
+                </span>
+              </div>
             </div>
 
             {/* Segmented Topic Navigation */}
@@ -379,12 +385,13 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("dsa")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                   activeTab === "dsa"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
                 }`}
               >
+                <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 <span>DSA Problems</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
                   {dsaQuestions.length}
@@ -394,12 +401,13 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("basic")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                   activeTab === "basic"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
                 }`}
               >
+                <BookOpen className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
                 <span>Basic Programming</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
                   {basicQuestions.length}
@@ -409,12 +417,13 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("compiler")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                   activeTab === "compiler"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
                 }`}
               >
+                <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                 <span>Compiler</span>
               </button>
             </nav>
@@ -452,63 +461,92 @@ export default function Home() {
       <div className="flex-1 flex flex-col">
         {/* 1. DSA PROBLEMS TAB & 2. BASIC PROGRAMMING TAB */}
         {(activeTab === "dsa" || activeTab === "basic") && (
-          <main className="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
-            {/* Header Description & Progress Bar */}
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-              <div>
-                <h1 className="text-xl font-bold text-[#0f172a] dark:text-white tracking-tight">
-                  {activeTab === "dsa"
-                    ? "Data Structures and Algorithms"
-                    : "Basic Programming Concepts (Infosys SE)"}
-                </h1>
-                <p className="mt-1 text-xs text-[#64748b] dark:text-[#94a3b8] max-w-2xl leading-relaxed">
-                  {activeTab === "dsa"
-                    ? "Curated interview problems with custom test suites and isolated execution across C, C++, Java, Python, and JavaScript."
-                    : "17 essential Infosys SE interview problems covering recursion, arithmetic logic, number properties, strings, and elementary arrays."}
-                </p>
-              </div>
+          <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
+            {/* High-Impact Hero Banner & Live Progress Card */}
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/50 text-[11px] font-semibold text-blue-700 dark:text-blue-300 shadow-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    <span className="tracking-wide uppercase font-mono text-[10px]">
+                      {activeTab === "dsa" ? "Competitive Programming Arena" : "Infosys SE Screening Module"}
+                    </span>
+                  </div>
 
-              {currentTopicQuestions.length > 0 && (
-                <div className="flex items-center gap-3 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] px-3.5 py-2 rounded-xl shadow-xs">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold font-mono text-[#0f172a] dark:text-white">
-                      {solvedCount} / {currentTopicQuestions.length}
-                    </span>
-                    <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">
-                      Solved
-                    </span>
-                  </div>
-                  <div className="w-24 h-2 bg-[#e2e8f0] dark:bg-[#1e293b] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.round((solvedCount / Math.max(1, currentTopicQuestions.length)) * 100)}%`,
-                      }}
-                    />
-                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-white tracking-tight">
+                    {activeTab === "dsa"
+                      ? "Technical Problem Explorer"
+                      : "Basic Programming Concepts"}
+                  </h1>
+
+                  <p className="text-xs sm:text-sm text-[#64748b] dark:text-[#94a3b8] max-w-2xl leading-relaxed">
+                    {activeTab === "dsa"
+                      ? "Curated algorithms and data structures with isolated multi-language compilers across C, C++, Java, Python, and JavaScript."
+                      : "17 essential Infosys SE interview problems covering recursion, arithmetic logic, number properties, strings, and elementary arrays."}
+                  </p>
                 </div>
-              )}
+
+                {/* Progress & Solved Ratio Card */}
+                {currentTopicQuestions.length > 0 && (
+                  <div className="flex items-center gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-2xl shadow-xs dark:shadow-black/20 min-w-[280px]">
+                    <div className="flex flex-col">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-bold font-mono text-[#0f172a] dark:text-white tracking-tight">
+                          {solvedCount}
+                        </span>
+                        <span className="text-xs text-[#64748b] dark:text-[#94a3b8] font-mono">
+                          / {currentTopicQuestions.length}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8]">
+                        Problems Solved
+                      </span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="flex justify-between text-[11px] font-mono text-[#64748b] dark:text-[#94a3b8]">
+                        <span>Completion</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          {Math.round((solvedCount / Math.max(1, currentTopicQuestions.length)) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-[#f1f5f9] dark:bg-[#0b0f17] rounded-full overflow-hidden border border-[#e2e8f0] dark:border-[#1e293b]">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 shadow-xs shadow-emerald-500/25"
+                          style={{
+                            width: `${Math.round((solvedCount / Math.max(1, currentTopicQuestions.length)) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Filter and Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between mb-4">
               {/* Search Box */}
               <div className="relative flex-1 max-w-md">
-                <Search className="w-3.5 h-3.5 text-[#94a3b8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-[#94a3b8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter by title, slug, or tag..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-xl text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors shadow-xs"
+                  placeholder="Search problems by name, tag, or slug..."
+                  className="w-full pl-9 pr-14 py-2 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-xl text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
                 />
-                {searchQuery && (
+                {searchQuery ? (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
                   >
                     Clear
                   </button>
+                ) : (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#94a3b8] font-mono pointer-events-none">
+                    Filter
+                  </span>
                 )}
               </div>
 
@@ -522,14 +560,20 @@ export default function Home() {
                       key={diff}
                       type="button"
                       onClick={() => setDifficultyFilter(diff)}
-                      className={`px-3 py-1 rounded-lg text-xs transition-all flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
                         isSelected
                           ? "bg-[#f1f5f9] dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                           : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
                       }`}
                     >
                       <span>{diff === "ALL" ? "All" : diff.charAt(0) + diff.slice(1).toLowerCase()}</span>
-                      <span className="text-[10px] font-mono opacity-70">
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md ${
+                          isSelected
+                            ? "bg-white dark:bg-[#0b0f17] text-[#0f172a] dark:text-white"
+                            : "bg-[#f1f5f9] dark:bg-[#161e2e] text-[#64748b] dark:text-[#94a3b8]"
+                        }`}
+                      >
                         {count}
                       </span>
                     </button>
@@ -538,31 +582,31 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tags Strip */}
+            {/* Topics Horizontal Pills Strip */}
             {allTags.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 text-xs scrollbar-thin">
-                <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] mr-1 flex-shrink-0">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-4 text-xs scrollbar-thin">
+                <span className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mr-1 flex-shrink-0">
                   Topics:
                 </span>
                 <button
                   type="button"
                   onClick={() => setSelectedTag(null)}
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] transition-all flex-shrink-0 ${
+                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 cursor-pointer ${
                     selectedTag === null
-                      ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800/60"
+                      ? "bg-blue-600 text-white font-semibold shadow-xs shadow-blue-600/20"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b]"
                   }`}
                 >
-                  All
+                  All Topics
                 </button>
                 {allTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] transition-all flex-shrink-0 border ${
+                    className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 border cursor-pointer ${
                       selectedTag === tag
-                        ? "border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold"
+                        ? "border-blue-600 bg-blue-600 text-white font-semibold shadow-xs shadow-blue-600/20"
                         : "border-[#e2e8f0] dark:border-[#1e293b] text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-white dark:bg-[#121824]"
                     }`}
                   >
@@ -585,24 +629,24 @@ export default function Home() {
               </div>
             )}
 
-            {/* Questions Table */}
+            {/* Questions Table Container */}
             {loadingList ? (
-              <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-8 text-center text-xs text-[#64748b] dark:text-[#94a3b8] shadow-xs">
-                <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600 dark:text-blue-400" />
-                <span>Loading problems catalog...</span>
+              <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-12 text-center text-xs text-[#64748b] dark:text-[#94a3b8] shadow-xs">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2.5 text-blue-600 dark:text-blue-400" />
+                <span className="font-medium">Loading problems catalog...</span>
               </div>
             ) : filteredQuestions.length === 0 ? (
-              <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-8 text-center text-xs text-[#64748b] dark:text-[#94a3b8] shadow-xs">
-                <span>No problems match the current filter.</span>
+              <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-12 text-center text-xs text-[#64748b] dark:text-[#94a3b8] shadow-xs">
+                <span className="font-medium">No problems match the current filter.</span>
               </div>
             ) : (
               <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl overflow-hidden shadow-xs">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0e1420] text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] uppercase tracking-wider">
+                <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0e1420] text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] uppercase tracking-wider">
                   <div className="col-span-1">Status</div>
-                  <div className="col-span-6 md:col-span-7">Title</div>
+                  <div className="col-span-6 md:col-span-7">Problem Title</div>
                   <div className="col-span-2">Difficulty</div>
-                  <div className="hidden md:block col-span-1 text-right font-mono">Tests</div>
+                  <div className="hidden md:block col-span-1 text-right font-mono">Test Cases</div>
                   <div className="col-span-3 md:col-span-1 text-right">Action</div>
                 </div>
 
@@ -620,37 +664,35 @@ export default function Home() {
                       <div
                         key={q.id}
                         onClick={() => !isOpening && void openQuestion(q.id)}
-                        className="grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-[#f1f5f9]/60 dark:hover:bg-[#1a2233]/50 transition-colors cursor-pointer group text-xs"
+                        className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-[#f1f5f9]/70 dark:hover:bg-[#1a2233]/60 transition-all cursor-pointer group text-xs"
                       >
-                        {/* Status */}
+                        {/* Status Icon */}
                         <div className="col-span-1">
                           {isSolved ? (
-                            <CheckCircle2
-                              className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
-                              aria-label="Solved"
-                            />
+                            <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="w-4 h-4" aria-label="Solved" />
+                            </div>
                           ) : (
-                            <Circle
-                              className="w-4 h-4 text-[#cbd5e1] dark:text-[#232f45]"
-                              aria-label="Not solved"
-                            />
+                            <div className="w-6 h-6 rounded-full bg-[#f1f5f9] dark:bg-[#161e2e] border border-dashed border-[#cbd5e1] dark:border-[#334155] flex items-center justify-center text-[#94a3b8]">
+                              <Circle className="w-3 h-3 text-[#94a3b8]" aria-label="Not solved" />
+                            </div>
                           )}
                         </div>
 
                         {/* Title and Tags */}
-                        <div className="col-span-6 md:col-span-7 min-w-0 pr-2">
-                          <div className="font-semibold text-[#0f172a] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                        <div className="col-span-6 md:col-span-7 min-w-0 pr-3">
+                          <div className="font-semibold text-sm text-[#0f172a] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                             {q.title}
                           </div>
                           {q.tags && q.tags.length > 0 && (
-                            <div className="flex items-center gap-1.5 mt-1 overflow-hidden">
+                            <div className="flex items-center gap-1.5 mt-1.5 overflow-hidden flex-wrap">
                               {q.tags
                                 .filter((t) => t !== "basic-programming")
-                                .slice(0, 3)
+                                .slice(0, 4)
                                 .map((tag) => (
                                   <span
                                     key={tag}
-                                    className="text-[10px] text-[#64748b] dark:text-[#94a3b8] bg-[#f1f5f9] dark:bg-[#1a2233] px-1.5 py-0.2 rounded border border-[#e2e8f0] dark:border-[#232f45]"
+                                    className="text-[10px] text-[#64748b] dark:text-[#94a3b8] bg-[#f1f5f9] dark:bg-[#161e2e] px-2 py-0.5 rounded-md border border-[#e2e8f0] dark:border-[#1e293b] font-medium"
                                   >
                                     {tag}
                                   </span>
@@ -682,13 +724,13 @@ export default function Home() {
                               void openQuestion(q.id);
                             }}
                             disabled={isOpening}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
                               isSolved
                                 ? "border-[#e2e8f0] dark:border-[#232f45] bg-[#f8fafc] dark:bg-[#1a2233] text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                                : "border-blue-600 dark:border-blue-500 bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-500 shadow-xs shadow-blue-600/20"
+                                : "border-blue-600 dark:border-blue-500 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-xs shadow-blue-600/25"
                             }`}
                           >
-                            {isOpening ? "Loading" : isSolved ? "Review" : "Solve"}
+                            {isOpening ? "Loading" : isSolved ? "Review" : "Solve →"}
                           </button>
                         </div>
                       </div>
@@ -700,35 +742,39 @@ export default function Home() {
 
             {/* Concepts Grid for Basic Programming Tab */}
             {activeTab === "basic" && (
-              <div className="mt-10 pt-8 border-t border-[#e2e8f0] dark:border-[#1e293b]">
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-[#0f172a] dark:text-white">
+              <div className="mt-12 pt-8 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+                <div className="mb-6">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/50 text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                    <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    <span>Curriculum Overview</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-[#0f172a] dark:text-white tracking-tight">
                     Foundational Programming Concepts
                   </h2>
-                  <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-0.5">
+                  <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-1">
                     Core computer science building blocks tested in technical and system engineer screening interviews.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {BASIC_CONCEPTS.map((concept) => (
                     <div
                       key={concept.title}
-                      className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:border-blue-500/30 transition-all"
+                      className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-blue-500/40 hover:shadow-sm transition-all group"
                     >
                       <div>
-                        <h3 className="text-sm font-bold text-[#0f172a] dark:text-white">
+                        <h3 className="text-sm font-bold text-[#0f172a] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {concept.title}
                         </h3>
-                        <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-1 leading-relaxed">
+                        <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-1.5 leading-relaxed">
                           {concept.summary}
                         </p>
 
-                        <div className="mt-3 pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] space-y-1.5">
+                        <div className="mt-4 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b] space-y-2">
                           {concept.topics.map((t) => (
                             <div
                               key={t}
-                              className="text-[11px] text-[#475569] dark:text-[#94a3b8] flex items-center gap-1.5"
+                              className="text-[11px] text-[#475569] dark:text-[#94a3b8] flex items-center gap-2"
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                               <span className="truncate">{t}</span>
@@ -737,14 +783,15 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] flex items-center justify-between">
-                        <span className="text-[11px] text-[#64748b] dark:text-[#94a3b8]">Interactive Practice</span>
+                      <div className="mt-5 pt-3.5 border-t border-[#e2e8f0] dark:border-[#1e293b] flex items-center justify-between">
+                        <span className="text-[11px] text-[#64748b] dark:text-[#94a3b8] font-medium">Practice sandbox</span>
                         <button
                           type="button"
                           onClick={() => handleTabSwitch("compiler")}
-                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 font-semibold cursor-pointer inline-flex items-center gap-1"
                         >
-                          Open in compiler →
+                          <span>Open in compiler</span>
+                          <span>→</span>
                         </button>
                       </div>
                     </div>
