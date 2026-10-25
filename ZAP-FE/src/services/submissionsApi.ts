@@ -117,12 +117,13 @@ export const submissionsApi = {
   get: (submissionId: string): Promise<Submission> =>
     apiFetch(`/api/v1/submissions/${submissionId}`, { cache: "no-store" }),
 
-  list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number }): Promise<SubmissionSummary[]> => {
+  list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number; skip?: number }): Promise<SubmissionSummary[]> => {
     const searchParams = new URLSearchParams();
     if (params?.questionId) searchParams.set("questionId", params.questionId);
     if (params?.userId) searchParams.set("userId", params.userId);
     if (params?.mode) searchParams.set("mode", params.mode);
     if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.skip) searchParams.set("skip", String(params.skip));
     searchParams.set("_t", String(Date.now()));
     const qs = searchParams.toString();
     return apiFetch(`/api/v1/submissions${qs ? `?${qs}` : ""}`, {

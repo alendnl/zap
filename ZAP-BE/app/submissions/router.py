@@ -46,6 +46,7 @@ def list_submissions(
     questionId: Optional[str] = None,
     mode: Optional[SubmissionMode] = None,
     limit: int = 50,
+    skip: int = 0,
     service: SubmissionService = Depends(get_submission_service)
 ):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
@@ -55,7 +56,8 @@ def list_submissions(
         user_id=userId,
         question_id=questionId,
         mode=mode,
-        limit=limit
+        limit=limit,
+        skip=skip
     )
 
 @router.get("/{submission_id}", response_model=Submission)

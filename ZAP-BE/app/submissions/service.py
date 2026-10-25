@@ -109,6 +109,7 @@ class SubmissionService:
         question_id: Optional[str] = None,
         mode: Optional[SubmissionMode] = None,
         limit: int = 50,
+        skip: int = 0,
     ) -> List[SubmissionSummary]:
         coll = self._get_collection()
         query = {}
@@ -183,7 +184,7 @@ class SubmissionService:
                 "tests": 1,
                 "createdAt": 1,
             }
-            cursor = coll.find(query, projection).sort("createdAt", -1).limit(limit)
+            cursor = coll.find(query, projection).sort("createdAt", -1).skip(max(0, skip)).limit(max(1, limit))
             results = []
             for doc in cursor:
                 results.append(SubmissionSummary(**doc))
@@ -219,7 +220,7 @@ class SubmissionService:
             matching.append(SubmissionSummary(**summary_dict))
 
         matching.sort(key=lambda s: s.createdAt, reverse=True)
-        return matching[:limit]
+        return matching[max(0, skip):max(0, skip) + max(1, limit)]
 
     def claim_submission(self, submission_id: str) -> Optional[Submission]:
         """Atomically claim a queued submission or recover an expired lease."""

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   LogOut,
@@ -15,6 +15,8 @@ import {
   Check,
   X,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -219,6 +221,36 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [dialogCaseIdx, setDialogCaseIdx] = useState(0);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Pagination for submissions (10 per page, descending order of submission date)
+  const SUBMISSIONS_PER_PAGE = 10;
+  const [submissionsPage, setSubmissionsPage] = useState<number>(1);
+
+  const sortedSubmissions = useMemo(() => {
+    return [...submissionsHistory].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [submissionsHistory]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedSubmissions.length / SUBMISSIONS_PER_PAGE));
+  const validPage = Math.min(Math.max(1, submissionsPage), totalPages);
+  const startIndex = (validPage - 1) * SUBMISSIONS_PER_PAGE;
+  const currentSubmissions = sortedSubmissions.slice(startIndex, startIndex + SUBMISSIONS_PER_PAGE);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (validPage <= 4) {
+      return [1, 2, 3, 4, 5, "...", totalPages];
+    }
+    if (validPage >= totalPages - 3) {
+      return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, "...", validPage - 1, validPage, validPage + 1, "...", totalPages];
+  }, [totalPages, validPage]);
+
   const submissionsLoadedRef = useRef<boolean>(false);
   const submissionsStaleRef = useRef<boolean>(true);
   const activePollIdRef = useRef<number>(0);
@@ -252,7 +284,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         questionId: question.id,
         userId: userIdent,
         mode: "SUBMIT",
-        limit: 100,
+        limit: 200,
       });
       const allSubmissions = list || [];
       const submitsOnly = allSubmissions.filter((s) => s.mode === "SUBMIT");
@@ -272,6 +304,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     setErrorNotice(null);
     setSelectedCaseIdx(0);
     setSubmissionsHistory([]);
+    setSubmissionsPage(1);
     submissionsLoadedRef.current = false;
     submissionsStaleRef.current = true;
     cleanupPolling();
@@ -440,6 +473,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 newSummary,
                 ...prev.filter((item) => item.id !== sub.id),
               ]);
+              setSubmissionsPage(1);
               submissionsLoadedRef.current = true;
               submissionsStaleRef.current = false;
             }
@@ -887,7 +921,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-[#1f2328] dark:text-[#f0f6fc]">
-                        Past submissions ({submissionsHistory.length})
+                        Past submissions ({sortedSubmissions.length})
+                        {totalPages > 1 && (
+                          <span className="ml-1.5 text-[#656d76] dark:text-[#8d96a0] font-normal">
+                            · Page {validPage} of {totalPages}
+                          </span>
+                        )}
                       </span>
                       <button
                         type="button"
@@ -899,11 +938,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                       </button>
                     </div>
 
-                    {loadingSubmissions && submissionsHistory.length === 0 ? (
+                    {loadingSubmissions && sortedSubmissions.length === 0 ? (
                       <div className="py-8 text-center text-[#656d76] dark:text-[#8d96a0] text-xs">
                         Loading submission history...
                       </div>
-                    ) : submissionsHistory.length === 0 ? (
+                    ) : sortedSubmissions.length === 0 ? (
                       <div className="py-8 text-center text-[#656d76] dark:text-[#8d96a0] text-xs">
                         No submissions yet. Submit your code to track results and save solution progress.
                       </div>
@@ -921,7 +960,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#d0d7de] dark:divide-[#30363d]">
-                            {submissionsHistory.map((sub) => {
+                            {currentSubmissions.map((sub) => {
                               const vKey = sub.verdict || sub.status;
                               const vStyle = VERDICT_STYLES[vKey] || VERDICT_STYLES["IDLE"];
                               const dateStr = sub.createdAt
@@ -982,6 +1021,72 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             })}
                           </tbody>
                         </table>
+
+                        {/* Pagination Bar (10 submissions per page) */}
+                        {totalPages > 1 && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-t border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] text-xs">
+                            <div className="text-[#656d76] dark:text-[#8d96a0]">
+                              Showing{" "}
+                              <span className="font-medium text-[#1f2328] dark:text-[#f0f6fc]">
+                                {startIndex + 1}
+                              </span>
+                              –
+                              <span className="font-medium text-[#1f2328] dark:text-[#f0f6fc]">
+                                {Math.min(startIndex + SUBMISSIONS_PER_PAGE, sortedSubmissions.length)}
+                              </span>{" "}
+                              of{" "}
+                              <span className="font-medium text-[#1f2328] dark:text-[#f0f6fc]">
+                                {sortedSubmissions.length}
+                              </span>{" "}
+                              submissions
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={validPage === 1}
+                                onClick={() => setSubmissionsPage((p) => Math.max(1, p - 1))}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] hover:bg-[#f6f8fa] dark:hover:bg-[#30363d] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                              >
+                                <ChevronLeft className="w-3.5 h-3.5" />
+                                <span>Prev</span>
+                              </button>
+
+                              <div className="flex items-center gap-0.5">
+                                {pageNumbers.map((p, idx) =>
+                                  typeof p === "number" ? (
+                                    <button
+                                      key={p}
+                                      type="button"
+                                      onClick={() => setSubmissionsPage(p)}
+                                      className={`min-w-[28px] h-7 px-1.5 rounded text-xs font-medium border transition-colors ${
+                                        p === validPage
+                                          ? "bg-[#0969da] text-white border-[#0969da]"
+                                          : "bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] border-[#d0d7de] dark:border-[#30363d] hover:bg-[#f6f8fa] dark:hover:bg-[#30363d]"
+                                      }`}
+                                    >
+                                      {p}
+                                    </button>
+                                  ) : (
+                                    <span key={`ellipsis-${idx}`} className="px-1 text-[#656d76] dark:text-[#8d96a0]">
+                                      ...
+                                    </span>
+                                  )
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={validPage === totalPages}
+                                onClick={() => setSubmissionsPage((p) => Math.min(totalPages, p + 1))}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-[#d0d7de] dark:border-[#30363d] bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#f0f6fc] hover:bg-[#f6f8fa] dark:hover:bg-[#30363d] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                              >
+                                <span>Next</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
