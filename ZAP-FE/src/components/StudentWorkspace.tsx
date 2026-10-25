@@ -249,7 +249,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     try {
       const list = await submissionsApi.list({
         questionId: question.id,
-        userId: student.studentId,
+        userId: student.id,
         limit: 100,
       });
       const allSubmissions = list || [];
@@ -376,7 +376,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           language,
           mode,
           sourceCode: currentCode,
-          userId: student ? student.studentId : "student-123",
+          userId: student ? student.id : undefined,
         });
 
         const subId = createRes.submissionId;

@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
 import { SubmissionSummary } from "@/services/submissionsApi";
+import { activityApi } from "@/services/activityApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
@@ -104,9 +105,20 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const loadUserSolvedStatus = useCallback(async () => {
-    // Solved status is not fetched on catalog mount to avoid unnecessary submissions calls
-    setSolvedQuestionIds(new Set());
-  }, []);
+    if (!student?.id) {
+      setSolvedQuestionIds(new Set());
+      return;
+    }
+    try {
+      const summary = await activityApi.getSummary(student.id);
+      if (summary?.solvedQuestionIds) {
+        setSolvedQuestionIds(new Set(summary.solvedQuestionIds));
+      }
+    } catch (err) {
+      // Graceful fallback if offline or backend unavailable
+      setSolvedQuestionIds(new Set());
+    }
+  }, [student?.id]);
 
   // Check stored session & URL query params on mount
   useEffect(() => {

@@ -54,6 +54,7 @@ export interface SubmissionTestCaseResult {
 export interface SubmissionSummary {
   id: string;
   userId: string;
+  userEmail?: string;
   questionId: string;
   language: string;
   mode: SubmissionMode;
@@ -67,6 +68,7 @@ export interface SubmissionSummary {
 export interface Submission {
   id: string;
   userId: string;
+  userEmail?: string;
   questionId: string;
   language: string;
   mode: SubmissionMode;

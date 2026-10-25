@@ -18,7 +18,7 @@ class StudentLoginRequest(BaseModel):
 
 
 class StudentProfile(BaseModel):
-    id: str = Field(default_factory=lambda: f"std-{uuid.uuid4().hex[:8]}")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     studentId: str
     collegeName: str

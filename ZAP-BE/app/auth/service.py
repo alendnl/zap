@@ -60,7 +60,7 @@ class AuthService:
                 if u.get("studentId") == student_id_clean:
                     raise ValueError(f"An account with Student ID '{req.studentId}' already exists.")
 
-        user_id = f"std-{uuid.uuid4().hex[:8]}"
+        user_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         pwd_hash = hash_password(req.password)
 

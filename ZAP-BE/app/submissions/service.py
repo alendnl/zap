@@ -10,6 +10,7 @@ from app.submissions.models import (
     SubmissionSummary,
     SubmissionTestsSummary,
 )
+import uuid
 from app.submissions.queue import get_queue_for_env
 from app.config import get_settings
 
@@ -27,8 +28,27 @@ class SubmissionService:
         return None
 
     def create_submission(self, req: SubmissionCreateRequest) -> Submission:
+        raw_user_id = (req.userId or "").strip()
+        user_id = raw_user_id or str(uuid.uuid4())
+        user_email = None
+
+        users_coll = getattr(self.db, "users", None) if self.db is not None else None
+        if users_coll is not None and raw_user_id:
+            user_doc = users_coll.find_one({
+                "$or": [
+                    {"_id": raw_user_id},
+                    {"id": raw_user_id},
+                    {"email": raw_user_id.lower()},
+                    {"studentId": raw_user_id},
+                ]
+            })
+            if user_doc:
+                user_id = user_doc.get("id") or user_doc.get("_id")
+                user_email = user_doc.get("email")
+
         submission = Submission(
-            userId=req.userId or "student-123",
+            userId=user_id,
+            userEmail=user_email,
             questionId=req.questionId,
             language=req.language,
             mode=req.mode,
@@ -93,7 +113,7 @@ class SubmissionService:
         coll = self._get_collection()
         query = {}
         if user_id:
-            query["userId"] = user_id
+            query["$or"] = [{"userId": user_id}, {"userEmail": user_id.lower()}]
         if question_id:
             query["questionId"] = question_id
         if mode:
@@ -104,6 +124,7 @@ class SubmissionService:
                 "_id": 0,
                 "id": 1,
                 "userId": 1,
+                "userEmail": 1,
                 "questionId": 1,
                 "language": 1,
                 "mode": 1,
@@ -121,7 +142,7 @@ class SubmissionService:
 
         matching = []
         for doc in self._memory_store.values():
-            if user_id and doc.get("userId") != user_id:
+            if user_id and doc.get("userId") != user_id and doc.get("userEmail") != user_id.lower():
                 continue
             if question_id and doc.get("questionId") != question_id:
                 continue
@@ -132,6 +153,7 @@ class SubmissionService:
             summary_dict = {
                 "id": doc.get("id") or doc.get("_id"),
                 "userId": doc.get("userId", "student-123"),
+                "userEmail": doc.get("userEmail"),
                 "questionId": doc.get("questionId", ""),
                 "language": doc.get("language", ""),
                 "mode": doc.get("mode", SubmissionMode.SUBMIT),
@@ -249,4 +271,13 @@ class SubmissionService:
             if submission_id in self._memory_store:
                 self._memory_store[submission_id].update(updates)
 
-        return self.get_submission(submission_id)
+        sub = self.get_submission(submission_id)
+        if sub and sub.status in [SubmissionStatus.COMPLETED, SubmissionStatus.FAILED]:
+            try:
+                from app.activity.service import ActivityService
+                act_svc = ActivityService(self.db)
+                act_svc.record_submission(sub)
+            except Exception:
+                pass
+
+        return sub

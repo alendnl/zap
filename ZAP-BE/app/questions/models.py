@@ -30,7 +30,7 @@ class Example(BaseModel):
 
 
 class TestCase(BaseModel):
-    id: str = Field(default_factory=lambda: f"tc-{uuid.uuid4().hex[:6]}")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     visibility: TestCaseVisibility = TestCaseVisibility.PUBLIC
     input: str
     expectedOutput: str
@@ -99,7 +99,7 @@ class QuestionUpdate(BaseModel):
 
 
 class Question(QuestionBase):
-    id: str = Field(default_factory=lambda: f"q-{uuid.uuid4().hex[:8]}")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     version: int = 1
     createdBy: Optional[str] = "faculty-default"
     updatedBy: Optional[str] = "faculty-default"

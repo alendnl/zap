@@ -82,8 +82,10 @@ Handles student code submissions and run requests:
 ### 2.2 Submission Schema (`submissions` collection)
 ```json
 {
-  "_id": "sub-uuid",
-  "userId": "student-123",
+  "_id": "550e8400-e29b-41d4-a716-446655440000",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "b47c9f80-1a2b-4c3d-8e5f-112233445566",
+  "userEmail": "student@college.edu",
   "questionId": "two-sum",
   "language": "python",
   "mode": "SUBMIT",
@@ -107,22 +109,66 @@ Handles student code submissions and run requests:
       "input": "[2,7,11,15]\n9",
       "expectedOutput": "[0,1]",
       "actualOutput": "[0, 1]"
-    },
-    {
-      "id": "tc-2",
-      "visibility": "HIDDEN",
-      "passed": true,
-      "status": "ACCEPTED",
-      "executionTimeMs": 14,
-      "input": null,
-      "expectedOutput": null,
-      "actualOutput": null
     }
   ],
   "createdAt": "2026-10-25T01:00:00Z",
   "completedAt": "2026-10-25T01:00:02Z"
 }
 ```
+
+**Indexes on `submissions`:**
+- `{ "userId": 1, "createdAt": -1 }` — Fast query for a user's recent submissions.
+- `{ "questionId": 1, "createdAt": -1 }` — Fast query for problem-level submission analytics.
+- `{ "userId": 1, "questionId": 1, "createdAt": -1 }` — Fast query for user submissions within a specific problem workspace.
+
+### 2.3 User Activity Schema (`user_activities` collection)
+Stores high-level progress, solved problems, and statistics per user (one document per user) to allow standard catalog and dashboard pages to load in <10ms without scanning the `submissions` collection:
+
+```json
+{
+  "_id": "b47c9f80-1a2b-4c3d-8e5f-112233445566",
+  "userId": "b47c9f80-1a2b-4c3d-8e5f-112233445566",
+  "totalSolved": 1,
+  "totalAttempted": 2,
+  "solvedQuestionIds": ["two-sum"],
+  "attemptedQuestionIds": ["two-sum", "valid-anagram"],
+  "problems": {
+    "two-sum": {
+      "status": "SOLVED",
+      "attemptsCount": 2,
+      "submitsCount": 2,
+      "runsCount": 0,
+      "bestVerdict": "ACCEPTED",
+      "latestSubmissionId": "550e8400-e29b-41d4-a716-446655440000",
+      "latestVerdict": "ACCEPTED",
+      "firstAttemptedAt": "2026-10-25T00:55:00Z",
+      "lastAttemptedAt": "2026-10-25T01:00:00Z",
+      "solvedAt": "2026-10-25T01:00:00Z"
+    }
+  },
+  "recentSubmissions": [
+    {
+      "submissionId": "550e8400-e29b-41d4-a716-446655440000",
+      "questionId": "two-sum",
+      "language": "python",
+      "mode": "SUBMIT",
+      "status": "COMPLETED",
+      "verdict": "ACCEPTED",
+      "createdAt": "2026-10-25T01:00:00Z"
+    }
+  ],
+  "createdAt": "2026-10-25T00:50:00Z",
+  "updatedAt": "2026-10-25T01:00:02Z"
+}
+```
+
+**Indexes on `user_activities`:**
+- `{ "userId": 1 }` (Unique) — Instant single-user lookup.
+- `{ "updatedAt": -1 }` — Activity timelines.
+
+**Activity Endpoints:**
+- `GET /api/v1/users/{userId}/activity/summary` — Lightweight summary (`totalSolved`, `totalAttempted`, `solvedQuestionIds`, `attemptedQuestionIds`) used by standard catalog pages.
+- `GET /api/v1/users/{userId}/activity` — Full problem-by-problem breakdown and recent submissions history.
 
 ---
 

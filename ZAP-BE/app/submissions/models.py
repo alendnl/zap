@@ -52,7 +52,7 @@ class SubmissionCreateRequest(BaseModel):
     language: str
     mode: SubmissionMode = SubmissionMode.SUBMIT
     sourceCode: str
-    userId: Optional[str] = "student-123"
+    userId: Optional[str] = None
 
 
 class SubmissionCreateResponse(BaseModel):
@@ -61,8 +61,9 @@ class SubmissionCreateResponse(BaseModel):
 
 
 class Submission(BaseModel):
-    id: str = Field(default_factory=lambda: f"sub-{uuid.uuid4().hex[:10]}")
-    userId: str = "student-123"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    userId: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    userEmail: Optional[str] = None
     questionId: str
     questionVersion: int = 1
     language: str
@@ -87,7 +88,8 @@ class Submission(BaseModel):
 
 class SubmissionSummary(BaseModel):
     id: str
-    userId: str = "student-123"
+    userId: str
+    userEmail: Optional[str] = None
     questionId: str
     language: str
     mode: SubmissionMode = SubmissionMode.SUBMIT

@@ -23,6 +23,37 @@ def get_request_environment(request: Optional[Request] = None) -> str:
     return "qa" if requested_env == "qa" else "production"
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def ensure_indexes(db) -> None:
+    """Ensure indexes on collections for fast queries, filtering, and data integrity."""
+    if db is None:
+        return
+    try:
+        # submissions indexes:
+        if hasattr(db, "submissions"):
+            db.submissions.create_index([("userId", 1), ("createdAt", -1)])
+            db.submissions.create_index([("questionId", 1), ("createdAt", -1)])
+            db.submissions.create_index([("userId", 1), ("questionId", 1), ("createdAt", -1)])
+        # user_activities indexes:
+        if hasattr(db, "user_activities"):
+            db.user_activities.create_index([("userId", 1)], unique=True)
+            db.user_activities.create_index([("updatedAt", -1)])
+        # users indexes:
+        if hasattr(db, "users"):
+            db.users.create_index([("email", 1)], unique=True)
+            db.users.create_index([("studentId", 1)])
+        # questions indexes:
+        if hasattr(db, "questions"):
+            db.questions.create_index([("slug", 1)], unique=True)
+            db.questions.create_index([("status", 1)])
+    except Exception as exc:
+        logger.warning(f"Index creation warning: {exc}")
+
+
 def get_database_for_env(env: str):
     """Return the MongoDB database for the given environment, creating and
     caching it on first use."""
@@ -42,7 +73,9 @@ def get_database_for_env(env: str):
         client = MongoClient(settings.MONGODB_URI, serverSelectionTimeoutMS=5000)
         client.admin.command("ping")
         db_manager.clients[env] = client
-        db_manager.dbs[env] = client[env_cfg.database_name]
+        db = client[env_cfg.database_name]
+        ensure_indexes(db)
+        db_manager.dbs[env] = db
         return db_manager.dbs[env]
 
     # Keep the dependency-free in-memory fallback for local development and
@@ -51,7 +84,9 @@ def get_database_for_env(env: str):
         import mongomock
         mock_client = mongomock.MongoClient()
         db_manager.clients[env] = mock_client
-        db_manager.dbs[env] = mock_client[env_cfg.database_name]
+        db = mock_client[env_cfg.database_name]
+        ensure_indexes(db)
+        db_manager.dbs[env] = db
         return db_manager.dbs[env]
     except Exception:
         return None
