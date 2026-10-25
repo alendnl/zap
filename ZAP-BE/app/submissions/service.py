@@ -112,10 +112,59 @@ class SubmissionService:
     ) -> List[SubmissionSummary]:
         coll = self._get_collection()
         query = {}
+        user_match_ids = []
         if user_id:
-            query["$or"] = [{"userId": user_id}, {"userEmail": user_id.lower()}]
+            raw_uid = user_id.strip()
+            user_match_ids.append(raw_uid)
+            users_coll = getattr(self.db, "users", None) if self.db is not None else None
+            if users_coll is not None:
+                user_doc = users_coll.find_one({
+                    "$or": [
+                        {"_id": raw_uid},
+                        {"id": raw_uid},
+                        {"email": raw_uid.lower()},
+                        {"studentId": raw_uid},
+                    ]
+                })
+                if user_doc:
+                    canonical_id = str(user_doc.get("id") or user_doc.get("_id"))
+                    email = user_doc.get("email")
+                    sid = user_doc.get("studentId")
+                    if canonical_id and canonical_id not in user_match_ids:
+                        user_match_ids.append(canonical_id)
+                    if email and email not in user_match_ids:
+                        user_match_ids.append(email)
+                    if sid and sid not in user_match_ids:
+                        user_match_ids.append(sid)
+
+            query["$or"] = [
+                {"userId": {"$in": user_match_ids}},
+                {"userEmail": {"$in": [uid.lower() for uid in user_match_ids if "@" in uid]}},
+            ]
+
+        q_match_ids = []
         if question_id:
-            query["questionId"] = question_id
+            raw_qid = question_id.strip()
+            q_match_ids.append(raw_qid)
+            questions_coll = getattr(self.db, "questions", None) if self.db is not None else None
+            if questions_coll is not None:
+                q_doc = questions_coll.find_one({
+                    "$or": [
+                        {"_id": raw_qid},
+                        {"id": raw_qid},
+                        {"slug": raw_qid},
+                    ]
+                })
+                if q_doc:
+                    canonical_qid = str(q_doc.get("id") or q_doc.get("_id"))
+                    slug = q_doc.get("slug")
+                    if canonical_qid and canonical_qid not in q_match_ids:
+                        q_match_ids.append(canonical_qid)
+                    if slug and slug not in q_match_ids:
+                        q_match_ids.append(slug)
+
+            query["questionId"] = {"$in": q_match_ids}
+
         if mode:
             query["mode"] = mode.value if hasattr(mode, "value") else mode
 
@@ -142,10 +191,14 @@ class SubmissionService:
 
         matching = []
         for doc in self._memory_store.values():
-            if user_id and doc.get("userId") != user_id and doc.get("userEmail") != user_id.lower():
-                continue
-            if question_id and doc.get("questionId") != question_id:
-                continue
+            if user_match_ids:
+                doc_uid = doc.get("userId")
+                doc_email = doc.get("userEmail")
+                if doc_uid not in user_match_ids and (not doc_email or doc_email.lower() not in [u.lower() for u in user_match_ids if "@" in u]):
+                    continue
+            if q_match_ids:
+                if doc.get("questionId") not in q_match_ids:
+                    continue
             if mode:
                 expected_mode = mode.value if hasattr(mode, "value") else mode
                 if doc.get("mode") != expected_mode:

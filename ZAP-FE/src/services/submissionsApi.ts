@@ -99,6 +99,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set(ENVIRONMENT_HEADER, getEnvironment());
 
   const res = await fetch(`${API_BASE}${path}`, {
+    cache: "no-store",
     ...init,
     headers,
   });
@@ -114,7 +115,7 @@ export const submissionsApi = {
     apiFetch("/api/v1/submissions", { method: "POST", body: JSON.stringify(req) }),
 
   get: (submissionId: string): Promise<Submission> =>
-    apiFetch(`/api/v1/submissions/${submissionId}`),
+    apiFetch(`/api/v1/submissions/${submissionId}`, { cache: "no-store" }),
 
   list: (params?: { questionId?: string; userId?: string; mode?: SubmissionMode; limit?: number }): Promise<SubmissionSummary[]> => {
     const searchParams = new URLSearchParams();
@@ -122,8 +123,12 @@ export const submissionsApi = {
     if (params?.userId) searchParams.set("userId", params.userId);
     if (params?.mode) searchParams.set("mode", params.mode);
     if (params?.limit) searchParams.set("limit", String(params.limit));
+    searchParams.set("_t", String(Date.now()));
     const qs = searchParams.toString();
-    return apiFetch(`/api/v1/submissions${qs ? `?${qs}` : ""}`);
+    return apiFetch(`/api/v1/submissions${qs ? `?${qs}` : ""}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
   },
 };
 

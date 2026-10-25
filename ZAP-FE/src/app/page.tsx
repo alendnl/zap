@@ -105,12 +105,13 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const loadUserSolvedStatus = useCallback(async () => {
-    if (!student?.id) {
+    const userIdent = student?.id || (student as any)?._id || student?.email;
+    if (!userIdent) {
       setSolvedQuestionIds(new Set());
       return;
     }
     try {
-      const summary = await activityApi.getSummary(student.id);
+      const summary = await activityApi.getSummary(userIdent);
       if (summary?.solvedQuestionIds) {
         setSolvedQuestionIds(new Set(summary.solvedQuestionIds));
       }
@@ -118,7 +119,7 @@ export default function Home() {
       // Graceful fallback if offline or backend unavailable
       setSolvedQuestionIds(new Set());
     }
-  }, [student?.id]);
+  }, [student]);
 
   // Check stored session & URL query params on mount
   useEffect(() => {

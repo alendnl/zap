@@ -298,3 +298,11 @@ def test_rate_limiting_configurable_via_settings(monkeypatch):
     assert res2.headers.get("retry-after") == "8"
 
 
+def test_list_submissions_no_cache_headers():
+    res = client.get("/api/v1/submissions")
+    assert res.status_code == 200
+    assert "no-cache" in res.headers.get("cache-control", "")
+    assert "no-store" in res.headers.get("cache-control", "")
+
+
+

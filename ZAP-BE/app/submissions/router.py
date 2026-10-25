@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from app.db.mongodb import get_database, get_request_environment
 from app.submissions.models import (
     Submission,
@@ -41,12 +41,16 @@ def submit_code(
 @router.get("", response_model=List[SubmissionSummary])
 @router.get("/", response_model=List[SubmissionSummary])
 def list_submissions(
+    response: Response,
     userId: Optional[str] = None,
     questionId: Optional[str] = None,
     mode: Optional[SubmissionMode] = None,
     limit: int = 50,
     service: SubmissionService = Depends(get_submission_service)
 ):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return service.list_submissions(
         user_id=userId,
         question_id=questionId,
@@ -57,8 +61,12 @@ def list_submissions(
 @router.get("/{submission_id}", response_model=Submission)
 def get_submission_status(
     submission_id: str,
+    response: Response,
     service: SubmissionService = Depends(get_submission_service)
 ):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     submission = service.get_submission(submission_id)
     if not submission:
         raise HTTPException(

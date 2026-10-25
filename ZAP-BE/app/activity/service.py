@@ -22,26 +22,66 @@ class ActivityService:
             return self.db.user_activities
         return None
 
+    def _resolve_user_id(self, user_id: str) -> list[str]:
+        raw = user_id.strip()
+        matched = [raw]
+        users_coll = getattr(self.db, "users", None) if self.db is not None else None
+        if users_coll is not None:
+            user_doc = users_coll.find_one({
+                "$or": [
+                    {"_id": raw},
+                    {"id": raw},
+                    {"email": raw.lower()},
+                    {"studentId": raw},
+                ]
+            })
+            if user_doc:
+                cid = str(user_doc.get("id") or user_doc.get("_id"))
+                em = user_doc.get("email")
+                sid = user_doc.get("studentId")
+                if cid and cid not in matched:
+                    matched.append(cid)
+                if em and em not in matched:
+                    matched.append(em)
+                if sid and sid not in matched:
+                    matched.append(sid)
+        return matched
+
     def get_activity(self, user_id: str) -> UserActivity:
         coll = self._get_collection()
+        matched_ids = self._resolve_user_id(user_id)
         if coll is not None:
-            doc = coll.find_one({"$or": [{"userId": user_id}, {"_id": user_id}]})
+            doc = coll.find_one({
+                "$or": [
+                    {"userId": {"$in": matched_ids}},
+                    {"_id": {"$in": matched_ids}},
+                ]
+            })
             if doc:
                 doc.pop("_id", None)
                 return UserActivity(**doc)
-        elif user_id in self._memory_store:
-            clean = dict(self._memory_store[user_id])
-            clean.pop("_id", None)
-            return UserActivity(**clean)
+        else:
+            for mid in matched_ids:
+                if mid in self._memory_store:
+                    clean = dict(self._memory_store[mid])
+                    clean.pop("_id", None)
+                    return UserActivity(**clean)
 
         # Default empty activity document if user hasn't attempted anything yet
-        return UserActivity(userId=user_id)
+        canonical = matched_ids[1] if len(matched_ids) > 1 else user_id
+        return UserActivity(userId=canonical)
 
     def get_summary(self, user_id: str) -> UserActivitySummary:
         coll = self._get_collection()
+        matched_ids = self._resolve_user_id(user_id)
         if coll is not None:
             doc = coll.find_one(
-                {"$or": [{"userId": user_id}, {"_id": user_id}]},
+                {
+                    "$or": [
+                        {"userId": {"$in": matched_ids}},
+                        {"_id": {"$in": matched_ids}},
+                    ]
+                },
                 {"_id": 0, "userId": 1, "totalSolved": 1, "totalAttempted": 1, "solvedQuestionIds": 1, "attemptedQuestionIds": 1}
             )
             if doc:
@@ -52,15 +92,19 @@ class ActivityService:
                     solvedQuestionIds=doc.get("solvedQuestionIds", []),
                     attemptedQuestionIds=doc.get("attemptedQuestionIds", []),
                 )
-        elif user_id in self._memory_store:
-            doc = self._memory_store[user_id]
-            return UserActivitySummary(
-                userId=doc.get("userId", user_id),
-                totalSolved=doc.get("totalSolved", 0),
-                totalAttempted=doc.get("totalAttempted", 0),
-                solvedQuestionIds=doc.get("solvedQuestionIds", []),
-                attemptedQuestionIds=doc.get("attemptedQuestionIds", []),
-            )
+        else:
+            for mid in matched_ids:
+                if mid in self._memory_store:
+                    doc = self._memory_store[mid]
+                    return UserActivitySummary(
+                        userId=doc.get("userId", user_id),
+                        totalSolved=doc.get("totalSolved", 0),
+                        totalAttempted=doc.get("totalAttempted", 0),
+                        solvedQuestionIds=doc.get("solvedQuestionIds", []),
+                        attemptedQuestionIds=doc.get("attemptedQuestionIds", []),
+                    )
+
+        canonical = matched_ids[1] if len(matched_ids) > 1 else user_id
 
         return UserActivitySummary(
             userId=user_id,

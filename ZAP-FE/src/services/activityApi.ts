@@ -58,6 +58,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set(ENVIRONMENT_HEADER, getEnvironment());
 
   const res = await fetch(`${API_BASE}${path}`, {
+    cache: "no-store",
     ...init,
     headers,
   });

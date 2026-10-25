@@ -247,9 +247,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     if (!student) return;
     setLoadingSubmissions(true);
     try {
+      const userIdent = student.id || (student as any)._id || student.email || student.studentId;
       const list = await submissionsApi.list({
         questionId: question.id,
-        userId: student.id,
+        userId: userIdent,
+        mode: "SUBMIT",
         limit: 100,
       });
       const allSubmissions = list || [];
@@ -371,12 +373,13 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
       const currentPollId = ++activePollIdRef.current;
       try {
+        const userIdent = student ? (student.id || (student as any)._id || student.email || student.studentId) : undefined;
         const createRes = await submissionsApi.create({
           questionId: question.id,
           language,
           mode,
           sourceCode: currentCode,
-          userId: student ? student.id : undefined,
+          userId: userIdent,
         });
 
         const subId = createRes.submissionId;
@@ -418,12 +421,31 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
             }
 
-            // Only refresh history if user is actively on submissions tab
-            if (bottomTabRef.current === "submissions") {
-              void loadSubmissions();
-            } else {
-              submissionsStaleRef.current = true;
+            // Immediately prepend completed submission into history if mode === "SUBMIT"
+            if (mode === "SUBMIT" && sub.id) {
+              const newSummary: SubmissionSummary = {
+                id: sub.id,
+                userId: sub.userId || student?.id || "",
+                userEmail: sub.userEmail || student?.email,
+                questionId: sub.questionId,
+                language: sub.language,
+                mode: "SUBMIT",
+                status: sub.status,
+                verdict: sub.verdict,
+                executionTimeMs: sub.executionTimeMs,
+                tests: sub.tests || { total: 0, passed: 0, failed: 0 },
+                createdAt: sub.createdAt || new Date().toISOString(),
+              };
+              setSubmissionsHistory((prev) => [
+                newSummary,
+                ...prev.filter((item) => item.id !== sub.id),
+              ]);
+              submissionsLoadedRef.current = true;
+              submissionsStaleRef.current = false;
             }
+
+            // Also refresh from backend in background
+            void loadSubmissions();
             break;
           }
 
@@ -632,9 +654,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   onClick={() => {
                     setBottomTab("submissions");
                     setIsDrawerOpen(true);
-                    if (!submissionsLoadedRef.current || submissionsStaleRef.current) {
-                      void loadSubmissions();
-                    }
+                    void loadSubmissions();
                   }}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                     bottomTab === "submissions" && isDrawerOpen
