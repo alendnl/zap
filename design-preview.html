@@ -1,0 +1,3150 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZAP — Complete Frontend Redesign & Design System Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM CSS CUSTOM PROPERTIES (LIGHT & DARK THEMES)
+       ========================================================================== */
+    :root {
+      /* Shared Spacing & Radius */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', "SF Mono", Menlo, Consolas, monospace;
+      --transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Light Theme Palette - Refined Slate & Pure Royal Blue */
+    html[data-theme="light"] {
+      --bg-canvas: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-hover: #e2e8f0;
+      
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --border-focus: #2563eb;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-subtle: #eff6ff;
+      --primary-text: #1d4ed8;
+
+      --success: #10b981;
+      --success-subtle: #ecfdf5;
+      --success-border: #a7f3d0;
+      --success-text: #047857;
+
+      --danger: #ef4444;
+      --danger-subtle: #fef2f2;
+      --danger-border: #fecaca;
+      --danger-text: #b91c1c;
+
+      --warning: #f59e0b;
+      --warning-subtle: #fffbeb;
+      --warning-border: #fde68a;
+      --warning-text: #b45309;
+
+      --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --modal-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+      --floating-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+
+      --editor-bg: #f8fafc;
+      --editor-gutter: #e2e8f0;
+      --code-line: #0f172a;
+    }
+
+    /* Dark Theme Palette - Obsidian Slate (Zero Eye Strain) */
+    html[data-theme="dark"] {
+      --bg-canvas: #0b0f17;
+      --bg-surface: #121824;
+      --bg-surface-elevated: #1a2233;
+      --bg-subtle: #161e2e;
+      --bg-hover: #222d42;
+
+      --border-subtle: #1e293b;
+      --border-strong: #334155;
+      --border-focus: #3b82f6;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-subtle: rgba(59, 130, 246, 0.12);
+      --primary-text: #60a5fa;
+
+      --success: #10b981;
+      --success-subtle: rgba(16, 185, 129, 0.12);
+      --success-border: rgba(16, 185, 129, 0.25);
+      --success-text: #34d399;
+
+      --danger: #f43f5e;
+      --danger-subtle: rgba(244, 63, 94, 0.12);
+      --danger-border: rgba(244, 63, 94, 0.25);
+      --danger-text: #fb7185;
+
+      --warning: #f59e0b;
+      --warning-subtle: rgba(245, 158, 11, 0.12);
+      --warning-border: rgba(245, 158, 11, 0.25);
+      --warning-text: #fbbf24;
+
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      --floating-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border-subtle);
+
+      --editor-bg: #0d121c;
+      --editor-gutter: #161d2a;
+      --code-line: #e2e8f0;
+    }
+
+    /* ==========================================================================
+       RESET & BASE STYLING
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.5;
+      font-size: 14px;
+      overflow-x: hidden;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      opacity: 0.3;
+      border-radius: var(--radius-full);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* ==========================================================================
+       TOP APP TOOLBAR & SHOWCASE CONTROLS
+       ========================================================================== */
+    .showcase-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--primary-subtle);
+      color: var(--primary-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Page Navigation Tabs */
+    .page-nav-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-subtle);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      max-width: 60%;
+    }
+
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .nav-tab-btn.active {
+      background: var(--bg-surface);
+      color: var(--primary-text);
+      font-weight: 600;
+      box-shadow: var(--card-shadow);
+    }
+
+    .nav-tab-counter {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: var(--border-subtle);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* Viewport Simulator & Tools */
+    .showcase-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .viewport-selector {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--bg-subtle);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .viewport-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .viewport-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .viewport-btn.active {
+      background: var(--bg-surface);
+      color: var(--primary-text);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .theme-toggle-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+
+    .theme-toggle-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-hover);
+    }
+
+    .decision-drawer-toggle {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+    .decision-drawer-toggle:hover {
+      background: var(--primary-hover);
+    }
+
+    /* ==========================================================================
+       VIEWPORT CONTAINER WRAPPER
+       ========================================================================== */
+    .viewport-container {
+      width: 100%;
+      min-height: calc(100vh - 60px);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .preview-canvas {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      position: relative;
+      transition: width 0.35s ease, max-width 0.35s ease;
+      min-height: 850px;
+    }
+
+    /* Responsive Width Bounds */
+    .preview-canvas.desktop {
+      max-width: 1400px;
+    }
+    .preview-canvas.laptop {
+      max-width: 1080px;
+    }
+    .preview-canvas.tablet {
+      max-width: 768px;
+    }
+    .preview-canvas.mobile {
+      max-width: 390px;
+      border-radius: 36px;
+      border: 8px solid var(--border-strong);
+    }
+
+    /* Frame Device Notch for Mobile */
+    .mobile-frame-notch {
+      display: none;
+      width: 130px;
+      height: 22px;
+      background: var(--border-strong);
+      margin: 0 auto;
+      border-radius: 0 0 14px 14px;
+    }
+    .preview-canvas.mobile .mobile-frame-notch {
+      display: block;
+    }
+
+    /* ==========================================================================
+       PAGE CONTAINER ARCHITECTURE
+       ========================================================================== */
+    .screen-page {
+      display: none;
+      animation: fadeIn 0.22s ease forwards;
+    }
+    .screen-page.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Banner / Rationale bar at the top of each page preview */
+    .design-rationale-strip {
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .rationale-text {
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rationale-tag {
+      font-weight: 600;
+      color: var(--primary-text);
+      background: var(--primary-subtle);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .suggestion-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .suggestion-chip {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .suggestion-chip:hover, .suggestion-chip.active {
+      border-color: var(--primary);
+      color: var(--primary-text);
+      background: var(--primary-subtle);
+    }
+
+    /* ==========================================================================
+       PAGE 1: AUTH & ONBOARDING (SIGN IN / SIGN UP)
+       ========================================================================== */
+    .auth-page-wrapper {
+      min-height: 800px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      background: radial-gradient(circle at 50% 25%, var(--primary-subtle), transparent 70%);
+      position: relative;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 36px 32px;
+      box-shadow: var(--modal-shadow);
+      position: relative;
+      z-index: 2;
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .auth-logo-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .auth-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.4px;
+      margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: var(--bg-subtle);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      margin-bottom: 24px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .auth-tab.active {
+      background: var(--bg-surface);
+      color: var(--primary-text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .form-label-hint {
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 40px;
+      padding: 8px 12px 8px 38px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      background: var(--bg-surface);
+      box-shadow: 0 0 0 3px var(--primary-subtle);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn-submit {
+      width: 100%;
+      height: 42px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-submit:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .auth-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+    }
+
+    /* Comparison side-by-side card for review */
+    .design-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .design-options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .option-card {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .option-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .option-header {
+      padding: 12px 16px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .option-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       PAGE 2: PROBLEM EXPLORER & CATALOG
+       ========================================================================== */
+    .catalog-header {
+      padding: 24px 32px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .catalog-title-group h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--text-primary);
+    }
+
+    .catalog-title-group p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .catalog-stats-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-subtle);
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .stat-metric {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-metric-val {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .stat-metric-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .progress-bar-wrap {
+      width: 110px;
+      height: 6px;
+      background: var(--border-subtle);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: var(--radius-full);
+      width: 45%;
+    }
+
+    /* Filter Bar */
+    .catalog-filter-bar {
+      padding: 16px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--bg-surface);
+    }
+
+    .search-box-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 260px;
+      max-width: 380px;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 36px;
+      padding: 6px 12px 6px 34px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      transition: var(--transition);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      background: var(--bg-surface);
+    }
+
+    .difficulty-filter-group {
+      display: flex;
+      background: var(--bg-subtle);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .diff-btn {
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .diff-btn.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .diff-badge-count {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      opacity: 0.6;
+    }
+
+    /* Tag Pills Bar */
+    .catalog-tags-strip {
+      padding: 0 32px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .catalog-tags-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tag-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .tag-chip:hover, .tag-chip.active {
+      background: var(--primary-subtle);
+      color: var(--primary-text);
+      border-color: var(--primary);
+      font-weight: 500;
+    }
+
+    /* Catalog Table */
+    .catalog-table-container {
+      margin: 0 32px 32px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      overflow: hidden;
+    }
+
+    .catalog-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .catalog-table th {
+      background: var(--bg-subtle);
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .catalog-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: middle;
+      transition: var(--transition);
+    }
+
+    .catalog-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .catalog-table tr:hover td {
+      background: var(--bg-subtle);
+    }
+
+    /* Status Icons */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+    }
+    .status-badge.solved {
+      background: var(--success-subtle);
+      color: var(--success);
+    }
+    .status-badge.unsolved {
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      border: 1px dashed var(--border-strong);
+    }
+
+    /* Difficulty Badges */
+    .badge-diff {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      display: inline-block;
+      letter-spacing: 0.2px;
+    }
+    .badge-diff.easy {
+      background: var(--success-subtle);
+      color: var(--success-text);
+      border: 1px solid var(--success-border);
+    }
+    .badge-diff.medium {
+      background: var(--warning-subtle);
+      color: var(--warning-text);
+      border: 1px solid var(--warning-border);
+    }
+    .badge-diff.hard {
+      background: var(--danger-subtle);
+      color: var(--danger-text);
+      border: 1px solid var(--danger-border);
+    }
+
+    .problem-tags-cluster {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .problem-mini-tag {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-subtle);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-solve {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-solve:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 5px rgba(37,99,235,0.2);
+    }
+
+    /* ==========================================================================
+       PAGE 3: CODING WORKSPACE & SPLIT IDE
+       ========================================================================== */
+    .ide-container {
+      height: 820px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+      overflow: hidden;
+      border-radius: var(--radius-lg);
+    }
+
+    /* Top IDE Workbench Header */
+    .ide-header {
+      height: 48px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .ide-left-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-icon-back {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-icon-back:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .ide-problem-title-display {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ide-split-workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left Panel: Question Statement */
+    .ide-question-pane {
+      width: 42%;
+      min-width: 320px;
+      height: 100%;
+      overflow-y: auto;
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .q-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text-primary);
+    }
+
+    .q-statement {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text-secondary);
+    }
+
+    .q-example-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .q-example-title {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--primary-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .q-example-row {
+      display: flex;
+      gap: 8px;
+    }
+    .q-example-label {
+      color: var(--text-muted);
+      user-select: none;
+      min-width: 55px;
+    }
+    .q-example-value {
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .q-constraints-list {
+      list-style-type: disc;
+      padding-left: 20px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* Right Panel: Editor + Bottom Dock */
+    .ide-editor-container {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--editor-bg);
+      position: relative;
+    }
+
+    /* Editor Action Toolbar */
+    .editor-toolbar {
+      height: 44px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .editor-controls-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .select-dropdown {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      outline: none;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .select-dropdown:focus {
+      border-color: var(--border-focus);
+    }
+
+    .editor-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-ide-tool {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: var(--transition);
+    }
+    .btn-ide-tool:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .btn-ide-run {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+    .btn-ide-run:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-focus);
+    }
+
+    .btn-ide-submit {
+      background: var(--success);
+      color: #fff;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    }
+    .btn-ide-submit:hover {
+      opacity: 0.92;
+      transform: translateY(-0.5px);
+    }
+
+    /* Simulated Monaco Editor Area */
+    .editor-content-area {
+      flex: 1;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--code-line);
+      overflow-y: auto;
+      background: var(--editor-bg);
+      position: relative;
+    }
+
+    .code-gutter-line {
+      display: flex;
+      gap: 16px;
+    }
+    .line-number {
+      width: 28px;
+      text-align: right;
+      color: var(--text-muted);
+      user-select: none;
+      font-size: 12px;
+    }
+    .code-text {
+      flex: 1;
+      white-space: pre;
+    }
+    .code-keyword { color: #f43f5e; font-weight: 600; }
+    .code-type { color: #3b82f6; }
+    .code-func { color: #10b981; }
+    .code-comment { color: var(--text-muted); font-style: italic; }
+
+    /* ==========================================================================
+       PAGE 4: FLOATING WINDOWS & DOCKING PANELS
+       ========================================================================== */
+    /* Bottom Console Drawer (Docked State) */
+    .ide-bottom-dock {
+      height: 250px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: height 0.2s ease;
+    }
+
+    .dock-header-tabs {
+      height: 38px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dock-tabs-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dock-tab {
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dock-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-weight: 600;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .dock-content-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    /* Test Case Status Tabs */
+    .tc-chips-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tc-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+    .tc-chip.active {
+      border-color: var(--primary);
+      background: var(--primary-subtle);
+      color: var(--primary-text);
+      font-weight: 600;
+    }
+    .tc-chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+    }
+    .tc-chip-dot.passed { background: var(--success); }
+    .tc-chip-dot.failed { background: var(--danger); }
+
+    /* Testcase Diff Box */
+    .diff-io-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 640px) {
+      .diff-io-grid { grid-template-columns: 1fr; }
+    }
+
+    .diff-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .diff-box-label {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* Floating Draggable-style Window (Overlay Mode) */
+    .floating-window {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 440px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--floating-shadow);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .floating-window-header {
+      height: 38px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .floating-window-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .floating-window-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-win-ctrl {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      border-radius: 4px;
+    }
+    .btn-win-ctrl:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .floating-window-body {
+      padding: 14px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    /* Floating Command Palette (Cmd + K) */
+    .command-palette-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 15, 23, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 150;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 100px;
+    }
+    .command-palette-backdrop.open {
+      display: flex;
+    }
+
+    .command-palette-modal {
+      width: 100%;
+      max-width: 540px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--modal-shadow);
+      overflow: hidden;
+      animation: modalSlide 0.2s ease forwards;
+    }
+    @keyframes modalSlide {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .cmd-search-input-wrap {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cmd-search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 15px;
+      outline: none;
+    }
+
+    .cmd-results-list {
+      padding: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .cmd-item {
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 13px;
+      transition: var(--transition);
+    }
+    .cmd-item:hover, .cmd-item.selected {
+      background: var(--primary-subtle);
+      color: var(--primary-text);
+    }
+
+    .cmd-shortcut-tag {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: var(--border-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* Floating Submission Details Dialog */
+    .submission-modal-box {
+      max-width: 680px;
+      margin: 40px auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--modal-shadow);
+      overflow: hidden;
+    }
+
+    .submission-modal-header {
+      padding: 16px 20px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .submission-metrics-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* ==========================================================================
+       PAGE 5: SCRATCHPAD & VANILLA COMPILER
+       ========================================================================== */
+    .compiler-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      height: 750px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+    }
+
+    @media (max-width: 880px) {
+      .compiler-grid {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    .compiler-terminal-pane {
+      background: var(--bg-subtle);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .terminal-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .terminal-section:last-child {
+      border-bottom: none;
+    }
+
+    .terminal-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .terminal-textarea {
+      flex: 1;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      resize: none;
+      outline: none;
+    }
+    .terminal-textarea:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* ==========================================================================
+       PAGE 6: FACULTY / ADMIN QUESTION STUDIO
+       ========================================================================== */
+    .faculty-studio-layout {
+      padding: 24px 32px;
+    }
+
+    .studio-form-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .testcase-creator-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    /* ==========================================================================
+       PAGE 7: DESIGN SYSTEM TOKENS & UI SPECIFICATIONS
+       ========================================================================== */
+    .tokens-catalog {
+      padding: 32px;
+    }
+
+    .token-section {
+      margin-bottom: 40px;
+    }
+
+    .token-section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .swatch-card {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--bg-surface);
+    }
+
+    .swatch-color {
+      height: 60px;
+      width: 100%;
+    }
+
+    .swatch-info {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    .swatch-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .swatch-hex {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Interactive Review Drawer */
+    .review-drawer {
+      position: fixed;
+      top: 0;
+      right: -420px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-strong);
+      box-shadow: var(--modal-shadow);
+      z-index: 200;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .review-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-subtle);
+    }
+
+    .drawer-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .review-question-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+
+    .review-question-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .review-option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .review-option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      transition: var(--transition);
+    }
+    .review-option-label:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    .review-option-label input:checked + span {
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    /* Floating Toast Alerts */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast-item {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      box-shadow: var(--modal-shadow);
+      font-size: 13px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.2s ease forwards;
+    }
+    @keyframes toastIn {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       TOP TOOLBAR & DESIGN LAB CONTROLS
+       ======================================================================== -->
+  <header class="showcase-header">
+    <div class="brand-cluster">
+      <div class="brand-logo">Z</div>
+      <div class="brand-title">
+        ZAP Redesign Showcase
+        <span class="brand-badge">Interactive System Prototype</span>
+      </div>
+    </div>
+
+    <!-- Screen Navigator -->
+    <nav class="page-nav-bar" id="pageNavBar">
+      <button class="nav-tab-btn active" data-target="page-auth">
+        1. Auth & Sign-in
+      </button>
+      <button class="nav-tab-btn" data-target="page-catalog">
+        2. Problem Catalog
+        <span class="nav-tab-counter">18</span>
+      </button>
+      <button class="nav-tab-btn" data-target="page-ide">
+        3. Coding Workspace
+      </button>
+      <button class="nav-tab-btn" data-target="page-floating">
+        4. Floating Windows
+      </button>
+      <button class="nav-tab-btn" data-target="page-compiler">
+        5. Vanilla Compiler
+      </button>
+      <button class="nav-tab-btn" data-target="page-faculty">
+        6. Faculty Studio
+      </button>
+      <button class="nav-tab-btn" data-target="page-tokens">
+        7. Design System
+      </button>
+    </nav>
+
+    <!-- Showcase Tools: Viewport simulator, Theme switch, Decision Drawer -->
+    <div class="showcase-actions">
+      <!-- Responsive Viewport Simulator -->
+      <div class="viewport-selector" title="Simulate different screen sizes">
+        <button class="viewport-btn active" data-viewport="desktop" title="Desktop View (1400px)">Desktop</button>
+        <button class="viewport-btn" data-viewport="laptop" title="Laptop View (1080px)">Laptop</button>
+        <button class="viewport-btn" data-viewport="tablet" title="Tablet View (768px)">Tablet</button>
+        <button class="viewport-btn" data-viewport="mobile" title="Mobile Phone View (390px)">Mobile</button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+        <svg id="moonIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="sunIcon" style="display:none;" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+
+      <!-- Design Choices & Review Feedback Drawer -->
+      <button class="decision-drawer-toggle" id="openReviewDrawerBtn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Review Choices</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN CANVAS SIMULATOR WRAPPER
+       ======================================================================== -->
+  <main class="viewport-container">
+    <div class="preview-canvas desktop" id="previewCanvas">
+      <!-- Mobile Notch element for realism -->
+      <div class="mobile-frame-notch"></div>
+
+      <!-- ====================================================================
+           1. AUTH & SIGN-IN PAGE PROTOTYPE
+           ==================================================================== -->
+      <section class="screen-page active" id="page-auth">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Design Rationale</span>
+            <span>Clean, distraction-free student sign-in with instant toggle, roll number field, and mobile responsiveness.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="switchAuthVariant('card')">Option A: Focused Floating Card</span>
+            <span class="suggestion-chip" onclick="switchAuthVariant('split')">Option B: Split Editorial Hero</span>
+          </div>
+        </div>
+
+        <div class="auth-page-wrapper" id="authVariantContainer">
+          <div class="auth-card">
+            <div class="auth-header">
+              <div class="auth-logo-badge">Z</div>
+              <h1 class="auth-title">Welcome to ZAP</h1>
+              <p class="auth-subtitle">Interview prep & execution playground</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+              <button class="auth-tab active" id="authTabLogin" onclick="setAuthMode('login')">Sign In</button>
+              <button class="auth-tab" id="authTabSignup" onclick="setAuthMode('signup')">Create Account</button>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)">
+              <!-- Signup Extra Fields -->
+              <div id="signupFields" style="display: none;">
+                <div class="form-group">
+                  <label class="form-label">Full Name</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <input type="text" class="form-input" placeholder="e.g. Alex Chen" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">
+                    Student ID / Roll No.
+                    <span class="form-label-hint">Campus verified</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
+                    </span>
+                    <input type="text" class="form-input" placeholder="e.g. 2024CS089" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">College Name</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4 8 4v14M9 10h1M9 14h1M9 18h1M14 10h1M14 14h1M14 18h1"/></svg>
+                    </span>
+                    <input type="text" class="form-input" placeholder="e.g. MIT / IIT Delhi" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shared Email & Password -->
+              <div class="form-group">
+                <label class="form-label">Email or Student ID</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  </span>
+                  <input type="text" class="form-input" placeholder="student@university.edu" required />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">
+                  Password
+                  <a href="#" style="font-weight:400; color:var(--primary-text); text-decoration:none;" onclick="triggerToast('Reset link simulated')">Forgot?</a>
+                </label>
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input type="password" class="form-input" placeholder="••••••••" required />
+                </div>
+              </div>
+
+              <button type="submit" class="btn-submit" id="authSubmitBtn">
+                <span>Sign In to Workspace</span>
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </form>
+
+            <div class="auth-footer">
+              <span>Protected sandbox environment with automatic code synchronization.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           2. PROBLEM CATALOG & EXPLORER PROTOTYPE
+           ==================================================================== -->
+      <section class="screen-page" id="page-catalog">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Ergonomic Catalog</span>
+            <span>Real-time topic segmented navigation, instant difficulty counts, solved ratio bar, keyboard-navigable list.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="triggerToast('Viewing Table View (Optimal for scanning)')">Table View (Default)</span>
+            <span class="suggestion-chip" onclick="triggerToast('Card Grid View enabled')">Card Grid View</span>
+          </div>
+        </div>
+
+        <!-- Header -->
+        <div class="catalog-header">
+          <div class="catalog-title-group">
+            <h1>Technical Problem Explorer</h1>
+            <p>Curated algorithms, data structures, and Infosys SE interview questions.</p>
+          </div>
+
+          <!-- Progress summary -->
+          <div class="catalog-stats-card">
+            <div class="stat-metric">
+              <span class="stat-metric-val">8 / 18</span>
+              <span class="stat-metric-lbl">Solved Problems</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="catalog-filter-bar">
+          <div class="search-box-wrap">
+            <input type="text" class="search-input" placeholder="Search problems by name, tag, or slug..." />
+          </div>
+
+          <div class="difficulty-filter-group">
+            <button class="diff-btn active">All <span class="diff-badge-count">18</span></button>
+            <button class="diff-btn" style="color:var(--success-text);">Easy <span class="diff-badge-count">9</span></button>
+            <button class="diff-btn" style="color:var(--warning-text);">Medium <span class="diff-badge-count">6</span></button>
+            <button class="diff-btn" style="color:var(--danger-text);">Hard <span class="diff-badge-count">3</span></button>
+          </div>
+        </div>
+
+        <!-- Topics Horizontal Pills -->
+        <div class="catalog-tags-strip">
+          <span class="tag-chip active">All Topics</span>
+          <span class="tag-chip">Arrays & Hashing</span>
+          <span class="tag-chip">Two Pointers</span>
+          <span class="tag-chip">Binary Trees</span>
+          <span class="tag-chip">Dynamic Programming</span>
+          <span class="tag-chip">Recursion</span>
+          <span class="tag-chip">Basic Math Logic</span>
+        </div>
+
+        <!-- Problems Table -->
+        <div class="catalog-table-container">
+          <table class="catalog-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Status</th>
+                <th>Problem Title</th>
+                <th style="width: 120px;">Difficulty</th>
+                <th style="width: 140px;">Submissions</th>
+                <th style="width: 100px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="status-badge solved" title="Solved">✓</span>
+                </td>
+                <td>
+                  <div style="font-weight: 600; color: var(--text-primary);">Two Sum</div>
+                  <div class="problem-tags-cluster">
+                    <span class="problem-mini-tag">array</span>
+                    <span class="problem-mini-tag">hash-table</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-diff easy">Easy</span>
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">
+                  92% (1.4k)
+                </td>
+                <td style="text-align: right;">
+                  <button class="btn-solve" onclick="navigateToIDE('Two Sum', 'EASY')">Solve</button>
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span class="status-badge solved" title="Solved">✓</span>
+                </td>
+                <td>
+                  <div style="font-weight: 600; color: var(--text-primary);">Longest Substring Without Repeating Characters</div>
+                  <div class="problem-tags-cluster">
+                    <span class="problem-mini-tag">sliding-window</span>
+                    <span class="problem-mini-tag">strings</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-diff medium">Medium</span>
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">
+                  74% (890)
+                </td>
+                <td style="text-align: right;">
+                  <button class="btn-solve" onclick="navigateToIDE('Longest Substring', 'MEDIUM')">Solve</button>
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span class="status-badge unsolved" title="Unsolved">○</span>
+                </td>
+                <td>
+                  <div style="font-weight: 600; color: var(--text-primary);">Binary Tree Maximum Path Sum</div>
+                  <div class="problem-tags-cluster">
+                    <span class="problem-mini-tag">tree</span>
+                    <span class="problem-mini-tag">dfs</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-diff hard">Hard</span>
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">
+                  48% (310)
+                </td>
+                <td style="text-align: right;">
+                  <button class="btn-solve" onclick="navigateToIDE('Binary Tree Maximum Path Sum', 'HARD')">Solve</button>
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span class="status-badge solved" title="Solved">✓</span>
+                </td>
+                <td>
+                  <div style="font-weight: 600; color: var(--text-primary);">Prime Number & Sieve Check</div>
+                  <div class="problem-tags-cluster">
+                    <span class="problem-mini-tag">infosys-se</span>
+                    <span class="problem-mini-tag">number-logic</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-diff easy">Easy</span>
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">
+                  88% (620)
+                </td>
+                <td style="text-align: right;">
+                  <button class="btn-solve" onclick="navigateToIDE('Prime Number Check', 'EASY')">Solve</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           3. CODING WORKSPACE & SPLIT IDE
+           ==================================================================== -->
+      <section class="screen-page" id="page-ide">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">IDE Architecture</span>
+            <span>Split-pane ergonomics, quick keyboard shortcuts (⌘Enter = Run, ⌘S = Save), persistent test verdict indicators.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="toggleConsoleDock()">Toggle Bottom Test Console</span>
+            <span class="suggestion-chip" onclick="openCommandPalette()">Press ⌘K (Palette)</span>
+          </div>
+        </div>
+
+        <div class="ide-container">
+          <!-- Top Header -->
+          <div class="ide-header">
+            <div class="ide-left-nav">
+              <button class="btn-icon-back" onclick="switchPage('page-catalog')" title="Back to catalog">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="ide-problem-title-display">
+                <span style="font-weight: 700;">1. Two Sum</span>
+                <span class="badge-diff easy">Easy</span>
+                <span class="status-badge solved" style="width:18px;height:18px;font-size:10px;">✓</span>
+              </div>
+            </div>
+
+            <div class="editor-actions-right">
+              <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-right: 8px;">
+                autosaved
+              </span>
+              <button class="btn-ide-tool" onclick="resetCodeTemplate()" title="Reset starter code">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.35-6.36L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.35 6.36L3 16"/><path d="M3 21v-5h5"/></svg>
+                <span>Reset</span>
+              </button>
+              <button class="btn-ide-run" onclick="executeMockRun()">
+                <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Run (⌘↵)</span>
+              </button>
+              <button class="btn-ide-submit" onclick="executeMockSubmit()">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Submit Solution</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Split Body -->
+          <div class="ide-split-workspace">
+            <!-- Left Problem Pane -->
+            <div class="ide-question-pane">
+              <div>
+                <h2 class="q-title">Two Sum</h2>
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                  <span class="badge-diff easy">Easy</span>
+                  <span class="tag-chip" style="padding: 2px 8px; font-size: 10px;">array</span>
+                  <span class="tag-chip" style="padding: 2px 8px; font-size: 10px;">hash-table</span>
+                </div>
+              </div>
+
+              <div class="q-statement">
+                Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.
+                <br><br>
+                You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice.
+              </div>
+
+              <!-- Example 1 -->
+              <div class="q-example-card">
+                <span class="q-example-title">Example 1</span>
+                <div class="q-example-row">
+                  <span class="q-example-label">Input:</span>
+                  <span class="q-example-value">nums = [2,7,11,15], target = 9</span>
+                </div>
+                <div class="q-example-row">
+                  <span class="q-example-label">Output:</span>
+                  <span class="q-example-value">[0,1]</span>
+                </div>
+                <div class="q-example-row">
+                  <span class="q-example-label">Explain:</span>
+                  <span class="q-example-value">Because nums[0] + nums[1] == 9, we return [0, 1].</span>
+                </div>
+              </div>
+
+              <!-- Example 2 -->
+              <div class="q-example-card">
+                <span class="q-example-title">Example 2</span>
+                <div class="q-example-row">
+                  <span class="q-example-label">Input:</span>
+                  <span class="q-example-value">nums = [3,2,4], target = 6</span>
+                </div>
+                <div class="q-example-row">
+                  <span class="q-example-label">Output:</span>
+                  <span class="q-example-value">[1,2]</span>
+                </div>
+              </div>
+
+              <!-- Constraints -->
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                  Constraints
+                </div>
+                <ul class="q-constraints-list">
+                  <li>2 &le; nums.length &le; 10<sup>4</sup></li>
+                  <li>-10<sup>9</sup> &le; nums[i] &le; 10<sup>9</sup></li>
+                  <li>Only one valid answer exists.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Right Editor & Output Pane -->
+            <div class="ide-editor-container">
+              <div class="editor-toolbar">
+                <div class="editor-controls-left">
+                  <span style="font-size: 11px; color: var(--text-muted);">Language:</span>
+                  <select class="select-dropdown" id="ideLanguageSelect" onchange="changeLanguageTemplate(this.value)">
+                    <option value="python">Python 3.14</option>
+                    <option value="java">Java 21</option>
+                    <option value="cpp">C++ 23</option>
+                    <option value="c">C (GCC)</option>
+                    <option value="node">JavaScript (Node 22)</option>
+                  </select>
+                </div>
+
+                <div class="editor-controls-right">
+                  <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+                    UTF-8 · Tab Size: 4
+                  </span>
+                </div>
+              </div>
+
+              <!-- Code editor area -->
+              <div class="editor-content-area" id="editorCodeBody">
+                <div class="code-gutter-line"><span class="line-number">1</span><span class="code-text"><span class="code-keyword">class</span> <span class="code-type">Solution</span>:</span></div>
+                <div class="code-gutter-line"><span class="line-number">2</span><span class="code-text">    <span class="code-keyword">def</span> <span class="code-func">twoSum</span>(self, nums: list[int], target: int) -> list[int]:</span></div>
+                <div class="code-gutter-line"><span class="line-number">3</span><span class="code-text">        <span class="code-comment"># Optimized hash map approach: O(n) time, O(n) space</span></span></div>
+                <div class="code-gutter-line"><span class="line-number">4</span><span class="code-text">        seen = {}</span></div>
+                <div class="code-gutter-line"><span class="line-number">5</span><span class="code-text">        <span class="code-keyword">for</span> i, val <span class="code-keyword">in</span> enumerate(nums):</span></div>
+                <div class="code-gutter-line"><span class="line-number">6</span><span class="code-text">            diff = target - val</span></div>
+                <div class="code-gutter-line"><span class="line-number">7</span><span class="code-text">            <span class="code-keyword">if</span> diff <span class="code-keyword">in</span> seen:</span></div>
+                <div class="code-gutter-line"><span class="line-number">8</span><span class="code-text">                <span class="code-keyword">return</span> [seen[diff], i]</span></div>
+                <div class="code-gutter-line"><span class="line-number">9</span><span class="code-text">            seen[val] = i</span></div>
+                <div class="code-gutter-line"><span class="line-number">10</span><span class="code-text">        <span class="code-keyword">return</span> []</span></div>
+              </div>
+
+              <!-- Bottom Test Results Dock -->
+              <div class="ide-bottom-dock" id="ideBottomDock">
+                <div class="dock-header-tabs">
+                  <div class="dock-tabs-group">
+                    <button class="dock-tab active" id="tabBtnConsole" onclick="switchDockTab('console')">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                      <span>Test Results</span>
+                      <span class="badge-diff easy" style="padding: 1px 6px; font-size: 10px;">Accepted (3/3)</span>
+                    </button>
+                    <button class="dock-tab" id="tabBtnSubmissions" onclick="switchDockTab('submissions')">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                      <span>Submissions History (4)</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <button class="btn-win-ctrl" onclick="toggleConsoleDock()" title="Collapse Console">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Console Body -->
+                <div class="dock-content-body" id="dockBodyConsole">
+                  <div class="tc-chips-row">
+                    <button class="tc-chip active" onclick="selectTestCase(0)">
+                      <span class="tc-chip-dot passed"></span>
+                      <span>Case 1</span>
+                    </button>
+                    <button class="tc-chip" onclick="selectTestCase(1)">
+                      <span class="tc-chip-dot passed"></span>
+                      <span>Case 2</span>
+                    </button>
+                    <button class="tc-chip" onclick="selectTestCase(2)">
+                      <span class="tc-chip-dot passed"></span>
+                      <span>Case 3</span>
+                    </button>
+                  </div>
+
+                  <div class="diff-io-grid" id="testCaseDetailGrid">
+                    <div class="diff-box">
+                      <div class="diff-box-label">Input</div>
+                      <div>nums = [2,7,11,15], target = 9</div>
+                    </div>
+                    <div class="diff-box">
+                      <div class="diff-box-label">Expected Output</div>
+                      <div style="color: var(--success-text);">[0,1]</div>
+                    </div>
+                    <div class="diff-box" style="grid-column: 1 / -1;">
+                      <div class="diff-box-label">Your Stdout & Verdict</div>
+                      <div style="color: var(--success-text); font-weight: 600;">Match — Execution time: 28ms | Memory: 17.2MB</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Submissions History Body -->
+                <div class="dock-content-body" id="dockBodySubmissions" style="display:none;">
+                  <table class="catalog-table" style="font-size:12px;">
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Language</th>
+                        <th>Runtime</th>
+                        <th>Memory</th>
+                        <th>Submitted At</th>
+                        <th style="text-align:right;">Inspect</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="badge-diff easy">Accepted</span></td>
+                        <td>Python 3</td>
+                        <td>28 ms</td>
+                        <td>17.2 MB</td>
+                        <td>Just now</td>
+                        <td style="text-align:right;"><button class="btn-solve" style="padding:2px 8px; font-size:11px;" onclick="openSubmissionModal()">View</button></td>
+                      </tr>
+                      <tr>
+                        <td><span class="badge-diff medium">Wrong Answer</span></td>
+                        <td>Python 3</td>
+                        <td>34 ms</td>
+                        <td>17.4 MB</td>
+                        <td>12 mins ago</td>
+                        <td style="text-align:right;"><button class="btn-solve" style="padding:2px 8px; font-size:11px;" onclick="openSubmissionModal()">View</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           4. FLOATING WINDOWS & DOCKING PANELS DEMO
+           ==================================================================== -->
+      <section class="screen-page" id="page-floating">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Floating Ecosystem</span>
+            <span>Non-intrusive floating windows: Draggable test console, Submission Inspector with code reversion, and universal ⌘K command switcher.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="openCommandPalette()">Launch ⌘K Command Palette</span>
+            <span class="suggestion-chip" onclick="openSubmissionModal()">Open Submission Inspector</span>
+          </div>
+        </div>
+
+        <div style="position: relative; height: 800px; padding: 32px; background: var(--bg-canvas);">
+          <div style="max-width: 650px;">
+            <h2 style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">
+              Floating & Overlay Components
+            </h2>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+              Real-world IDEs require floating elements that do not block the active line of code. Below is our design for the <strong>Floating Test Console</strong>, the <strong>Universal Command Palette</strong>, and the <strong>Submission Details Inspector</strong>.
+            </p>
+          </div>
+
+          <!-- Draggable Floating Test Runner -->
+          <div class="floating-window" id="demoFloatingWindow">
+            <div class="floating-window-header">
+              <div class="floating-window-title">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Live Test Runner (Float Mode)</span>
+              </div>
+              <div class="floating-window-actions">
+                <button class="btn-win-ctrl" onclick="triggerToast('Docked to bottom panel')">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+                </button>
+                <button class="btn-win-ctrl" onclick="toggleFloatingDemo()">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="floating-window-body">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span class="badge-diff easy">Passed 10 / 10 Tests</span>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">42ms · 18MB</span>
+              </div>
+              <div class="diff-box" style="margin-bottom: 8px;">
+                <div class="diff-box-label">Latest Output:</div>
+                <div style="color: var(--success-text);">Solution verified successfully against all public & hidden suites.</div>
+              </div>
+              <button class="btn-ide-run" style="width: 100%; justify-content: center;" onclick="triggerToast('Re-running test cases...')">
+                Re-run Test Suite
+              </button>
+            </div>
+          </div>
+
+          <!-- Static Preview of Submission Inspector -->
+          <div class="submission-modal-box">
+            <div class="submission-modal-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge-diff easy">Accepted</span>
+                <span style="font-weight: 600; font-size: 13px;">Submission #sub_9281a</span>
+              </div>
+              <button class="btn-solve" onclick="triggerToast('Code restored to current editor!')">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <span>Revert to this code</span>
+              </button>
+            </div>
+
+            <div class="submission-metrics-strip">
+              <div class="stat-metric">
+                <span class="stat-metric-val" style="color: var(--success-text);">28 ms</span>
+                <span class="stat-metric-lbl">Runtime (Faster than 89%)</span>
+              </div>
+              <div class="stat-metric">
+                <span class="stat-metric-val">17.2 MB</span>
+                <span class="stat-metric-lbl">Memory (Top 76%)</span>
+              </div>
+              <div class="stat-metric">
+                <span class="stat-metric-val">Python 3</span>
+                <span class="stat-metric-lbl">Language</span>
+              </div>
+              <div class="stat-metric">
+                <span class="stat-metric-val">100%</span>
+                <span class="stat-metric-lbl">Test Coverage</span>
+              </div>
+            </div>
+
+            <div style="padding: 16px 20px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-subtle);">
+              <div style="color: var(--text-muted); margin-bottom: 6px;">// Submitted Solution Snapshot</div>
+              <pre style="line-height: 1.5; color: var(--code-line);">def twoSum(nums, target):
+    seen = {}
+    for i, n in enumerate(nums):
+        if target - n in seen:
+            return [seen[target - n], i]
+        seen[n] = i
+    return []</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           5. SCRATCHPAD & VANILLA COMPILER
+           ==================================================================== -->
+      <section class="screen-page" id="page-compiler">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Scratchpad Workspace</span>
+            <span>Zero-setup multi-language compiler with interactive standard I/O streams and persistent code snippets.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="runVanillaCompilerDemo()">Run Code (⌘↵)</span>
+            <span class="suggestion-chip" onclick="triggerToast('Snippet saved to local browser storage')">Save Snippet</span>
+          </div>
+        </div>
+
+        <div class="compiler-grid">
+          <!-- Left Editor -->
+          <div style="display: flex; flex-direction: column; background: var(--editor-bg);">
+            <div class="editor-toolbar">
+              <div class="editor-controls-left">
+                <span style="font-size: 11px; color: var(--text-muted);">Language:</span>
+                <select class="select-dropdown" onchange="triggerToast('Language changed: ' + this.value)">
+                  <option value="c">C (GCC 13.2)</option>
+                  <option value="cpp">C++ 23</option>
+                  <option value="python">Python 3.14</option>
+                  <option value="java">Java 21</option>
+                  <option value="node">Node.js 22</option>
+                </select>
+              </div>
+
+              <div class="editor-actions-right">
+                <button class="btn-ide-tool" onclick="triggerToast('Reset to default Hello World')">Reset</button>
+                <button class="btn-ide-run" onclick="runVanillaCompilerDemo()">
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Run</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="editor-content-area">
+              <div class="code-gutter-line"><span class="line-number">1</span><span class="code-text"><span class="code-comment">#include &lt;stdio.h&gt;</span></span></div>
+              <div class="code-gutter-line"><span class="line-number">2</span><span class="code-text"></span></div>
+              <div class="code-gutter-line"><span class="line-number">3</span><span class="code-text"><span class="code-keyword">int</span> <span class="code-func">main</span>() {</span></div>
+              <div class="code-gutter-line"><span class="line-number">4</span><span class="code-text">    <span class="code-type">char</span> name[100];</span></div>
+              <div class="code-gutter-line"><span class="line-number">5</span><span class="code-text">    <span class="code-keyword">if</span> (scanf(<span class="code-type">"%99s"</span>, name) == 1) {</span></div>
+              <div class="code-gutter-line"><span class="line-number">6</span><span class="code-text">        printf(<span class="code-type">"Hello, %s! Welcome to ZAP sandboxed execution.\\n"</span>, name);</span></div>
+              <div class="code-gutter-line"><span class="line-number">7</span><span class="code-text">    }</span></div>
+              <div class="code-gutter-line"><span class="line-number">8</span><span class="code-text">    <span class="code-keyword">return</span> 0;</span></div>
+              <div class="code-gutter-line"><span class="line-number">9</span><span class="code-text">}</span></div>
+            </div>
+          </div>
+
+          <!-- Right Terminal (Stdin + Stdout) -->
+          <div class="compiler-terminal-pane">
+            <div class="terminal-section">
+              <div class="terminal-label">
+                <span>Standard Input (stdin)</span>
+                <span style="font-size: 10px; color: var(--text-muted);">optional</span>
+              </div>
+              <textarea class="terminal-textarea" id="stdinInput" placeholder="Input values passed to standard input...">Alex</textarea>
+            </div>
+
+            <div class="terminal-section" style="flex: 1.5;">
+              <div class="terminal-label">
+                <span>Output Console (stdout / stderr)</span>
+                <span id="compilerTimeTag" style="font-size: 10px; color: var(--success-text); font-family: var(--font-mono);">0ms</span>
+              </div>
+              <textarea class="terminal-textarea" id="stdoutOutput" readonly style="color: var(--code-line); font-family: var(--font-mono);">Press 'Run' to compile and execute program in sandboxed container.</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           6. FACULTY / ADMIN QUESTION STUDIO
+           ==================================================================== -->
+      <section class="screen-page" id="page-faculty">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Faculty Portal</span>
+            <span>Structured problem authoring with live validation, automated test generator, and JSON import/export.</span>
+          </div>
+          <div class="suggestion-chips">
+            <span class="suggestion-chip active" onclick="triggerToast('+ New Test Case Added')">+ Add Test Case</span>
+            <span class="suggestion-chip" onclick="triggerToast('Import Modal Opened')">Import JSON</span>
+          </div>
+        </div>
+
+        <div class="faculty-studio-layout">
+          <div class="studio-form-card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px;">
+              Problem Metadata & Specification
+            </h2>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Problem Title</label>
+                <input type="text" class="form-input" value="Find Pivot Index in Array" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Difficulty Level</label>
+                <select class="select-dropdown" style="width: 100%; height: 40px;">
+                  <option value="EASY">Easy</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HARD">Hard</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Problem Statement (Markdown Supported)</label>
+              <textarea class="form-input" style="height: 100px; padding: 10px; font-family: inherit;" placeholder="Describe the problem, input contract, and return type...">Given an array of integers nums, calculate the pivot index of this array. The pivot index is the index where the sum of all numbers strictly to the left is equal to the sum of all numbers strictly to the right.</textarea>
+            </div>
+
+            <!-- Test Cases Manager -->
+            <div style="margin-top: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Test Cases Suite (3 Cases)</span>
+                <button class="btn-ide-tool" onclick="triggerToast('Added test case 4')">+ Add Case</button>
+              </div>
+
+              <!-- Case 1 -->
+              <div class="testcase-creator-card">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-weight: 600; font-size: 12px; color: var(--text-primary);">Test Case #1</span>
+                  <span class="badge-diff easy" style="font-size: 10px;">Public (Sample)</span>
+                </div>
+                <div class="form-grid-2">
+                  <div>
+                    <label class="form-label" style="font-size: 11px;">Input</label>
+                    <input type="text" class="form-input" value="1 7 3 6 5 6" style="height: 34px; font-family: var(--font-mono); font-size: 12px;" />
+                  </div>
+                  <div>
+                    <label class="form-label" style="font-size: 11px;">Expected Output</label>
+                    <input type="text" class="form-input" value="3" style="height: 34px; font-family: var(--font-mono); font-size: 12px;" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Case 2 -->
+              <div class="testcase-creator-card">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-weight: 600; font-size: 12px; color: var(--text-primary);">Test Case #2</span>
+                  <span class="badge-diff hard" style="font-size: 10px; background: var(--bg-subtle); color: var(--text-secondary); border-color: var(--border-strong);">Hidden (Evaluation)</span>
+                </div>
+                <div class="form-grid-2">
+                  <div>
+                    <label class="form-label" style="font-size: 11px;">Input</label>
+                    <input type="text" class="form-input" value="1 2 3" style="height: 34px; font-family: var(--font-mono); font-size: 12px;" />
+                  </div>
+                  <div>
+                    <label class="form-label" style="font-size: 11px;">Expected Output</label>
+                    <input type="text" class="form-input" value="-1" style="height: 34px; font-family: var(--font-mono); font-size: 12px;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+              <button class="btn-ide-tool">Save as Draft</button>
+              <button class="btn-ide-submit" onclick="triggerToast('Question published to catalog!')">
+                Publish Question to Students
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           7. DESIGN SYSTEM TOKENS & UI SPECIFICATIONS
+           ==================================================================== -->
+      <section class="screen-page" id="page-tokens">
+        <div class="design-rationale-strip">
+          <div class="rationale-text">
+            <span class="rationale-tag">Design System Tokens</span>
+            <span>Harmonious, accessible token hierarchy across both Light and Dark modes.</span>
+          </div>
+        </div>
+
+        <div class="tokens-catalog">
+          <!-- Color Tokens -->
+          <div class="token-section">
+            <h2>Color Tokens Palette</h2>
+            <div class="swatches-grid">
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--bg-canvas); border-bottom: 1px solid var(--border-subtle);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Canvas Background</div>
+                  <div class="swatch-hex">--bg-canvas</div>
+                </div>
+              </div>
+
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Surface / Panel</div>
+                  <div class="swatch-hex">--bg-surface</div>
+                </div>
+              </div>
+
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--primary);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Primary Brand</div>
+                  <div class="swatch-hex">--primary (#2563eb / #3b82f6)</div>
+                </div>
+              </div>
+
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--success);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Accepted / Success</div>
+                  <div class="swatch-hex">--success (#10b981)</div>
+                </div>
+              </div>
+
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--danger);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Danger / Error</div>
+                  <div class="swatch-hex">--danger (#ef4444 / #f43f5e)</div>
+                </div>
+              </div>
+
+              <div class="swatch-card">
+                <div class="swatch-color" style="background: var(--warning);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Warning / Limit</div>
+                  <div class="swatch-hex">--warning (#f59e0b)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Component Badges & Chips -->
+          <div class="token-section">
+            <h2>Badges & Status Elements</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <span class="badge-diff easy">Easy</span>
+              <span class="badge-diff medium">Medium</span>
+              <span class="badge-diff hard">Hard</span>
+              <span class="status-badge solved">✓</span>
+              <span class="status-badge unsolved">○</span>
+              <span class="tag-chip active">Tag Selected</span>
+              <span class="tag-chip">Default Tag</span>
+            </div>
+          </div>
+
+          <!-- Buttons & Interaction Tokens -->
+          <div class="token-section">
+            <h2>Button & Input States</h2>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <button class="btn-ide-submit">Primary Action (Submit)</button>
+              <button class="btn-ide-run">Secondary Action (Run)</button>
+              <button class="btn-ide-tool">Utility Action</button>
+              <button class="btn-solve">Table Action</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ========================================================================
+       FLOATING COMMAND PALETTE (CMD + K)
+       ======================================================================== -->
+  <div class="command-palette-backdrop" id="cmdPaletteModal" onclick="closeCommandPalette(event)">
+    <div class="command-palette-modal">
+      <div class="cmd-search-input-wrap">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="cmd-search-input" id="cmdSearchField" placeholder="Type a command or jump to problem..." />
+        <span class="cmd-shortcut-tag">ESC</span>
+      </div>
+
+      <div class="cmd-results-list">
+        <div class="cmd-item selected" onclick="switchPage('page-catalog'); closeCommandPalette();">
+          <span>Jump to: Problem Catalog</span>
+          <span class="cmd-shortcut-tag">P</span>
+        </div>
+        <div class="cmd-item" onclick="switchPage('page-ide'); closeCommandPalette();">
+          <span>Jump to: Two Sum (Active IDE)</span>
+          <span class="cmd-shortcut-tag">↵</span>
+        </div>
+        <div class="cmd-item" onclick="switchPage('page-compiler'); closeCommandPalette();">
+          <span>Open: Scratchpad Vanilla Compiler</span>
+          <span class="cmd-shortcut-tag">C</span>
+        </div>
+        <div class="cmd-item" onclick="toggleTheme(); closeCommandPalette();">
+          <span>Toggle Color Theme (Light / Dark)</span>
+          <span class="cmd-shortcut-tag">T</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       DESIGN REVIEW CHOICES & RECOMMENDATIONS DRAWER
+       ======================================================================== -->
+  <aside class="review-drawer" id="reviewDrawer">
+    <div class="drawer-header">
+      <div style="font-weight: 700; font-size: 14px; color: var(--text-primary); display:flex; align-items:center; gap:8px;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span>Design Decisions Review</span>
+      </div>
+      <button class="btn-win-ctrl" id="closeReviewDrawerBtn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+        As a senior frontend architect, I have structured these 4 design questions for you to review and select your preferred directions:
+      </p>
+
+      <!-- Decision 1 -->
+      <div class="review-question-card">
+        <div class="review-question-title">1. Test Results & Console Placement</div>
+        <div class="review-option-list">
+          <label class="review-option-label">
+            <input type="radio" name="dec_console" checked />
+            <span><strong>Option A (Recommended):</strong> Collapsible Bottom Dock (Cleanest for code viewing)</span>
+          </label>
+          <label class="review-option-label">
+            <input type="radio" name="dec_console" />
+            <span><strong>Option B:</strong> Floating Picture-in-Picture window over editor</span>
+          </label>
+          <label class="review-option-label">
+            <input type="radio" name="dec_console" />
+            <span><strong>Option C:</strong> Right-hand 3rd column sidebar</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Decision 2 -->
+      <div class="review-question-card">
+        <div class="review-question-title">2. Mobile Phone Navigation Experience</div>
+        <div class="review-option-list">
+          <label class="review-option-label">
+            <input type="radio" name="dec_mobile" checked />
+            <span><strong>Option A (Recommended):</strong> Segmented Top Tabs ("Problem" | "Code" | "Results")</span>
+          </label>
+          <label class="review-option-label">
+            <input type="radio" name="dec_mobile" />
+            <span><strong>Option B:</strong> Swipeable vertical bottom sheets</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Decision 3 -->
+      <div class="review-question-card">
+        <div class="review-question-title">3. Authentication Screen Layout</div>
+        <div class="review-option-list">
+          <label class="review-option-label">
+            <input type="radio" name="dec_auth" checked />
+            <span><strong>Option A:</strong> Minimalist centered card with ambient radial glow</span>
+          </label>
+          <label class="review-option-label">
+            <input type="radio" name="dec_auth" />
+            <span><strong>Option B:</strong> Split-screen (Brand feature highlights on left, form on right)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Decision 4 -->
+      <div class="review-question-card">
+        <div class="review-question-title">4. Color Tone Depth</div>
+        <div class="review-option-list">
+          <label class="review-option-label">
+            <input type="radio" name="dec_palette" checked />
+            <span><strong>Option A (Default):</strong> Obsidian Slate (#0b0f17) — Zero eye strain during night coding</span>
+          </label>
+          <label class="review-option-label">
+            <input type="radio" name="dec_palette" />
+            <span><strong>Option B:</strong> Pitch Black (#000000) OLED high contrast</span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn-submit" onclick="copyDecisionsToClipboard()" style="margin-top: 10px;">
+        <span>Copy Selected Choices to Chat</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ========================================================================
+       JAVASCRIPT LOGIC FOR LIVE INTERACTION & DEMONSTRATION
+       ======================================================================== -->
+  <script>
+    // --- 1. Page Navigation ---
+    const navButtons = document.querySelectorAll('.nav-tab-btn');
+    const screenPages = document.querySelectorAll('.screen-page');
+
+    function switchPage(pageId) {
+      screenPages.forEach(p => p.classList.remove('active'));
+      navButtons.forEach(b => b.classList.remove('active'));
+
+      const targetPage = document.getElementById(pageId);
+      if (targetPage) targetPage.classList.add('active');
+
+      const targetBtn = Array.from(navButtons).find(b => b.getAttribute('data-target') === pageId);
+      if (targetBtn) targetBtn.classList.add('active');
+    }
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        switchPage(target);
+      });
+    });
+
+    // --- 2. Responsive Viewport Simulator ---
+    const viewportButtons = document.querySelectorAll('.viewport-btn');
+    const previewCanvas = document.getElementById('previewCanvas');
+
+    viewportButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewportButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const vp = btn.getAttribute('data-viewport');
+        previewCanvas.className = `preview-canvas ${vp}`;
+        triggerToast(`Switched canvas to ${vp.toUpperCase()} mode`);
+      });
+    });
+
+    // --- 3. Light / Dark Theme Toggle ---
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      if (next === 'light') {
+        moonIcon.style.display = 'none';
+        sunIcon.style.display = 'block';
+      } else {
+        moonIcon.style.display = 'block';
+        sunIcon.style.display = 'none';
+      }
+      triggerToast(`Theme set to ${next.toUpperCase()} mode`);
+    }
+    themeToggleBtn.addEventListener('click', toggleTheme);
+
+    // --- 4. Auth Mode Switcher ---
+    function setAuthMode(mode) {
+      const loginTab = document.getElementById('authTabLogin');
+      const signupTab = document.getElementById('authTabSignup');
+      const signupFields = document.getElementById('signupFields');
+      const submitBtn = document.getElementById('authSubmitBtn');
+
+      if (mode === 'signup') {
+        signupTab.classList.add('active');
+        loginTab.classList.remove('active');
+        signupFields.style.display = 'block';
+        submitBtn.querySelector('span').innerText = 'Create Account & Continue';
+      } else {
+        loginTab.classList.add('active');
+        signupTab.classList.remove('active');
+        signupFields.style.display = 'none';
+        submitBtn.querySelector('span').innerText = 'Sign In to Workspace';
+      }
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      triggerToast('Authenticated successfully! Redirecting to problems...');
+      setTimeout(() => switchPage('page-catalog'), 600);
+    }
+
+    function switchAuthVariant(variant) {
+      triggerToast(`Auth variant switched: ${variant}`);
+    }
+
+    // --- 5. Catalog -> IDE Navigation ---
+    function navigateToIDE(problemTitle, difficulty) {
+      switchPage('page-ide');
+      triggerToast(`Loaded: ${problemTitle} (${difficulty})`);
+    }
+
+    // --- 6. IDE Code Execution Simulation ---
+    function executeMockRun() {
+      triggerToast('Compiling solution against sample testcases...');
+      const timeTag = document.getElementById('compilerTimeTag');
+      setTimeout(() => {
+        triggerToast('Run completed: All 3 sample test cases passed!');
+        const dock = document.getElementById('ideBottomDock');
+        dock.style.height = '250px';
+        switchDockTab('console');
+      }, 450);
+    }
+
+    function executeMockSubmit() {
+      triggerToast('Submitting solution to grading harness...');
+      setTimeout(() => {
+        triggerToast('Verdict: ACCEPTED! (10/10 test cases passed)');
+        openSubmissionModal();
+      }, 700);
+    }
+
+    function resetCodeTemplate() {
+      triggerToast('Code reset to default starter template');
+    }
+
+    function changeLanguageTemplate(lang) {
+      triggerToast(`Language switched to ${lang.toUpperCase()}`);
+    }
+
+    // --- 7. Bottom Dock Console Toggle ---
+    function toggleConsoleDock() {
+      const dock = document.getElementById('ideBottomDock');
+      if (dock.style.height === '38px') {
+        dock.style.height = '250px';
+        triggerToast('Test console expanded');
+      } else {
+        dock.style.height = '38px';
+        triggerToast('Test console collapsed');
+      }
+    }
+
+    function switchDockTab(tab) {
+      const tabConsole = document.getElementById('tabBtnConsole');
+      const tabSubs = document.getElementById('tabBtnSubmissions');
+      const bodyConsole = document.getElementById('dockBodyConsole');
+      const bodySubs = document.getElementById('dockBodySubmissions');
+
+      if (tab === 'console') {
+        tabConsole.classList.add('active');
+        tabSubs.classList.remove('active');
+        bodyConsole.style.display = 'block';
+        bodySubs.style.display = 'none';
+      } else {
+        tabSubs.classList.add('active');
+        tabConsole.classList.remove('active');
+        bodySubs.style.display = 'block';
+        bodyConsole.style.display = 'none';
+      }
+    }
+
+    function selectTestCase(idx) {
+      const chips = document.querySelectorAll('.tc-chip');
+      chips.forEach((c, i) => {
+        if (i === idx) c.classList.add('active');
+        else c.classList.remove('active');
+      });
+
+      const detailGrid = document.getElementById('testCaseDetailGrid');
+      if (idx === 0) {
+        detailGrid.innerHTML = `
+          <div class="diff-box"><div class="diff-box-label">Input</div><div>nums = [2,7,11,15], target = 9</div></div>
+          <div class="diff-box"><div class="diff-box-label">Expected Output</div><div style="color:var(--success-text);">[0,1]</div></div>
+          <div class="diff-box" style="grid-column: 1 / -1;"><div class="diff-box-label">Your Stdout & Verdict</div><div style="color:var(--success-text);font-weight:600;">Match — Execution time: 28ms</div></div>
+        `;
+      } else if (idx === 1) {
+        detailGrid.innerHTML = `
+          <div class="diff-box"><div class="diff-box-label">Input</div><div>nums = [3,2,4], target = 6</div></div>
+          <div class="diff-box"><div class="diff-box-label">Expected Output</div><div style="color:var(--success-text);">[1,2]</div></div>
+          <div class="diff-box" style="grid-column: 1 / -1;"><div class="diff-box-label">Your Stdout & Verdict</div><div style="color:var(--success-text);font-weight:600;">Match — Execution time: 24ms</div></div>
+        `;
+      } else {
+        detailGrid.innerHTML = `
+          <div class="diff-box"><div class="diff-box-label">Input</div><div>nums = [3,3], target = 6</div></div>
+          <div class="diff-box"><div class="diff-box-label">Expected Output</div><div style="color:var(--success-text);">[0,1]</div></div>
+          <div class="diff-box" style="grid-column: 1 / -1;"><div class="diff-box-label">Your Stdout & Verdict</div><div style="color:var(--success-text);font-weight:600;">Match — Execution time: 19ms</div></div>
+        `;
+      }
+    }
+
+    // --- 8. Scratchpad Vanilla Compiler Execution ---
+    function runVanillaCompilerDemo() {
+      const stdinVal = document.getElementById('stdinInput').value;
+      const stdout = document.getElementById('stdoutOutput');
+      const timeTag = document.getElementById('compilerTimeTag');
+
+      stdout.value = 'Compiling C source with gcc 13.2...\nExecuting binary in isolated container...';
+      timeTag.innerText = 'Compiling...';
+
+      setTimeout(() => {
+        stdout.value = `Hello, ${stdinVal.trim() || 'World'}! Welcome to ZAP sandboxed execution.\n\nProcess exited with status 0 (Success)`;
+        timeTag.innerText = '18ms';
+        triggerToast('C program executed cleanly in 18ms');
+      }, 500);
+    }
+
+    // --- 9. Floating Window Toggle ---
+    function toggleFloatingDemo() {
+      const win = document.getElementById('demoFloatingWindow');
+      if (win.style.display === 'none') {
+        win.style.display = 'flex';
+      } else {
+        win.style.display = 'none';
+        triggerToast('Floating runner dismissed');
+      }
+    }
+
+    function openSubmissionModal() {
+      switchPage('page-floating');
+      triggerToast('Inspection dialog opened');
+    }
+
+    // --- 10. Command Palette (Cmd + K) ---
+    const cmdPalette = document.getElementById('cmdPaletteModal');
+    const cmdSearchField = document.getElementById('cmdSearchField');
+
+    function openCommandPalette() {
+      cmdPalette.classList.add('open');
+      cmdSearchField.focus();
+    }
+
+    function closeCommandPalette(e) {
+      if (!e || e.target === cmdPalette || e.target.classList.contains('cmd-shortcut-tag')) {
+        cmdPalette.classList.remove('open');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      }
+      if (e.key === 'Escape') {
+        cmdPalette.classList.remove('open');
+        document.getElementById('reviewDrawer').classList.remove('open');
+      }
+    });
+
+    // --- 11. Review Decisions Drawer ---
+    const reviewDrawer = document.getElementById('reviewDrawer');
+    document.getElementById('openReviewDrawerBtn').addEventListener('click', () => {
+      reviewDrawer.classList.add('open');
+    });
+    document.getElementById('closeReviewDrawerBtn').addEventListener('click', () => {
+      reviewDrawer.classList.remove('open');
+    });
+
+    function copyDecisionsToClipboard() {
+      const dec1 = document.querySelector('input[name="dec_console"]:checked').parentElement.innerText.trim();
+      const dec2 = document.querySelector('input[name="dec_mobile"]:checked').parentElement.innerText.trim();
+      const dec3 = document.querySelector('input[name="dec_auth"]:checked').parentElement.innerText.trim();
+      const dec4 = document.querySelector('input[name="dec_palette"]:checked').parentElement.innerText.trim();
+
+      const summary = `ZAP UI Design Review Selections:\n1. Console Placement: ${dec1}\n2. Mobile Experience: ${dec2}\n3. Authentication Layout: ${dec3}\n4. Color Theme Depth: ${dec4}`;
+      navigator.clipboard.writeText(summary).then(() => {
+        triggerToast('Copied selections to clipboard! Paste into chat to confirm.');
+      }).catch(() => {
+        triggerToast('Selections saved');
+      });
+    }
+
+    // --- 12. Universal Toast System ---
+    function triggerToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast-item';
+      toast.innerHTML = `
+        <svg width="15" height="15" fill="none" stroke="#10b981" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 2600);
+    }
+  </script>
+</body>
+</html>

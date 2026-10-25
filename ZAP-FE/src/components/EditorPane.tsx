@@ -59,18 +59,18 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#0b0e14]">
+    <div className="h-full flex flex-col bg-white dark:bg-[#0b0f17]">
       {/* Editor Header Toolbar */}
-      <div className="h-11 border-b border-[#d0d7de] dark:border-[#30363d] bg-[#f6f8fa] dark:bg-[#161b22] px-3.5 flex items-center justify-between flex-shrink-0">
+      <div className="h-11 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#121824] px-3.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <span className="text-[11px] text-[#656d76] dark:text-[#8b949e]">
+          <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8]">
             Language:
           </span>
           <select
             value={language}
             onChange={(e) => onLanguageChange(e.target.value)}
             disabled={isRunning}
-            className="bg-white dark:bg-[#0b0e14] text-[#1f2328] dark:text-[#e6edf3] border border-[#d0d7de] dark:border-[#30363d] rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7] disabled:opacity-50 cursor-pointer"
+            className="bg-white dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] border border-[#cbd5e1] dark:border-[#232f45] rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 disabled:opacity-50 cursor-pointer shadow-xs"
           >
             <option value="c">C (GCC)</option>
             <option value="python">Python (3.14)</option>
@@ -80,8 +80,8 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
           </select>
 
           {statusText && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono text-[#656d76] dark:text-[#8b949e]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0969da] dark:bg-[#2f81f7] animate-pulse" />
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-[11px] font-mono text-blue-700 dark:text-blue-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
               <span>{statusText}</span>
             </div>
           )}
@@ -94,7 +94,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
               disabled={isRunning}
               title={`Reset ${language.toUpperCase()} code`}
               type="button"
-              className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-[#21262d] text-[#656d76] dark:text-[#8b949e] hover:text-[#1f2328] dark:hover:text-[#e6edf3] text-xs font-medium rounded border border-[#d0d7de] dark:border-[#30363d] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white text-xs font-medium rounded-lg border border-[#e2e8f0] dark:border-[#232f45] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset</span>
@@ -104,7 +104,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             type="button"
             onClick={onRun}
             disabled={isRunning}
-            className="px-3 py-1 bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] text-xs font-medium rounded border border-[#d0d7de] dark:border-[#30363d] hover:bg-[#f6f8fa] dark:hover:bg-[#30363d] transition-colors disabled:opacity-50"
+            className="px-3 py-1 bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white text-xs font-semibold rounded-lg border border-[#cbd5e1] dark:border-[#232f45] hover:border-blue-500 hover:bg-[#f8fafc] dark:hover:bg-[#232f45] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {isRunning ? "Running..." : "Run code"}
           </button>
@@ -112,7 +112,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             type="button"
             onClick={onSubmit}
             disabled={isRunning}
-            className="px-3.5 py-1 bg-[#1a7f37] dark:bg-[#238636] hover:opacity-90 text-white text-xs font-medium rounded transition-opacity disabled:opacity-50"
+            className="px-3.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-xs shadow-emerald-600/20 transition-all disabled:opacity-50 cursor-pointer"
           >
             {isRunning ? "Evaluating..." : "Submit solution"}
           </button>

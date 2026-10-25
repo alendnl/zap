@@ -16,6 +16,9 @@ import {
 import { authApi } from "@/services/authApi";
 import type { Student } from "@/types/auth";
 
+import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
 interface StudentAuthViewProps {
   onSuccess: (student: Student) => void;
   intendedProblemSlug?: string | null;
@@ -79,61 +82,67 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      {/* Background radial gradient glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-sky-500/15 via-indigo-600/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden transition-colors duration-200">
+      {/* Top right utility bar: Environment & Theme */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <EnvironmentSwitcher />
+        <ThemeToggle />
+      </div>
+
+      {/* Background ambient radial gradient glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[360px] bg-gradient-to-tr from-blue-500/10 via-indigo-500/10 to-transparent blur-3xl pointer-events-none rounded-full" />
 
       <div className="w-full max-w-md relative z-10">
         {/* Top Branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-950/70 border border-sky-800/60 mb-3 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-            <span className="text-xs font-semibold text-sky-300 tracking-wide uppercase">
-              Student Interview & DSA Portal
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/50 mb-3 shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 tracking-wider uppercase">
+              Technical Interview Platform
             </span>
           </div>
 
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 font-black text-xl shadow-lg shadow-sky-500/10">
+          <div className="flex items-center justify-center gap-2.5 mb-1.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-blue-600/25">
               Z
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-white">
-              ZAP <span className="text-sky-400 font-extrabold">ARENA</span>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0f172a] dark:text-white">
+              ZAP
             </h1>
           </div>
 
-          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-            Practice algorithmic challenges, compile solutions in real-time, and get campus interview ready.
+          <p className="text-xs text-[#64748b] dark:text-[#94a3b8] max-w-xs mx-auto leading-relaxed">
+            Practice algorithms, run solutions in sandboxed runtimes, and master your technical interview.
           </p>
         </div>
 
-        {/* Challenge Gating Banner */}
+        {/* Intended Target Challenge Notice */}
         {intendedProblemSlug && (
-          <div className="mb-4 bg-sky-950/40 border border-sky-800/60 rounded-xl p-3 text-left flex items-start gap-3">
-            <div className="w-7 h-7 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0 mt-0.5">
+          <div className="mb-4 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl p-3 text-left flex items-start gap-3">
+            <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
               <Code2 className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-sky-200">
+              <div className="text-xs font-semibold text-blue-900 dark:text-blue-200">
                 Target Challenge:{" "}
-                <span className="text-white font-bold underline decoration-sky-400">
+                <span className="font-bold underline decoration-blue-500">
                   {intendedProblemTitle || intendedProblemSlug}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Sign in or register below. You will be directed straight into this problem immediately upon authentication.
+              <p className="text-[11px] text-[#64748b] dark:text-[#94a3b8] mt-0.5">
+                Sign in or register below to open this problem immediately.
               </p>
             </div>
           </div>
         )}
 
-        {/* Auth Card */}
-        <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden">
-          {/* Card Accent Top Bar */}
-          <div className="h-1 w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500" />
+        {/* Minimalist Centered Auth Card */}
+        <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden transition-colors">
+          {/* Subtle Top Accent */}
+          <div className="h-1 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500" />
 
-          {/* Tab Switcher */}
-          <div className="grid grid-cols-2 p-1.5 m-5 mb-4 bg-slate-950/80 rounded-xl border border-slate-800">
+          {/* Segmented Mode Tab Switcher */}
+          <div className="grid grid-cols-2 p-1 m-5 mb-4 bg-[#f1f5f9] dark:bg-[#0b0f17] rounded-xl border border-[#e2e8f0] dark:border-[#1e293b]">
             <button
               type="button"
               onClick={() => {
@@ -142,8 +151,8 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
               }}
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                 mode === "login"
-                  ? "bg-slate-800 text-white shadow-sm border border-slate-700/80"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                  : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
               }`}
             >
               Student Sign In
@@ -156,17 +165,17 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
               }}
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                 mode === "signup"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                  : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
               }`}
             >
-              New Student Sign Up
+              Create Account
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-3.5">
             {error && (
-              <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800/60 text-rose-300 text-xs">
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 text-rose-700 dark:text-rose-300 text-xs">
                 {error}
               </div>
             )}
@@ -175,54 +184,54 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
               <>
                 {/* Full Name */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                    Full Name <span className="text-rose-400">*</span>
+                  <label className="block text-[11px] font-semibold text-[#475569] dark:text-[#94a3b8] mb-1">
+                    Full Name <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <User className="absolute left-3 top-2.5 w-4 h-4 text-[#94a3b8]" />
                     <input
                       type="text"
                       required
                       placeholder="e.g. Alex Johnson"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                      className="w-full bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#cbd5e1] dark:border-[#232f45] rounded-xl pl-9 pr-3 py-2 text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                 </div>
 
-                {/* Student ID */}
+                {/* Student ID / Roll Number */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                    Student ID / Roll Number <span className="text-rose-400">*</span>
+                  <label className="block text-[11px] font-semibold text-[#475569] dark:text-[#94a3b8] mb-1">
+                    Student ID / Roll Number <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <IdCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <IdCard className="absolute left-3 top-2.5 w-4 h-4 text-[#94a3b8]" />
                     <input
                       type="text"
                       required
                       placeholder="e.g. 2024-CS-108"
                       value={studentId}
                       onChange={(e) => setStudentId(e.target.value)}
-                      className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                      className="w-full bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#cbd5e1] dark:border-[#232f45] rounded-xl pl-9 pr-3 py-2 text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                 </div>
 
                 {/* College Name */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                    College / University Name <span className="text-rose-400">*</span>
+                  <label className="block text-[11px] font-semibold text-[#475569] dark:text-[#94a3b8] mb-1">
+                    College / University Name <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <Building className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <Building className="absolute left-3 top-2.5 w-4 h-4 text-[#94a3b8]" />
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Stanford University"
+                      placeholder="e.g. MIT / IIT Delhi"
                       value={collegeName}
                       onChange={(e) => setCollegeName(e.target.value)}
-                      className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                      className="w-full bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#cbd5e1] dark:border-[#232f45] rounded-xl pl-9 pr-3 py-2 text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                 </div>
@@ -231,12 +240,12 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
 
             {/* Email / Identifier */}
             <div>
-              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+              <label className="block text-[11px] font-semibold text-[#475569] dark:text-[#94a3b8] mb-1">
                 {mode === "login" ? "Email Address or Student ID" : "Email Address"}{" "}
-                <span className="text-rose-400">*</span>
+                <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-[#94a3b8]" />
                 <input
                   type={mode === "signup" ? "email" : "text"}
                   required
@@ -247,25 +256,25 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
                   }
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                  className="w-full bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#cbd5e1] dark:border-[#232f45] rounded-xl pl-9 pr-3 py-2 text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                Password <span className="text-rose-400">*</span>
+              <label className="block text-[11px] font-semibold text-[#475569] dark:text-[#94a3b8] mb-1">
+                Password <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 w-4 h-4 text-[#94a3b8]" />
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                  className="w-full bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#cbd5e1] dark:border-[#232f45] rounded-xl pl-9 pr-3 py-2 text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                 />
               </div>
             </div>
@@ -274,7 +283,7 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20"
+              className="w-full mt-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -285,7 +294,7 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
                 <>
                   <span>
                     {mode === "login"
-                      ? "Sign In & Enter Arena"
+                      ? "Sign In & Enter Workspace"
                       : "Create Student Account"}
                   </span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -295,9 +304,9 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
           </form>
 
           {/* Footer note */}
-          <div className="px-6 py-3 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Dedicated DSA environment for university students</span>
+          <div className="px-6 py-3 bg-[#f8fafc] dark:bg-[#0e1420] border-t border-[#e2e8f0] dark:border-[#1e293b] flex items-center justify-center gap-2 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Dedicated DSA & Technical Interview Preparation</span>
           </div>
         </div>
       </div>

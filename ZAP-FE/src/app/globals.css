@@ -3,23 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --background: #f6f8fa;
-  --foreground: #1f2328;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --panel: #ffffff;
-  --panel-muted: #f0f2f5;
-  --border: #d0d7de;
-  --border-muted: #e1e4e8;
-  --accent: #0969da;
+  --panel-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --border-muted: #cbd5e1;
+  --accent: #2563eb;
 }
 
 .dark {
-  --background: #0d1117;
-  --foreground: #e6edf3;
-  --panel: #161b22;
-  --panel-muted: #0b0e14;
-  --border: #30363d;
-  --border-muted: #21262d;
-  --accent: #2f81f7;
+  --background: #0b0f17;
+  --foreground: #f8fafc;
+  --panel: #121824;
+  --panel-muted: #0e1420;
+  --border: #1e293b;
+  --border-muted: #161e2e;
+  --accent: #3b82f6;
 }
 
 body {
@@ -29,7 +29,7 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom sleek scrollbars */
