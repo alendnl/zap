@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "ZAP Backend API"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
-    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_URI: str = Field(
+        default="mongodb://localhost:27017",
+        validation_alias=AliasChoices("MONGODB_URI", "MONGO_URI"),
+    )
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "https://codezap-arena.vercel.app",
