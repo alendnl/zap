@@ -8,6 +8,7 @@ from app.questions.router import router as questions_router
 from app.submissions.router import router as submissions_router
 from app.compiler.router import router as compiler_router
 from app.activity.router import router as activity_router
+from app.admin.router import router as admin_router
 
 settings = get_settings()
 
@@ -53,4 +54,5 @@ app.include_router(submissions_router)
 app.include_router(auth_router)
 app.include_router(compiler_router)
 app.include_router(activity_router)
+app.include_router(admin_router)
 

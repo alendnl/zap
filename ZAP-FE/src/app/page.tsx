@@ -14,6 +14,9 @@ import {
   Circle,
   ExternalLink,
   Sparkles,
+  ShieldCheck,
+  ChevronDown,
+  Users,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
@@ -22,6 +25,7 @@ import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
 import { SubmissionSummary } from "@/services/submissionsApi";
 import { activityApi } from "@/services/activityApi";
+import { adminApi } from "@/services/adminApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
@@ -99,6 +103,8 @@ export default function Home() {
   const [student, setStudent] = useState<Student | null>(null);
   const [intendedProblem, setIntendedProblem] = useState<string | null>(null);
   const [solvedQuestionIds, setSolvedQuestionIds] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
 
   // Filters & Search for DSA Questions
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,6 +160,15 @@ export default function Home() {
     window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
     return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
   }, []);
+
+  // Check if current user is an admin
+  useEffect(() => {
+    if (student?.email) {
+      adminApi.checkAdmin(student.email).then(setIsAdmin).catch(() => setIsAdmin(false));
+    } else {
+      setIsAdmin(false);
+    }
+  }, [student]);
 
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
     setLoadingProblemId(questionIdOrSlug);
@@ -426,6 +441,56 @@ export default function Home() {
                 <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                 <span>Compiler</span>
               </button>
+
+              {isAdmin && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAdminDropdownOpen((prev) => !prev)}
+                    onMouseEnter={() => setAdminDropdownOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-semibold shadow-xs"
+                    title="Admin Portal"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>Admin</span>
+                    <ChevronDown
+                      className={`w-3 h-3 text-purple-600 dark:text-purple-400 transition-transform ${
+                        adminDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {adminDropdownOpen && (
+                    <div
+                      onMouseLeave={() => setAdminDropdownOpen(false)}
+                      className="absolute left-0 mt-1.5 w-52 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-1 text-xs"
+                    >
+                      <Link
+                        href="/admin/users"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-colors"
+                      >
+                        <Users className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">Users Dashboard</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Student & college metrics</span>
+                        </div>
+                      </Link>
+                      <Link
+                        href="/faculty/questions"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
+                      >
+                        <Code2 className="w-3.5 h-3.5" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-xs">Questions Manager</span>
+                          <span className="text-[10px] text-[#94a3b8]">Create & edit problems</span>
+                        </div>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
           </div>
 

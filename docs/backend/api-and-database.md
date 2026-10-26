@@ -40,6 +40,13 @@ Handles student code submissions and run requests:
 - `POST /api/v1/auth/login` — Authenticate and receive session token.
 - `GET /api/v1/auth/me` — Retrieve active session profile.
 
+### 1.5 Admin & Analytics (`/api/v1/admin`)
+Restricted to users whose email exists in the `admin` collection:
+
+- `GET /api/v1/admin/check-access?email=` — Check if a user has administrator privileges.
+- `GET /api/v1/admin/users?email=&college=&search=` — Retrieve aggregated cohort metrics and student performance data (total solved, difficulty breakdown, accuracy rate, college filter, search).
+- `GET /api/v1/admin/users/{user_id}?email=` — Inspect individual candidate activity, solved problem titles/difficulties, and submission history.
+
 ---
 
 ## 2. MongoDB Data Models
@@ -169,6 +176,18 @@ Stores high-level progress, solved problems, and statistics per user (one docume
 **Activity Endpoints:**
 - `GET /api/v1/users/{userId}/activity/summary` — Lightweight summary (`totalSolved`, `totalAttempted`, `solvedQuestionIds`, `attemptedQuestionIds`) used by standard catalog pages.
 - `GET /api/v1/users/{userId}/activity` — Full problem-by-problem breakdown and recent submissions history.
+
+### 2.5 Admin Schema (`admin` collection)
+Used to gate administrative endpoints and UI views:
+
+```json
+{
+  "_id": "admin-record-id",
+  "email": "faculty@university.edu",
+  "name": "Dr. Jane Doe",
+  "role": "admin"
+}
+```
 
 ---
 

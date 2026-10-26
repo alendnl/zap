@@ -11,10 +11,11 @@ from app.submissions.rate_limiter import get_submission_rate_limiter
 def setup_mock_db():
     get_submission_rate_limiter().reset()
     mock_client = mongomock.MongoClient()
-    mock_db = mock_client["test_zap_platform"]
-    set_test_database(mock_db)
+    set_test_database(mock_client["test_zap_platform"], "production")
+    set_test_database(mock_client["test_zap_platform_qa"], "qa")
     yield
-    set_test_database(None)
+    set_test_database(None, "production")
+    set_test_database(None, "qa")
     # Clear any per-environment caches so tests do not leak state.
     clear_database_cache()
     _queue_instances.clear()
