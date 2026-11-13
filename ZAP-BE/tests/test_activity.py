@@ -6,9 +6,7 @@ import mongomock
 from app.main import app
 from app.db.mongodb import clear_database_cache, set_test_database, ensure_indexes
 from app.activity.service import ActivityService
-from app.activity.models import UserActivity, UserActivitySummary
 from app.submissions.models import (
-    Submission,
     SubmissionMode,
     SubmissionStatus,
     SubmissionVerdict,

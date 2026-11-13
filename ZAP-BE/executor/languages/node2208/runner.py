@@ -1,5 +1,4 @@
 import shutil
-from pathlib import Path
 from executor.core.runner import ExecutionContext, CompileResult, RunResult
 from executor.sandbox.sandbox import Sandbox
 

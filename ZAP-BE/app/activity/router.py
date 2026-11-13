@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Response
 from app.db.mongodb import get_database
 from app.activity.models import UserActivity, UserActivitySummary
 from app.activity.service import ActivityService

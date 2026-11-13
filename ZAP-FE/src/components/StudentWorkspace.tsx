@@ -9,7 +9,6 @@ import {
   History,
   ChevronDown,
   ChevronUp,
-  Clock,
   Code2,
   Copy,
   Check,

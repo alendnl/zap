@@ -10,7 +10,7 @@ Cloud Tasks delivers execution jobs to this endpoint. The endpoint:
 6. Returns HTTP 200 on success (acknowledge) or a retryable status on failure.
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Any
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from app.config import get_settings

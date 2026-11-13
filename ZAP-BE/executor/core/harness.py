@@ -1,6 +1,5 @@
 import json
 import re
-from typing import Optional
 
 
 def prepare_executable_code(language: str, source_code: str) -> str:

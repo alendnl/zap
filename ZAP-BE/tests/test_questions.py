@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 import mongomock
 from app.main import app
-from app.db.mongodb import set_test_database, db_manager
+from app.db.mongodb import set_test_database
 
 @pytest.fixture(autouse=True)
 def setup_mock_db():

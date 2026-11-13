@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, User, Mail, Lock, Building, IdCard, Loader2, Sparkles, CheckCircle } from "lucide-react";
+import { X, User, Mail, Lock, Building, IdCard, Loader2 } from "lucide-react";
 import { authApi } from "@/services/authApi";
 import type { Student } from "@/types/auth";
 

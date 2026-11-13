@@ -1,5 +1,5 @@
 from typing import Optional, Callable
-from executor.worker.queue import MemoryExecutionQueue, ExecutionJob
+from executor.worker.queue import MemoryExecutionQueue
 from executor.languages import get_runner
 from executor.judge.judge import JudgeEngine, JudgeResult
 from executor.core.runner import ExecutionLimits

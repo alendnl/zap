@@ -15,19 +15,13 @@ import {
   ExternalLink,
   ChevronRight,
   X,
-  ShieldCheck,
   ShieldAlert,
   ArrowLeft,
-  Calendar,
   Award,
-  Layers,
   Code2,
-  Terminal,
   Activity,
-  Sparkles,
-  TrendingUp,
 } from "lucide-react";
-import { getStoredStudent, AUTH_CHANGE_EVENT } from "@/services/authApi";
+import { getStoredStudent } from "@/services/authApi";
 import { adminApi, UserAdminStats, AdminUsersOverview, UserDetailActivityResponse } from "@/services/adminApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";

@@ -1,4 +1,3 @@
-import os
 import hashlib
 import secrets
 from typing import Optional, Tuple

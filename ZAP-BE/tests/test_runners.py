@@ -1,6 +1,5 @@
 import pytest
 import shutil
-from pathlib import Path
 from executor.languages import get_runner
 from executor.sandbox.sandbox import Sandbox
 from executor.core.runner import ExecutionLimits

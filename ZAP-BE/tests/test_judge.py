@@ -1,4 +1,3 @@
-import pytest
 from executor.languages import get_runner
 from executor.judge.judge import JudgeEngine
 from executor.worker.queue import MemoryExecutionQueue, ExecutionJob

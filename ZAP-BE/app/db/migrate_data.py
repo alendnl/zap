@@ -9,12 +9,10 @@ What it does:
 3. Denormalizes `userEmail` into `submissions` for fast auditing without joins.
 4. Backfills the `user_activities` collection (one document per user) by replaying existing submissions.
 """
-import sys
 import argparse
 import logging
 from typing import Dict, Any, List
 
-from app.config import get_settings
 from app.db.mongodb import get_database_for_env, ensure_indexes
 from app.activity.service import ActivityService
 from app.submissions.models import Submission

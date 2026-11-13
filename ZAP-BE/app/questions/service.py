@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timezone
 from app.questions.models import Question, QuestionCreate, QuestionUpdate, QuestionSummary
 
