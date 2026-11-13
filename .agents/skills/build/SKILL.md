@@ -44,7 +44,7 @@ flowchart TD
   - **Infrastructure & Pipeline**: Google Cloud Tasks, Cloud Run, MongoDB Atlas, GitHub Actions.
 
 ### Step 2: Context Gathering
-- Inspect existing documentation in [`docs/`](file:///Users/apilav068@apac.comcast.com/zap/docs) to understand architectural boundaries and data contracts.
+- Inspect canonical [Six-File Context in `context/`](file:///Users/apilav068@apac.comcast.com/zap/context/README.md) and documentation in [`docs/`](file:///Users/apilav068@apac.comcast.com/zap/docs) to understand architectural boundaries and data contracts.
 - Inspect active code and existing unit/integration tests covering the area.
 - Verify active environment settings in `ZAP-BE/app/config.py` and `ZAP-FE/src/services/environment.ts`.
 

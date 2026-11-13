@@ -1,5 +1,7 @@
 # Architecture Rules
 
+> **Canonical Source**: This rule set is harmonized with [`context/02-architecture.md`](file:///Users/apilav068@apac.comcast.com/zap/context/02-architecture.md). Refer to `context/` for the complete system topology and invariants.
+
 1. **Loose Coupling Boundary**:
    - The question/problem system contains metadata, hints, and test cases.
    - The compiler/execution engine accepts code, language ID, and test input payload only. It must NOT contain problem-specific domain logic or hardcoded question rules.

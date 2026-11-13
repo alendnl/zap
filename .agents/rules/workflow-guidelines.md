@@ -1,5 +1,7 @@
 # Development & Workflow Guidelines
 
+> **Canonical Source**: This guideline set is harmonized with [`context/04-workflow-rules.md`](file:///Users/apilav068@apac.comcast.com/zap/context/04-workflow-rules.md). Refer to `context/` for the complete Six-File Context standards.
+
 1. **Prompt-to-Implementation Flow**:
    - Features, bug fixes, and refactoring tasks are received directly via user prompts.
    - Use the `build` skill to understand the requirement, gather context, clarify with options (only if absolutely essential), plan, execute, test, and document.

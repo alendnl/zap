@@ -1,5 +1,7 @@
 # Engineering & Agent Guidelines
 
+> **Canonical Source**: This guideline set is harmonized with [`context/03-code-standards.md`](file:///Users/apilav068@apac.comcast.com/zap/context/03-code-standards.md) and [`context/04-workflow-rules.md`](file:///Users/apilav068@apac.comcast.com/zap/context/04-workflow-rules.md). Refer to `context/` for the complete Six-File Context standards.
+
 ## 1. Operating Model & Collaboration
 
 ### Meta-Principle
