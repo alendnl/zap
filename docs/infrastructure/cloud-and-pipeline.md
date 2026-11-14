@@ -21,7 +21,7 @@ flowchart LR
 
     subgraph CR["GCP Cloud Run (us-central1)"]
         API["zap-api<br/>(Public, concurrency 80, CPU 1, 512Mi)"]
-        EXEC["zap-executor<br/>(Private, concurrency 1, CPU 4, 4Gi)"]
+        EXEC["zap-executor<br/>(Private, concurrency 4, CPU 2, 2Gi)"]
     end
 
     subgraph TASKS["GCP Cloud Tasks"]
@@ -67,7 +67,7 @@ flowchart LR
 - **`zap-executor`**:
   - URL: `https://zap-executor-394729648143.us-central1.run.app`
   - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
-  - Sizing: CPU 4, Memory 4Gi, Concurrency 1 (strictly isolated one submission execution per container instance), Scale `0 → 10`, Request timeout 360s.
+  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Scale `0 → 10`, Request timeout 360s.
 
 ### 2.4 Cloud Tasks Queues
 - **Production Queue**: `zap-submissions`
