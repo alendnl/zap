@@ -67,11 +67,11 @@ flowchart LR
 - **`zap-executor`**:
   - URL: `https://zap-executor-394729648143.us-central1.run.app`
   - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
-  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Scale `0 → 10`, Request timeout 360s.
+  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Scale `0 → 10`, Request timeout 120s.
 
 ### 2.4 Cloud Tasks Queues
-- **Production Queue**: `zap-submissions`
-- **QA Queue**: `zap-submissions-lower`
+- **Production Queue**: `zap-submissions` (Max 4.0 dispatches/sec, max 20 concurrent dispatches, min backoff 3s, max backoff 60s)
+- **QA Queue**: `zap-submissions-lower` (Max 4.0 dispatches/sec, max 10 concurrent dispatches, min backoff 3s, max backoff 60s)
 
 ### 2.5 Secret Management
 - Secret `zap-mongodb-uri` in GCP Secret Manager stores the MongoDB Atlas cluster connection string.

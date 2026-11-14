@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     EXECUTOR_TASK_URL: str = "http://localhost:8080/internal/tasks/execute"
     TASKS_OIDC_AUDIENCE: str = "http://localhost:8080"
     TASKS_SERVICE_ACCOUNT: str = ""
-    TASKS_EXECUTION_LEASE_SECONDS: int = 360
+    TASKS_EXECUTION_LEASE_SECONDS: int = 120
 
     # Per-environment (only DB name + queue name differ)
     DEFAULT_ENVIRONMENT: str = "production"
