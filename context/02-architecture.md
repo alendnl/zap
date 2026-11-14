@@ -80,6 +80,7 @@ Instead of running duplicate infrastructure per branch or environment, ZAP maint
   2. `zap-api` enqueues an authenticated Cloud Task pointing to `zap-executor /execute`.
   3. `zap-executor` updates status to `RUNNING`, executes test cases, computes verdict, and marks `COMPLETED` or `FAILED`.
   4. Frontend polls `GET /submissions/{id}` until terminal status is reached.
+- Complete step-by-step diagram & polling latch specification: [`docs/architecture/compiler-request-lifecycle.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/compiler-request-lifecycle.md).
 
 ### Invariant 5: Test Case Security & Masking
 - Hidden test cases are confidential to prevent reverse engineering and cheating.

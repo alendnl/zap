@@ -35,6 +35,7 @@ The persistent, single source of truth for the codebase:
 - **Core Documentation**: See [`docs/README.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/README.md) for the hierarchical documentation index.
 - **System Architecture**: High-level and low-level specifications are detailed in [`docs/architecture/`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture).
 - **Core Rule**: The question management system and code execution compiler must remain **loosely coupled**.
+- **Compiler Request Lifecycle**: See [`docs/architecture/compiler-request-lifecycle.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/compiler-request-lifecycle.md) for the end-to-end request flow (Monaco, sequential polling latches, Cloud Tasks, MongoDB states, and sandbox execution). Any changes to this flow must be updated in that document.
 - **Frontend**: Next.js + React + TypeScript + Monaco Editor (`ZAP-FE`).
 - **Backend**: FastAPI / Python backend (`ZAP-BE`).
 - **Compiler / Executor**: Sandboxed multi-language execution engine (`ZAP-BE/executor`).

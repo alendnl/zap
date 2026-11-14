@@ -12,3 +12,6 @@
 
 3. **Incremental Execution**:
    - Build foundational APIs first (Auth, Question CRUD, Submissions, Execution sandbox) before implementing course/learning management extensions.
+
+4. **Compiler Request Lifecycle Synchronization**:
+   - The end-to-end request flow is specified in [`docs/architecture/compiler-request-lifecycle.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/compiler-request-lifecycle.md). Any modifications to submission endpoints, sequential polling latches, Cloud Tasks queues, atomic claim leases, or execution sandboxing must be kept up-to-date in that document.

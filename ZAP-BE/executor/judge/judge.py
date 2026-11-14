@@ -1,7 +1,8 @@
+import concurrent.futures
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
-from executor.core.runner import LanguageRunner, ExecutionLimits
+from executor.core.runner import LanguageRunner, ExecutionLimits, ExecutionContext
 from executor.sandbox.sandbox import Sandbox
 from executor.core.harness import prepare_executable_code, outputs_match
 
@@ -43,6 +44,103 @@ class JudgeEngine:
         lines = [line.rstrip() for line in text.strip().splitlines()]
         return "\n".join(lines)
 
+    def _execute_test_case(
+        self,
+        runner: LanguageRunner,
+        context: ExecutionContext,
+        tc: Dict[str, Any]
+    ) -> TestCaseResult:
+        """Executes a single test case in its own isolated run context and returns the TestCaseResult."""
+        tc_id = tc.get("id", "tc-anon")
+        visibility = tc.get("visibility", "PUBLIC")
+        stdin_input = tc.get("input", "")
+        expected_output = tc.get("expectedOutput", "")
+
+        try:
+            run_res = runner.run(context, stdin=stdin_input)
+        except Exception as exc:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=False,
+                status="RUNTIME_ERROR",
+                execution_time_ms=0,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                actual_output=None,
+                error=f"Execution exception: {exc}"
+            )
+
+        # Check timeouts
+        if run_res.timed_out:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=False,
+                status="TIME_LIMIT_EXCEEDED",
+                execution_time_ms=run_res.execution_time_ms,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
+                error="Execution timed out."
+            )
+
+        # Check output limit
+        if run_res.output_limit_exceeded:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=False,
+                status="OUTPUT_LIMIT_EXCEEDED",
+                execution_time_ms=run_res.execution_time_ms,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
+                error="Output size limit exceeded."
+            )
+
+        # Check runtime error
+        if run_res.exit_code != 0:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=False,
+                status="RUNTIME_ERROR",
+                execution_time_ms=run_res.execution_time_ms,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
+                actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
+                error=run_res.stderr or f"Non-zero exit code: {run_res.exit_code}"
+            )
+
+        # Output comparison
+        actual_norm = self.normalize_output(run_res.stdout)
+        expected_norm = self.normalize_output(expected_output)
+
+        is_match = outputs_match(actual_norm, expected_norm)
+        if is_match:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=True,
+                status="PASSED",
+                execution_time_ms=run_res.execution_time_ms,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                actual_output=actual_norm if visibility == "PUBLIC" else None,
+                expected_output=expected_norm if visibility == "PUBLIC" else None
+            )
+        else:
+            return TestCaseResult(
+                id=tc_id,
+                visibility=visibility,
+                passed=False,
+                status="WRONG_ANSWER",
+                execution_time_ms=run_res.execution_time_ms,
+                input=stdin_input if visibility == "PUBLIC" else None,
+                actual_output=actual_norm if visibility == "PUBLIC" else None,
+                expected_output=expected_norm if visibility == "PUBLIC" else None
+            )
+
     def judge(
         self,
         runner: LanguageRunner,
@@ -51,7 +149,9 @@ class JudgeEngine:
         limits: Optional[ExecutionLimits] = None,
         submission_id: str = "judge-exec",
         base_dir: Optional[Path] = None,
-        fail_fast: bool = False
+        fail_fast: bool = False,
+        parallel: bool = True,
+        max_workers: Optional[int] = None
     ) -> JudgeResult:
         sandbox = Sandbox(submission_id, base_dir=base_dir, limits=limits)
         limits = sandbox.limits
@@ -74,11 +174,7 @@ class JudgeEngine:
             # Filter enabled test cases
             enabled_tests = [tc for tc in test_cases if tc.get("enabled", True)]
             total = len(enabled_tests)
-            passed = 0
-            failed = 0
-            max_exec_time = 0
             test_results: List[TestCaseResult] = []
-            final_verdict = "ACCEPTED"
 
             verdict_severity = {
                 "ACCEPTED": 0,
@@ -88,113 +184,42 @@ class JudgeEngine:
                 "RUNTIME_ERROR": 4,
             }
 
-            def record_failure(status_name: str):
-                nonlocal final_verdict
-                if verdict_severity.get(status_name, 1) >= verdict_severity.get(final_verdict, 0):
-                    final_verdict = status_name
-
-            # 3. Execute test cases
-            for tc in enabled_tests:
-                tc_id = tc.get("id", "tc-anon")
-                visibility = tc.get("visibility", "PUBLIC")
-                stdin_input = tc.get("input", "")
-                expected_output = tc.get("expectedOutput", "")
-
-                run_res = runner.run(context, stdin=stdin_input)
-                max_exec_time = max(max_exec_time, run_res.execution_time_ms)
-
-                # Check timeouts
-                if run_res.timed_out:
-                    failed += 1
-                    record_failure("TIME_LIMIT_EXCEEDED")
-                    test_results.append(TestCaseResult(
-                        id=tc_id,
-                        visibility=visibility,
-                        passed=False,
-                        status="TIME_LIMIT_EXCEEDED",
-                        execution_time_ms=run_res.execution_time_ms,
-                        input=stdin_input if visibility == "PUBLIC" else None,
-                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
-                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                        error="Execution timed out."
-                    ))
-                    if fail_fast:
+            # 3. Execute test cases (parallel by default, sequential when fail_fast=True)
+            if fail_fast:
+                for tc in enabled_tests:
+                    res = self._execute_test_case(runner, context, tc)
+                    test_results.append(res)
+                    if not res.passed:
                         break
-                    continue
+            elif len(enabled_tests) <= 1 or not parallel:
+                for tc in enabled_tests:
+                    test_results.append(self._execute_test_case(runner, context, tc))
+            else:
+                workers = max_workers or min(len(enabled_tests), 10)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                    futures = [
+                        pool.submit(self._execute_test_case, runner, context, tc)
+                        for tc in enabled_tests
+                    ]
+                    test_results = [f.result() for f in futures]
 
-                # Check output limit
-                if run_res.output_limit_exceeded:
-                    failed += 1
-                    record_failure("OUTPUT_LIMIT_EXCEEDED")
-                    test_results.append(TestCaseResult(
-                        id=tc_id,
-                        visibility=visibility,
-                        passed=False,
-                        status="OUTPUT_LIMIT_EXCEEDED",
-                        execution_time_ms=run_res.execution_time_ms,
-                        input=stdin_input if visibility == "PUBLIC" else None,
-                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
-                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                        error="Output size limit exceeded."
-                    ))
-                    if fail_fast:
-                        break
-                    continue
+            passed = sum(1 for tr in test_results if tr.passed)
+            failed = sum(1 for tr in test_results if not tr.passed)
+            max_exec_time = max((tr.execution_time_ms for tr in test_results), default=0)
 
-                # Check runtime error
-                if run_res.exit_code != 0:
-                    failed += 1
-                    record_failure("RUNTIME_ERROR")
-                    test_results.append(TestCaseResult(
-                        id=tc_id,
-                        visibility=visibility,
-                        passed=False,
-                        status="RUNTIME_ERROR",
-                        execution_time_ms=run_res.execution_time_ms,
-                        input=stdin_input if visibility == "PUBLIC" else None,
-                        expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
-                        actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                        error=run_res.stderr or f"Non-zero exit code: {run_res.exit_code}"
-                    ))
-                    if fail_fast:
-                        break
-                    continue
-
-                # Output comparison
-                actual_norm = self.normalize_output(run_res.stdout)
-                expected_norm = self.normalize_output(expected_output)
-
-                is_match = outputs_match(actual_norm, expected_norm)
-                if is_match:
-                    passed += 1
-                    test_results.append(TestCaseResult(
-                        id=tc_id,
-                        visibility=visibility,
-                        passed=True,
-                        status="PASSED",
-                        execution_time_ms=run_res.execution_time_ms,
-                        input=stdin_input if visibility == "PUBLIC" else None,
-                        actual_output=actual_norm if visibility == "PUBLIC" else None,
-                        expected_output=expected_norm if visibility == "PUBLIC" else None
-                    ))
-                else:
-                    failed += 1
-                    record_failure("WRONG_ANSWER")
-                    test_results.append(TestCaseResult(
-                        id=tc_id,
-                        visibility=visibility,
-                        passed=False,
-                        status="WRONG_ANSWER",
-                        execution_time_ms=run_res.execution_time_ms,
-                        input=stdin_input if visibility == "PUBLIC" else None,
-                        actual_output=actual_norm if visibility == "PUBLIC" else None,
-                        expected_output=expected_norm if visibility == "PUBLIC" else None
-                    ))
-                    if fail_fast:
-                        break
+            if failed == 0 and total > 0:
+                final_verdict = "ACCEPTED"
+            elif failed > 0:
+                final_verdict = max(
+                    (tr.status for tr in test_results if not tr.passed),
+                    key=lambda s: verdict_severity.get(s, 1),
+                    default="ACCEPTED"
+                )
+            else:
+                final_verdict = "ACCEPTED"
 
             return JudgeResult(
-                verdict=final_verdict if failed == 0 and total > 0 else (final_verdict if failed > 0 else "ACCEPTED"),
+                verdict=final_verdict,
                 total_tests=total,
                 passed_tests=passed,
                 failed_tests=failed,

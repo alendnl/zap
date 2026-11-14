@@ -84,6 +84,60 @@ def test_judge_runs_all_test_cases_without_fail_fast():
 
 
 
+def test_judge_parallel_test_cases_order_and_severity():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+import sys, time
+val = sys.stdin.read().strip()
+if val == "sleep":
+    time.sleep(0.1)
+    print("slept")
+elif val == "error":
+    raise RuntimeError("Intentional error")
+elif val == "wrong":
+    print("wrong_output")
+else:
+    print(f"ok_{val}")
+"""
+    test_cases = [
+        {"id": "tc1", "visibility": "PUBLIC", "input": "sleep", "expectedOutput": "slept", "enabled": True},
+        {"id": "tc2", "visibility": "PUBLIC", "input": "1", "expectedOutput": "ok_1", "enabled": True},
+        {"id": "tc3", "visibility": "PUBLIC", "input": "wrong", "expectedOutput": "expected_wrong", "enabled": True},
+        {"id": "tc4", "visibility": "HIDDEN", "input": "2", "expectedOutput": "ok_2", "enabled": True},
+        {"id": "tc5", "visibility": "HIDDEN", "input": "error", "expectedOutput": "ignored", "enabled": True},
+        {"id": "tc6", "visibility": "PUBLIC", "input": "3", "expectedOutput": "ok_3", "enabled": True},
+    ]
+
+    result = judge.judge(runner, code, test_cases, submission_id="judge-test-parallel", fail_fast=False, parallel=True)
+
+    # Total and counts
+    assert result.total_tests == 6
+    assert result.passed_tests == 4  # tc1, tc2, tc4, tc6
+    assert result.failed_tests == 2  # tc3 (WRONG_ANSWER), tc5 (RUNTIME_ERROR)
+
+    # Severity hierarchy: RUNTIME_ERROR > WRONG_ANSWER
+    assert result.verdict == "RUNTIME_ERROR"
+
+    # Order must be strictly preserved
+    assert len(result.test_results) == 6
+    assert [tr.id for tr in result.test_results] == ["tc1", "tc2", "tc3", "tc4", "tc5", "tc6"]
+    assert result.test_results[0].passed is True
+    assert result.test_results[1].passed is True
+    assert result.test_results[2].passed is False
+    assert result.test_results[2].status == "WRONG_ANSWER"
+    assert result.test_results[3].passed is True
+    assert result.test_results[4].passed is False
+    assert result.test_results[4].status == "RUNTIME_ERROR"
+    assert result.test_results[5].passed is True
+
+    # Hidden masking check
+    assert result.test_results[3].input is None
+    assert result.test_results[3].actual_output is None
+    assert result.test_results[4].input is None
+
+
 def test_execution_worker():
     queue = MemoryExecutionQueue()
     history = []

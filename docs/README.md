@@ -38,6 +38,7 @@ To keep context token-efficient and informative for both AI agents and engineers
 | Category | Document | Description |
 |---|---|---|
 | **System Architecture** | [`docs/architecture/system-design.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/system-design.md) | Monorepo layout, submission lifecycle, loose coupling contracts, and execution states. |
+| **Request Lifecycle** | [`docs/architecture/compiler-request-lifecycle.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/architecture/compiler-request-lifecycle.md) | End-to-end flow of compiler submissions: Monaco frontend, polling latches, Cloud Tasks, MongoDB states, and sandbox execution. |
 | **Backend & Database** | [`docs/backend/api-and-database.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/backend/api-and-database.md) | FastAPI routing, MongoDB models (`questions`, `submissions`, `users`), auth, and multi-tenant environment routing. |
 | **Compiler & Execution Engine** | [`docs/backend/compiler-engine.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/backend/compiler-engine.md) | LeetCode-style auto-harness, sandbox isolation, judge engine, test case masking, and supported languages. |
 | **Frontend Application** | [`docs/frontend/architecture.md`](file:///Users/apilav068@apac.comcast.com/zap/docs/frontend/architecture.md) | Next.js 15, React 19, Monaco Editor integration, student problem workspace, faculty manager, and env switcher. |
