@@ -9,6 +9,7 @@ from app.contests.models import (
     ContestStartResponse,
     ContestSubmitRequest,
     ContestSubmitResponse,
+    ContestSessionSyncRequest,
 )
 from app.contests.service import ContestService
 from app.admin.service import AdminService
@@ -123,10 +124,30 @@ def delete_contest(
 def start_contest(
     contest_id_or_slug: str,
     student_id: str = Query("student-anonymous"),
+    student_email: Optional[str] = Query(None),
+    student_name: Optional[str] = Query(None),
     service: ContestService = Depends(get_contest_service)
 ):
     try:
-        return service.start_contest_session(contest_id_or_slug, student_id)
+        return service.start_contest_session(
+            contest_id_or_slug,
+            student_id=student_id,
+            student_email=student_email,
+            student_name=student_name,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/contests/{contest_id_or_slug}/sync")
+@router.post("/api/v1/contests/{contest_id_or_slug}/sync")
+def sync_contest(
+    contest_id_or_slug: str,
+    payload: ContestSessionSyncRequest,
+    service: ContestService = Depends(get_contest_service)
+):
+    try:
+        return service.sync_contest_session(contest_id_or_slug, payload)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

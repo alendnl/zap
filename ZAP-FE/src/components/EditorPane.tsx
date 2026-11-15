@@ -25,6 +25,7 @@ interface EditorPaneProps {
   onReset?: () => void;
   isRunning: boolean;
   statusText?: string;
+  preventCopyPaste?: boolean;
 }
 
 export const EditorPane: React.FC<EditorPaneProps> = ({
@@ -37,6 +38,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   onReset,
   isRunning,
   statusText,
+  preventCopyPaste = false,
 }) => {
   const { theme } = useTheme();
 
@@ -135,6 +137,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             automaticLayout: true,
             tabSize: 4,
             padding: { top: 8 },
+            contextmenu: !preventCopyPaste,
           }}
         />
       </div>

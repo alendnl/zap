@@ -119,12 +119,51 @@ export interface ContestCodingQuestion {
   points: number;
 }
 
+export interface ProctoringViolation {
+  type: "TAB_SWITCH" | "COPY_PASTE" | "FULLSCREEN_EXIT" | string;
+  timestamp: string;
+  details?: string;
+}
+
+export interface ProctoringTelemetry {
+  tabSwitchCount: number;
+  copyPasteAttempts: number;
+  fullscreenExitCount: number;
+  violationsLog: ProctoringViolation[];
+}
+
+export interface CodingProblemState {
+  code: Record<string, string>; // language -> code
+  lastLanguage: string;
+  status: "UNATTEMPTED" | "ATTEMPTED" | "SUBMITTED" | "ACCEPTED" | string;
+  bestVerdict?: string;
+  lastSubmissionId?: string;
+}
+
 export interface ContestStartResponse {
   contest: Contest;
   mcqQuestions: ContestMCQQuestion[];
   codingQuestions: ContestCodingQuestion[];
   startedAt: string;
   sessionId: string;
+  alreadySubmitted?: boolean;
+  submission?: ContestSubmitResponse | null;
+  mcqAnswers?: Record<string, string>;
+  reviewedQuestionIds?: string[];
+  codingState?: Record<string, CodingProblemState>;
+  proctoring?: ProctoringTelemetry;
+  timeSpentSeconds?: number;
+}
+
+export interface ContestSessionSyncRequest {
+  studentId: string;
+  studentEmail?: string;
+  studentName?: string;
+  mcqAnswers?: Record<string, string>;
+  reviewedQuestionIds?: string[];
+  codingState?: Record<string, CodingProblemState>;
+  proctoring?: ProctoringTelemetry;
+  timeSpentSeconds?: number;
 }
 
 export interface ContestSubmitRequest {
@@ -133,6 +172,8 @@ export interface ContestSubmitRequest {
   studentName?: string;
   mcqAnswers: Record<string, string>; // questionId -> selectedOptionId
   codingSubmissions?: Record<string, string>; // questionId -> submissionId
+  codingState?: Record<string, CodingProblemState>;
+  proctoring?: ProctoringTelemetry;
   timeSpentSeconds: number;
 }
 
@@ -186,4 +227,6 @@ export interface ContestSubmitResponse {
   submittedAt: string;
   mcqBreakdown: MCQReviewItem[];
   codingBreakdown: CodingReviewItem[];
+  proctoring?: ProctoringTelemetry;
+  codingState?: Record<string, any>;
 }

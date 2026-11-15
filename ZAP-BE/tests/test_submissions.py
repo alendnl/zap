@@ -306,4 +306,46 @@ def test_list_submissions_no_cache_headers():
     assert "no-store" in res.headers.get("cache-control", "")
 
 
+def test_contest_submission_isolation():
+    user_id = "isolation-student-1"
+    q_id = "valid-anagram"
+
+    # Create normal practice submission
+    normal_res = client.post("/api/v1/submissions", json={
+        "questionId": q_id,
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print('normal')",
+        "userId": user_id
+    })
+    assert normal_res.status_code == 202
+    normal_id = normal_res.json()["submissionId"]
+
+    # Create contest submission
+    contest_id = "contest-grand-01"
+    contest_res = client.post("/api/v1/submissions", json={
+        "questionId": q_id,
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print('contest')",
+        "userId": user_id,
+        "contestId": contest_id
+    })
+    assert contest_res.status_code == 202
+    contest_sub_id = contest_res.json()["submissionId"]
+
+    # Query without contestId (normal catalog practice view)
+    practice_list = client.get(f"/api/v1/submissions?userId={user_id}&questionId={q_id}").json()
+    practice_ids = [s["id"] for s in practice_list]
+    assert normal_id in practice_ids
+    assert contest_sub_id not in practice_ids, "Contest submissions must NOT appear in normal catalog practice history"
+
+    # Query with contestId (contest view)
+    contest_list = client.get(f"/api/v1/submissions?userId={user_id}&questionId={q_id}&contestId={contest_id}").json()
+    contest_ids = [s["id"] for s in contest_list]
+    assert contest_sub_id in contest_ids
+    assert normal_id not in contest_ids, "Normal practice submissions must NOT appear in contest submission list"
+
+
+
 

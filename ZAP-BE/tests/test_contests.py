@@ -163,3 +163,81 @@ def test_submit_contest_calculates_score():
     # Verification that answers are revealed post-submission
     assert "correctOptionId" in result["mcqBreakdown"][0]
     assert "isCorrect" in result["mcqBreakdown"][0]
+
+
+def test_contest_session_sync_and_resume():
+    student_id = "student-resume-test"
+    student_email = "resume@college.edu"
+
+    # 1. Start contest session
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    data = start_res.json()
+    assert data["alreadySubmitted"] is False
+    q1_id = data["mcqQuestions"][0]["id"]
+    code_q1_id = data["codingQuestions"][0]["id"]
+
+    # 2. Sync live progress: answers, coding state, and proctoring
+    sync_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "mcqAnswers": {q1_id: "opt-1"},
+        "reviewedQuestionIds": [q1_id],
+        "codingState": {
+            code_q1_id: {
+                "code": {"python": "def solution(): pass"},
+                "lastLanguage": "python",
+                "status": "ATTEMPTED",
+                "bestVerdict": "WRONG_ANSWER",
+                "lastSubmissionId": "sub-test-123",
+            }
+        },
+        "proctoring": {
+            "tabSwitchCount": 2,
+            "copyPasteAttempts": 1,
+            "fullscreenExitCount": 1,
+            "violationsLog": [
+                {"type": "TAB_SWITCH", "timestamp": "2026-11-16T00:00:00Z", "details": "Tab blurred"}
+            ]
+        },
+        "timeSpentSeconds": 120,
+    }
+
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=sync_payload)
+    assert sync_res.status_code == 200
+    assert sync_res.json()["ok"] is True
+
+    # 3. Simulate page reload / resume session: start again
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert resume_res.status_code == 200
+    resume_data = resume_res.json()
+    assert resume_data["alreadySubmitted"] is False
+    assert resume_data["mcqAnswers"].get(q1_id) == "opt-1"
+    assert q1_id in resume_data["reviewedQuestionIds"]
+    assert resume_data["codingState"][code_q1_id]["status"] == "ATTEMPTED"
+    assert resume_data["proctoring"]["tabSwitchCount"] == 2
+    assert resume_data["proctoring"]["copyPasteAttempts"] == 1
+    assert resume_data["proctoring"]["fullscreenExitCount"] == 1
+
+    # 4. Final submit
+    submit_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "mcqAnswers": {q1_id: "opt-1"},
+        "codingSubmissions": {code_q1_id: "sub-test-123"},
+        "timeSpentSeconds": 240,
+    }
+    submit_res = client.post("/api/v1/contests/zap-grand-assessment-1/submit", json=submit_payload)
+    assert submit_res.status_code == 200
+
+    # 5. Single attempt check: calling start again must return alreadySubmitted: True
+    post_submit_start = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert post_submit_start.status_code == 200
+    assert post_submit_start.json()["alreadySubmitted"] is True
+    assert post_submit_start.json()["submission"] is not None

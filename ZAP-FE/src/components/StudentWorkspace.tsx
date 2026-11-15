@@ -36,6 +36,12 @@ interface StudentWorkspaceProps {
   question: QuestionData;
   onBackToCatalog?: () => void;
   initialSubmissions?: SubmissionSummary[];
+  contestId?: string;
+  initialCodes?: Record<string, string>;
+  initialLanguage?: string;
+  onCodeChange?: (language: string, code: string) => void;
+  onSubmissionComplete?: (sub: Submission) => void;
+  preventCopyPaste?: boolean;
 }
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -172,10 +178,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   question,
   onBackToCatalog,
   initialSubmissions,
+  contestId,
+  initialCodes,
+  initialLanguage,
+  onCodeChange,
+  onSubmissionComplete,
+  preventCopyPaste = false,
 }) => {
   const [student, setStudent] = useState<Student | null>(() => getStoredStudent());
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [language, setLanguage] = useState("python");
+  const [language, setLanguage] = useState(initialLanguage || "python");
 
   const getStarterCode = useCallback(
     (lang: string) => {
@@ -190,13 +202,22 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     const supported = ["c", "python", "java", "cpp", "node"];
     const initial: Record<string, string> = {};
     for (const l of supported) {
-      initial[l] = getStarterCode(l);
+      initial[l] = initialCodes?.[l] ?? getStarterCode(l);
     }
     return initial;
-  }, [getStarterCode]);
+  }, [getStarterCode, initialCodes]);
 
   // Independent code buffer per language so switching tabs NEVER loses code!
   const [codes, setCodes] = useState<Record<string, string>>(computeInitialCodes);
+
+  useEffect(() => {
+    if (initialCodes && Object.keys(initialCodes).length > 0) {
+      setCodes((prev) => ({
+        ...prev,
+        ...initialCodes,
+      }));
+    }
+  }, [initialCodes]);
 
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -284,6 +305,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         questionId: question.id,
         userId: userIdent,
         mode: "SUBMIT",
+        contestId: contestId,
         limit: 200,
       });
       const allSubmissions = list || [];
@@ -296,7 +318,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     } finally {
       setLoadingSubmissions(false);
     }
-  }, [question.id, student]);
+  }, [question.id, student, contestId]);
 
   // When question changes, reset workspace state
   useEffect(() => {
@@ -323,8 +345,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         ...prev,
         [language]: newCode,
       }));
+      onCodeChange?.(language, newCode);
     },
-    [language]
+    [language, onCodeChange]
   );
 
   // Reset button: resets ONLY the active language to its template
@@ -414,6 +437,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           mode,
           sourceCode: currentCode,
           userId: userIdent,
+          contestId: contestId,
         });
 
         const subId = createRes.submissionId;
@@ -461,6 +485,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 id: sub.id,
                 userId: sub.userId || student?.id || "",
                 userEmail: sub.userEmail || student?.email,
+                contestId: contestId,
                 questionId: sub.questionId,
                 language: sub.language,
                 mode: "SUBMIT",
@@ -478,6 +503,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               submissionsLoadedRef.current = true;
               submissionsStaleRef.current = false;
             }
+
+            onSubmissionComplete?.(sub);
 
             // Also refresh from backend in background
             void loadSubmissions();
@@ -1073,6 +1100,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               onReset={handleReset}
               isRunning={isRunning}
               statusText={statusLabel}
+              preventCopyPaste={preventCopyPaste}
             />
           </div>
 
@@ -1172,6 +1200,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               onReset={handleReset}
               isRunning={isRunning}
               statusText={statusLabel}
+              preventCopyPaste={preventCopyPaste}
             />
           </div>
         )}

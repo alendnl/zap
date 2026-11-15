@@ -45,6 +45,7 @@ def list_submissions(
     userId: Optional[str] = None,
     questionId: Optional[str] = None,
     mode: Optional[SubmissionMode] = None,
+    contestId: Optional[str] = None,
     limit: int = 50,
     skip: int = 0,
     service: SubmissionService = Depends(get_submission_service)
@@ -56,6 +57,7 @@ def list_submissions(
         user_id=userId,
         question_id=questionId,
         mode=mode,
+        contest_id=contestId,
         limit=limit,
         skip=skip
     )

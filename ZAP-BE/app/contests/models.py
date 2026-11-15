@@ -107,12 +107,51 @@ class ContestSummary(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ProctoringViolation(BaseModel):
+    type: str  # "TAB_SWITCH", "COPY_PASTE", "FULLSCREEN_EXIT"
+    timestamp: str
+    details: Optional[str] = None
+
+
+class ProctoringTelemetry(BaseModel):
+    tabSwitchCount: int = 0
+    copyPasteAttempts: int = 0
+    fullscreenExitCount: int = 0
+    violationsLog: List[ProctoringViolation] = Field(default_factory=list)
+
+
+class CodingProblemState(BaseModel):
+    code: Dict[str, str] = Field(default_factory=dict)  # language -> source code
+    lastLanguage: str = "python"
+    status: str = "UNATTEMPTED"  # "UNATTEMPTED", "ATTEMPTED", "SUBMITTED", "ACCEPTED"
+    bestVerdict: Optional[str] = None
+    lastSubmissionId: Optional[str] = None
+
+
 class ContestStartResponse(BaseModel):
     contest: Contest
     mcqQuestions: List[Dict[str, Any]]
     codingQuestions: List[Dict[str, Any]]
     startedAt: str
     sessionId: str
+    alreadySubmitted: bool = False
+    submission: Optional[Dict[str, Any]] = None
+    mcqAnswers: Dict[str, str] = Field(default_factory=dict)
+    reviewedQuestionIds: List[str] = Field(default_factory=list)
+    codingState: Dict[str, CodingProblemState] = Field(default_factory=dict)
+    proctoring: Optional[ProctoringTelemetry] = None
+    timeSpentSeconds: int = 0
+
+
+class ContestSessionSyncRequest(BaseModel):
+    studentId: str
+    studentEmail: Optional[str] = None
+    studentName: Optional[str] = None
+    mcqAnswers: Optional[Dict[str, str]] = None
+    reviewedQuestionIds: Optional[List[str]] = None
+    codingState: Optional[Dict[str, CodingProblemState]] = None
+    proctoring: Optional[ProctoringTelemetry] = None
+    timeSpentSeconds: Optional[int] = None
 
 
 class ContestSubmitRequest(BaseModel):
@@ -121,6 +160,8 @@ class ContestSubmitRequest(BaseModel):
     studentName: Optional[str] = None
     mcqAnswers: Dict[str, str] = Field(default_factory=dict)  # questionId -> selectedOptionId
     codingSubmissions: Dict[str, str] = Field(default_factory=dict)  # questionId -> submissionId
+    codingState: Optional[Dict[str, CodingProblemState]] = None
+    proctoring: Optional[ProctoringTelemetry] = None
     timeSpentSeconds: int = 0
 
 
@@ -167,3 +208,5 @@ class ContestSubmitResponse(BaseModel):
     submittedAt: str
     mcqBreakdown: List[MCQReviewItem]
     codingBreakdown: List[CodingReviewItem]
+    proctoring: Optional[ProctoringTelemetry] = None
+    codingState: Optional[Dict[str, Any]] = None

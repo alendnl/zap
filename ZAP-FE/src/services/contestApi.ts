@@ -5,6 +5,7 @@ import {
   ContestStartResponse,
   ContestSubmitRequest,
   ContestSubmitResponse,
+  ContestSessionSyncRequest,
 } from "@/types/contest";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
@@ -78,13 +79,29 @@ export const contestApi = {
       method: "POST",
     }),
 
-  start: (idOrSlug: string, studentId?: string): Promise<ContestStartResponse> => {
+  start: (
+    idOrSlug: string,
+    studentId?: string,
+    studentEmail?: string,
+    studentName?: string
+  ): Promise<ContestStartResponse> => {
     const params = new URLSearchParams();
     if (studentId) params.append("student_id", studentId);
+    if (studentEmail) params.append("student_email", studentEmail);
+    if (studentName) params.append("student_name", studentName);
     return apiFetch(`/api/v1/contests/${idOrSlug}/start?${params.toString()}`, {
       method: "POST",
     });
   },
+
+  sync: (
+    idOrSlug: string,
+    payload: ContestSessionSyncRequest
+  ): Promise<{ ok: boolean; status: string }> =>
+    apiFetch(`/api/v1/contests/${idOrSlug}/sync`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   submit: (
     idOrSlug: string,

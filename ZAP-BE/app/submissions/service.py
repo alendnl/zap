@@ -49,6 +49,7 @@ class SubmissionService:
         submission = Submission(
             userId=user_id,
             userEmail=user_email,
+            contestId=req.contestId,
             questionId=req.questionId,
             language=req.language,
             mode=req.mode,
@@ -108,6 +109,7 @@ class SubmissionService:
         user_id: Optional[str] = None,
         question_id: Optional[str] = None,
         mode: Optional[SubmissionMode] = None,
+        contest_id: Optional[str] = None,
         limit: int = 50,
         skip: int = 0,
     ) -> List[SubmissionSummary]:
@@ -169,12 +171,19 @@ class SubmissionService:
         if mode:
             query["mode"] = mode.value if hasattr(mode, "value") else mode
 
+        if contest_id:
+            query["contestId"] = contest_id
+        else:
+            # When querying without contest_id, isolate and do NOT include contest submissions
+            query["contestId"] = {"$in": [None, ""]}
+
         if coll is not None:
             projection = {
                 "_id": 0,
                 "id": 1,
                 "userId": 1,
                 "userEmail": 1,
+                "contestId": 1,
                 "questionId": 1,
                 "language": 1,
                 "mode": 1,
@@ -204,10 +213,17 @@ class SubmissionService:
                 expected_mode = mode.value if hasattr(mode, "value") else mode
                 if doc.get("mode") != expected_mode:
                     continue
+            if contest_id:
+                if doc.get("contestId") != contest_id:
+                    continue
+            else:
+                if doc.get("contestId"):
+                    continue
             summary_dict = {
                 "id": doc.get("id") or doc.get("_id"),
                 "userId": doc.get("userId", "student-123"),
                 "userEmail": doc.get("userEmail"),
+                "contestId": doc.get("contestId"),
                 "questionId": doc.get("questionId", ""),
                 "language": doc.get("language", ""),
                 "mode": doc.get("mode", SubmissionMode.SUBMIT),
@@ -327,11 +343,13 @@ class SubmissionService:
 
         sub = self.get_submission(submission_id)
         if sub and sub.status in [SubmissionStatus.COMPLETED, SubmissionStatus.FAILED]:
-            try:
-                from app.activity.service import ActivityService
-                act_svc = ActivityService(self.db)
-                act_svc.record_submission(sub)
-            except Exception:
-                pass
+            # Do NOT pollute student activity graph with contest submissions
+            if not getattr(sub, "contestId", None):
+                try:
+                    from app.activity.service import ActivityService
+                    act_svc = ActivityService(self.db)
+                    act_svc.record_submission(sub)
+                except Exception:
+                    pass
 
         return sub

@@ -146,7 +146,9 @@ export default function Home() {
     setLoadingContestStart(true);
     try {
       const studentId = student?.id || (student as any)?._id || student?.studentId || "student-anonymous";
-      const session = await contestApi.start(contestSlugOrId, studentId);
+      const studentEmail = student?.email;
+      const studentName = student?.name;
+      const session = await contestApi.start(contestSlugOrId, studentId, studentEmail, studentName);
       setActiveContestSession(session);
       setActiveContestOverview(null);
     } catch (err: any) {
@@ -425,6 +427,7 @@ export default function Home() {
         studentId={student.id || (student as any)?._id || student.studentId}
         studentEmail={student.email}
         studentName={student.name}
+        initialSession={activeContestSession}
         onExit={() => {
           setActiveContestSession(null);
           void loadContestsList();

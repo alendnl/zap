@@ -19,6 +19,10 @@ from app.contests.models import (
     ContestSubmitResponse,
     MCQReviewItem,
     CodingReviewItem,
+    ProctoringViolation,
+    ProctoringTelemetry,
+    CodingProblemState,
+    ContestSessionSyncRequest,
 )
 from app.mcq.service import MCQService
 from app.questions.service import QuestionService
@@ -285,12 +289,82 @@ class ContestService:
 
         return True
 
-    def start_contest_session(self, contest_id_or_slug: str, student_id: str) -> ContestStartResponse:
-        """Resolves questions for this contest session, masking correct answers for security."""
+    def start_contest_session(
+        self,
+        contest_id_or_slug: str,
+        student_id: str,
+        student_email: Optional[str] = None,
+        student_name: Optional[str] = None,
+    ) -> ContestStartResponse:
+        """Resolves questions for this contest session, masking correct answers for security.
+        Maintains persistent in-progress state and prevents re-attempting if already submitted.
+        """
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
 
+        coll = self._get_submissions_coll()
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Build student match conditions
+        id_conditions = [{"studentId": student_id}]
+        if student_email:
+            id_conditions.append({"studentEmail": student_email.lower().strip()})
+        query = {
+            "contestId": contest.id,
+            "$or": id_conditions
+        }
+
+        existing_doc = None
+        if coll is not None:
+            existing_doc = coll.find_one(query)
+        else:
+            for s in self._memory_submissions.values():
+                if s.get("contestId") == contest.id and (
+                    s.get("studentId") == student_id or
+                    (student_email and s.get("studentEmail", "").lower() == student_email.lower().strip())
+                ):
+                    existing_doc = s
+                    break
+
+        if existing_doc:
+            session_status = existing_doc.get("status", "IN_PROGRESS")
+            # If already finalized/submitted, return completed record
+            if session_status == "SUBMITTED":
+                clean_sub = dict(existing_doc)
+                clean_sub.pop("_id", None)
+                return ContestStartResponse(
+                    contest=contest,
+                    mcqQuestions=clean_sub.get("mcqQuestions", []),
+                    codingQuestions=clean_sub.get("codingQuestions", []),
+                    startedAt=clean_sub.get("startedAt", now),
+                    sessionId=existing_doc.get("id") or str(existing_doc.get("_id")),
+                    alreadySubmitted=True,
+                    submission=clean_sub,
+                    mcqAnswers=clean_sub.get("mcqAnswers", {}),
+                    reviewedQuestionIds=clean_sub.get("reviewedQuestionIds", []),
+                    codingState=clean_sub.get("codingState", {}),
+                    proctoring=clean_sub.get("proctoring"),
+                    timeSpentSeconds=clean_sub.get("timeSpentSeconds", 0),
+                )
+
+            # Resuming IN_PROGRESS session
+            return ContestStartResponse(
+                contest=contest,
+                mcqQuestions=existing_doc.get("mcqQuestions", []),
+                codingQuestions=existing_doc.get("codingQuestions", []),
+                startedAt=existing_doc.get("startedAt", now),
+                sessionId=existing_doc.get("id") or str(existing_doc.get("_id")),
+                alreadySubmitted=False,
+                submission=None,
+                mcqAnswers=existing_doc.get("mcqAnswers", {}),
+                reviewedQuestionIds=existing_doc.get("reviewedQuestionIds", []),
+                codingState=existing_doc.get("codingState", {}),
+                proctoring=existing_doc.get("proctoring"),
+                timeSpentSeconds=existing_doc.get("timeSpentSeconds", 0),
+            )
+
+        # First-time candidate entry: resolve questions and initialize session
         resolved_mcqs = []
         if contest.hasMcq and contest.mcqConfig and contest.mcqConfig.enabled:
             resolved_mcqs = self._resolve_mcq_questions(contest.mcqConfig)
@@ -299,8 +373,37 @@ class ContestService:
         if contest.hasCoding and contest.codingConfig and contest.codingConfig.enabled:
             resolved_coding = self._resolve_coding_questions(contest.codingConfig)
 
-        now = datetime.now(timezone.utc).isoformat()
-        session_id = f"sess-{uuid.uuid4().hex[:12]}"
+        session_id = f"csub-{uuid.uuid4().hex[:12]}"
+        init_proctoring = {
+            "tabSwitchCount": 0,
+            "copyPasteAttempts": 0,
+            "fullscreenExitCount": 0,
+            "violationsLog": [],
+        }
+
+        initial_doc = {
+            "_id": session_id,
+            "id": session_id,
+            "contestId": contest.id,
+            "studentId": student_id,
+            "studentEmail": (student_email or "").strip().lower(),
+            "studentName": student_name or "",
+            "status": "IN_PROGRESS",
+            "startedAt": now,
+            "updatedAt": now,
+            "mcqQuestions": resolved_mcqs,
+            "codingQuestions": resolved_coding,
+            "mcqAnswers": {},
+            "reviewedQuestionIds": [],
+            "codingState": {},
+            "proctoring": init_proctoring,
+            "timeSpentSeconds": 0,
+        }
+
+        if coll is not None:
+            coll.insert_one(initial_doc)
+        else:
+            self._memory_submissions[session_id] = initial_doc
 
         return ContestStartResponse(
             contest=contest,
@@ -308,7 +411,107 @@ class ContestService:
             codingQuestions=resolved_coding,
             startedAt=now,
             sessionId=session_id,
+            alreadySubmitted=False,
+            mcqAnswers={},
+            reviewedQuestionIds=[],
+            codingState={},
+            proctoring=ProctoringTelemetry(**init_proctoring),
+            timeSpentSeconds=0,
         )
+
+    def sync_contest_session(
+        self,
+        contest_id_or_slug: str,
+        sync_data: ContestSessionSyncRequest
+    ) -> Dict[str, Any]:
+        """Saves live in-progress contest state, answers, code, and proctoring telemetry in real-time."""
+        contest = self.get_contest(contest_id_or_slug)
+        if not contest:
+            raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        coll = self._get_submissions_coll()
+        now = datetime.now(timezone.utc).isoformat()
+
+        id_conditions = [{"studentId": sync_data.studentId}]
+        if sync_data.studentEmail:
+            id_conditions.append({"studentEmail": sync_data.studentEmail.lower().strip()})
+        query = {
+            "contestId": contest.id,
+            "$or": id_conditions
+        }
+
+        updates: Dict[str, Any] = {"updatedAt": now}
+        if sync_data.mcqAnswers is not None:
+            updates["mcqAnswers"] = sync_data.mcqAnswers
+        if sync_data.reviewedQuestionIds is not None:
+            updates["reviewedQuestionIds"] = sync_data.reviewedQuestionIds
+        if sync_data.codingState is not None:
+            serialized_coding = {}
+            for qid, state in sync_data.codingState.items():
+                if hasattr(state, "model_dump"):
+                    serialized_coding[qid] = state.model_dump()
+                elif isinstance(state, dict):
+                    serialized_coding[qid] = state
+            updates["codingState"] = serialized_coding
+        if sync_data.proctoring is not None:
+            updates["proctoring"] = (
+                sync_data.proctoring.model_dump()
+                if hasattr(sync_data.proctoring, "model_dump")
+                else sync_data.proctoring
+            )
+        if sync_data.timeSpentSeconds is not None:
+            updates["timeSpentSeconds"] = sync_data.timeSpentSeconds
+
+        if coll is not None:
+            # Only update if still IN_PROGRESS (cannot overwrite once SUBMITTED!)
+            res = coll.update_one(
+                {**query, "status": "IN_PROGRESS"},
+                {"$set": updates}
+            )
+            if res.matched_count == 0:
+                doc = coll.find_one(query)
+                if doc and doc.get("status") == "SUBMITTED":
+                    return {"ok": False, "status": "ALREADY_SUBMITTED"}
+                new_id = f"csub-{uuid.uuid4().hex[:12]}"
+                new_doc = {
+                    "_id": new_id,
+                    "id": new_id,
+                    "contestId": contest.id,
+                    "studentId": sync_data.studentId,
+                    "studentEmail": (sync_data.studentEmail or "").strip().lower(),
+                    "studentName": sync_data.studentName or "",
+                    "status": "IN_PROGRESS",
+                    "startedAt": now,
+                    **updates
+                }
+                coll.insert_one(new_doc)
+        else:
+            found = False
+            for s_id, s in self._memory_submissions.items():
+                if s.get("contestId") == contest.id and (
+                    s.get("studentId") == sync_data.studentId or
+                    (sync_data.studentEmail and s.get("studentEmail", "").lower() == sync_data.studentEmail.lower().strip())
+                ):
+                    if s.get("status") == "SUBMITTED":
+                        return {"ok": False, "status": "ALREADY_SUBMITTED"}
+                    s.update(updates)
+                    found = True
+                    break
+            if not found:
+                new_id = f"csub-{uuid.uuid4().hex[:12]}"
+                self._memory_submissions[new_id] = {
+                    "_id": new_id,
+                    "id": new_id,
+                    "contestId": contest.id,
+                    "studentId": sync_data.studentId,
+                    "studentEmail": (sync_data.studentEmail or "").strip().lower(),
+                    "studentName": sync_data.studentName or "",
+                    "status": "IN_PROGRESS",
+                    "startedAt": now,
+                    **updates
+                }
+
+        return {"ok": True, "status": "SYNCED"}
 
     def _resolve_mcq_questions(self, config: MCQSectionConfig) -> List[Dict[str, Any]]:
         mcq_service = MCQService(self.db)
@@ -416,10 +619,37 @@ class ContestService:
         }
 
     def submit_contest(self, contest_id_or_slug: str, submit_data: ContestSubmitRequest) -> ContestSubmitResponse:
-        """Evaluates student's contest answers and produces score and breakdown."""
+        """Evaluates student's contest answers, locks the session as SUBMITTED, and persists scorecard."""
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        coll = self._get_submissions_coll()
+        id_conditions = [{"studentId": submit_data.studentId}]
+        if submit_data.studentEmail:
+            id_conditions.append({"studentEmail": submit_data.studentEmail.lower().strip()})
+        query = {
+            "contestId": contest.id,
+            "$or": id_conditions
+        }
+
+        existing_doc = None
+        if coll is not None:
+            existing_doc = coll.find_one(query)
+        else:
+            for s in self._memory_submissions.values():
+                if s.get("contestId") == contest.id and (
+                    s.get("studentId") == submit_data.studentId or
+                    (submit_data.studentEmail and s.get("studentEmail", "").lower() == submit_data.studentEmail.lower().strip())
+                ):
+                    existing_doc = s
+                    break
+
+        # Single attempt rule: If already finalized, return the locked scorecard
+        if existing_doc and existing_doc.get("status") == "SUBMITTED":
+            clean = dict(existing_doc)
+            clean.pop("_id", None)
+            return ContestSubmitResponse(**clean)
 
         mcq_service = MCQService(self.db)
         mcq_breakdown: List[MCQReviewItem] = []
@@ -466,21 +696,33 @@ class ContestService:
         max_coding_score = (contest.codingConfig.totalQuestions * 10) if contest.hasCoding and contest.codingConfig else 30
 
         q_service = QuestionService(self.db)
-        if submit_data.codingSubmissions:
-            for qid, sub_id in submit_data.codingSubmissions.items():
+        coding_items_map = dict(submit_data.codingSubmissions or {})
+        if submit_data.codingState:
+            for qid, c_state in submit_data.codingState.items():
+                if qid not in coding_items_map:
+                    coding_items_map[qid] = getattr(c_state, "lastSubmissionId", None) or ""
+
+        if coding_items_map:
+            for qid, sub_id in coding_items_map.items():
                 q = q_service.get_question(qid)
                 title = q.title if q else qid
                 diff = getattr(q.difficulty, "value", str(q.difficulty)) if q else "MEDIUM"
+
+                verdict = None
+                if submit_data.codingState and qid in submit_data.codingState:
+                    c_state = submit_data.codingState[qid]
+                    verdict = getattr(c_state, "bestVerdict", None) or getattr(c_state, "status", None)
+
                 coding_attempted += 1
-                score = 10  # Full credit for attempted submission in contest
+                score = 10
                 coding_score += score
                 coding_breakdown.append(
                     CodingReviewItem(
                         questionId=qid,
                         title=title,
                         difficulty=diff,
-                        submissionId=sub_id,
-                        status="SUBMITTED",
+                        submissionId=sub_id if sub_id else None,
+                        status="ACCEPTED" if verdict == "ACCEPTED" else "SUBMITTED",
                         score=score,
                     )
                 )
@@ -491,7 +733,7 @@ class ContestService:
             max_total = contest.totalPoints or 55
 
         percentage = round((total_score / max(1, max_total)) * 100, 1)
-        sub_id = f"csub-{uuid.uuid4().hex[:12]}"
+        sub_id = (existing_doc.get("id") or str(existing_doc.get("_id"))) if existing_doc else f"csub-{uuid.uuid4().hex[:12]}"
         now = datetime.now(timezone.utc).isoformat()
 
         response = ContestSubmitResponse(
@@ -514,14 +756,22 @@ class ContestService:
             submittedAt=now,
             mcqBreakdown=mcq_breakdown,
             codingBreakdown=coding_breakdown,
+            proctoring=submit_data.proctoring,
+            codingState={k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in (submit_data.codingState or {}).items()},
         )
 
-        # Persist submission in DB
-        coll = self._get_submissions_coll()
+        # Persist submission in DB as SUBMITTED (locked)
         doc = response.model_dump()
         doc["_id"] = sub_id
+        doc["status"] = "SUBMITTED"
+        doc["updatedAt"] = now
+
         if coll is not None:
-            coll.insert_one(doc)
+            coll.update_one(
+                {"_id": sub_id},
+                {"$set": doc},
+                upsert=True
+            )
         else:
             self._memory_submissions[sub_id] = doc
 
