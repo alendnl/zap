@@ -28,20 +28,33 @@ class QuestionService:
     def get_question(self, question_id: str) -> Optional[Question]:
         coll = self._get_collection()
         if coll is not None:
-            doc = coll.find_one({"$or": [{"_id": question_id}, {"id": question_id}, {"slug": question_id}]})
+            query_filter = [{"_id": question_id}, {"id": question_id}, {"slug": question_id}]
+            try:
+                from bson import ObjectId
+                if ObjectId.is_valid(question_id):
+                    query_filter.append({"_id": ObjectId(question_id)})
+            except Exception:
+                pass
+            doc = coll.find_one({"$or": query_filter})
             if doc:
+                if not doc.get("id") and "_id" in doc:
+                    doc["id"] = str(doc["_id"])
                 doc.pop("_id", None)
                 return Question(**doc)
             return None
         doc = self._memory_store.get(question_id)
         if doc:
             clean = dict(doc)
+            if not clean.get("id") and "_id" in clean:
+                clean["id"] = str(clean["_id"])
             clean.pop("_id", None)
             return Question(**clean)
         # Search by slug in memory
         for item in self._memory_store.values():
             if item.get("slug") == question_id:
                 clean = dict(item)
+                if not clean.get("id") and "_id" in clean:
+                    clean["id"] = str(clean["_id"])
                 clean.pop("_id", None)
                 return Question(**clean)
         return None
@@ -55,7 +68,7 @@ class QuestionService:
                 query["status"] = status
             if summary:
                 projection = {
-                    "_id": 0,
+                    "_id": 1,
                     "id": 1,
                     "slug": 1,
                     "title": 1,
@@ -68,6 +81,9 @@ class QuestionService:
                 }
                 cursor = coll.find(query, projection)
                 for doc in cursor:
+                    if not doc.get("id") and "_id" in doc:
+                        doc["id"] = str(doc["_id"])
+                    doc.pop("_id", None)
                     doc["testCasesCount"] = len(doc.get("testCases", []))
                     doc.pop("testCases", None)
                     questions.append(QuestionSummary(**doc))
@@ -75,6 +91,8 @@ class QuestionService:
 
             cursor = coll.find(query)
             for doc in cursor:
+                if not doc.get("id") and "_id" in doc:
+                    doc["id"] = str(doc["_id"])
                 doc.pop("_id", None)
                 questions.append(Question(**doc))
             return questions
@@ -83,6 +101,8 @@ class QuestionService:
             if status and item.get("status") != status:
                 continue
             clean = dict(item)
+            if not clean.get("id") and "_id" in clean:
+                clean["id"] = str(clean["_id"])
             clean.pop("_id", None)
             if summary:
                 clean["testCasesCount"] = len(clean.get("testCases", []))
@@ -103,7 +123,14 @@ class QuestionService:
 
         coll = self._get_collection()
         if coll is not None:
-            coll.update_one({"$or": [{"_id": existing.id}, {"id": existing.id}]}, {"$set": update_data})
+            query_filter = [{"_id": existing.id}, {"id": existing.id}]
+            try:
+                from bson import ObjectId
+                if ObjectId.is_valid(existing.id):
+                    query_filter.append({"_id": ObjectId(existing.id)})
+            except Exception:
+                pass
+            coll.update_one({"$or": query_filter}, {"$set": update_data})
         else:
             if existing.id in self._memory_store:
                 self._memory_store[existing.id].update(update_data)
@@ -117,7 +144,14 @@ class QuestionService:
         
         coll = self._get_collection()
         if coll is not None:
-            result = coll.delete_one({"$or": [{"_id": existing.id}, {"id": existing.id}]})
+            query_filter = [{"_id": existing.id}, {"id": existing.id}]
+            try:
+                from bson import ObjectId
+                if ObjectId.is_valid(existing.id):
+                    query_filter.append({"_id": ObjectId(existing.id)})
+            except Exception:
+                pass
+            result = coll.delete_one({"$or": query_filter})
             return result.deleted_count > 0
         
         if existing.id in self._memory_store:

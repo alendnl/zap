@@ -65,6 +65,13 @@ export default function FacultyDashboard() {
             <EnvironmentSwitcher />
             <ThemeToggle />
             <Link
+              href="/admin/questions"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3 py-1.5 rounded-xl transition-all"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Admin Console</span>
+            </Link>
+            <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-[#f8fafc] dark:bg-[#1a2233] border border-[#e2e8f0] dark:border-[#232f45] px-3 py-1.5 rounded-xl transition-all"
             >
@@ -125,11 +132,11 @@ export default function FacultyDashboard() {
 
               <div className="flex items-center gap-2 flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
                 <Link
-                  href={`/faculty/questions/${q.id}`}
+                  href="/admin/questions"
                   className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#f8fafc] dark:bg-[#1a2233] hover:bg-[#f1f5f9] dark:hover:bg-[#232f45] border border-[#e2e8f0] dark:border-[#232f45] text-[#0f172a] dark:text-white text-xs font-semibold rounded-lg transition-all"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
+                  <span>Edit in Admin</span>
                 </Link>
                 <button
                   type="button"

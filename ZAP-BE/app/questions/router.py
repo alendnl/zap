@@ -54,6 +54,13 @@ def update_question(
     payload: QuestionUpdate,
     service: QuestionService = Depends(get_question_service)
 ):
+    if payload.slug:
+        existing_with_slug = service.get_question(payload.slug)
+        if existing_with_slug and existing_with_slug.id != question_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Question with slug '{payload.slug}' already exists"
+            )
     updated = service.update_question(question_id, payload)
     if not updated:
         raise HTTPException(

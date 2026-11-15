@@ -25,6 +25,7 @@
 - [x] **Dynamic Multi-Tenant Environment Routing**: Single deployment on GCP Cloud Run supporting `production` and `qa` via `X-ZAP-ENV` header.
 - [x] **Student Coding Arena**: Monaco editor with language switcher, split-screen layout, Run/Submit workflows, and real-time output terminal.
 - [x] **Faculty Question Management**: CRUD operations for questions, starter templates, and test cases with visibility toggling (`PUBLIC` vs `HIDDEN`).
+- [x] **Admin Question Management Console**: Dedicated `/admin/questions` portal with admin authentication gating, full question CRUD (create, update, delete), live search, multi-filter, test cases editor, starter code management, and JSON import/export.
 - [x] **Load Testing Suite**: Headless Locust test runner simulating bursty 100-user concurrent submissions targeting lower database safely.
 
 ---

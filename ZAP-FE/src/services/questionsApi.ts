@@ -13,6 +13,18 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   headers.set(ENVIRONMENT_HEADER, getEnvironment());
 
+  if (typeof localStorage !== "undefined") {
+    const token = localStorage.getItem("zap.student.token");
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    try {
+      const studentRaw = localStorage.getItem("zap.student.user");
+      if (studentRaw) {
+        const student = JSON.parse(studentRaw);
+        if (student?.email) headers.set("X-Admin-Email", student.email);
+      }
+    } catch {}
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers,

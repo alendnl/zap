@@ -101,6 +101,41 @@ def test_create_and_get_question():
     assert update_res.json()["title"] == "Two Sum Updated"
     assert update_res.json()["version"] == 2
 
+    # Update difficulty, status, and test cases
+    update_details_res = client.put(f"/api/v1/questions/{q_id}", json={
+        "difficulty": "HARD",
+        "status": "DRAFT",
+        "testCases": [
+            {
+                "visibility": "PUBLIC",
+                "input": "[1,2,3]\n5",
+                "expectedOutput": "[1, 2]",
+                "enabled": True
+            }
+        ]
+    })
+    assert update_details_res.status_code == 200
+    assert update_details_res.json()["difficulty"] == "HARD"
+    assert update_details_res.json()["status"] == "DRAFT"
+    assert len(update_details_res.json()["testCases"]) == 1
+
+    # Conflict test: create second question and attempt to rename first question to second slug
+    second_res = client.post("/api/v1/questions", json={
+        "slug": "three-sum",
+        "title": "Three Sum",
+        "statement": "Find 3 sum triplets.",
+        "difficulty": "MEDIUM",
+        "supportedLanguages": ["python"],
+        "testCases": []
+    })
+    assert second_res.status_code == 201
+
+    conflict_res = client.put(f"/api/v1/questions/{q_id}", json={"slug": "three-sum"})
+    assert conflict_res.status_code == 409
+
+    # Delete second question
+    client.delete(f"/api/v1/questions/{second_res.json()['id']}")
+
     # Delete question
     del_res = client.delete(f"/api/v1/questions/{q_id}")
     assert del_res.status_code == 204

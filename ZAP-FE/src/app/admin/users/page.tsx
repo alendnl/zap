@@ -300,7 +300,7 @@ export default function AdminUsersDashboardPage() {
               </div>
 
               <Link
-                href="/faculty/questions"
+                href="/admin/questions"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
                 title="Manage Questions & Test Cases"
               >

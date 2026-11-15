@@ -475,7 +475,7 @@ export default function Home() {
                         </div>
                       </Link>
                       <Link
-                        href="/faculty/questions"
+                        href="/admin/questions"
                         onClick={() => setAdminDropdownOpen(false)}
                         className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
                       >
