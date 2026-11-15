@@ -20,7 +20,7 @@ def test_list_mcq_auto_seeds():
     response = client.get("/api/v1/mcq/questions?summary=true")
     assert response.status_code == 200
     questions = response.json()
-    assert len(questions) == 10
+    assert len(questions) == 35
     
     # Check that categories exist
     categories = {q["category"] for q in questions}
@@ -166,3 +166,4 @@ def test_update_and_delete_mcq_question():
 
     # Verify 404
     assert client.get(f"/api/v1/mcq/questions/{qid}").status_code == 404
+

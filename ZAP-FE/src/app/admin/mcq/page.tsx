@@ -32,6 +32,7 @@ import {
   Cpu,
   BookOpen,
   Sliders,
+  Trophy,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi } from "@/services/adminApi";
@@ -577,6 +578,15 @@ export default function AdminMCQPage() {
                   </span>
                 )}
               </div>
+
+              <Link
+                href="/admin/contests"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+                title="Contest Management & Creation"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span>Contests</span>
+              </Link>
             </nav>
           </div>
 
@@ -1821,3 +1831,4 @@ export default function AdminMCQPage() {
     </div>
   );
 }
+

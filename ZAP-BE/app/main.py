@@ -10,6 +10,7 @@ from app.compiler.router import router as compiler_router
 from app.activity.router import router as activity_router
 from app.admin.router import router as admin_router
 from app.mcq.router import router as mcq_router
+from app.contests.router import router as contests_router
 
 settings = get_settings()
 
@@ -57,4 +58,5 @@ app.include_router(compiler_router)
 app.include_router(activity_router)
 app.include_router(admin_router)
 app.include_router(mcq_router)
+app.include_router(contests_router)
 

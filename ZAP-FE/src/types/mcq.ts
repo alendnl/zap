@@ -129,3 +129,4 @@ export const EMPTY_MCQ_FORM: MCQFormData = {
   points: 1,
   status: "PUBLISHED",
 };
+

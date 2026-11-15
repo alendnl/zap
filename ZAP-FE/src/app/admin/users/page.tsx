@@ -21,6 +21,7 @@ import {
   Code2,
   Activity,
   HelpCircle,
+  Trophy,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi, UserAdminStats, AdminUsersOverview, UserDetailActivityResponse } from "@/services/adminApi";
@@ -316,6 +317,15 @@ export default function AdminUsersDashboardPage() {
               >
                 <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>MCQ Questions</span>
+              </Link>
+
+              <Link
+                href="/admin/contests"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+                title="Contest Management & Creation"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span>Contests</span>
               </Link>
             </nav>
           </div>

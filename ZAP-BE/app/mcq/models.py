@@ -117,3 +117,4 @@ class MCQQuestionSummary(BaseModel):
     updatedAt: str
 
     model_config = ConfigDict(populate_by_name=True)
+

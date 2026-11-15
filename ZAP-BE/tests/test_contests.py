@@ -1,0 +1,165 @@
+import pytest
+from fastapi.testclient import TestClient
+import mongomock
+from app.main import app
+from app.db.mongodb import set_test_database
+from app.admin.service import AdminService
+from app.mcq.service import MCQService
+from app.questions.service import QuestionService
+from app.questions.models import QuestionCreate
+
+
+@pytest.fixture(autouse=True)
+def setup_mock_db():
+    mock_client = mongomock.MongoClient()
+    mock_db = mock_client["test_zap_platform"]
+    set_test_database(mock_db)
+
+    # Seed mock questions
+    q_service = QuestionService(mock_db)
+    for i in range(5):
+        q_service.create_question(
+            QuestionCreate(
+                slug=f"problem-{i}",
+                title=f"Algorithm Problem {i}",
+                difficulty="EASY" if i % 2 == 0 else "MEDIUM",
+                tags=["array", "algo"],
+                statement=f"Statement for problem {i}",
+                examples=[{"input": "1", "output": "1"}],
+                constraints=["1 <= n <= 100"],
+            )
+        )
+
+    # Seed mock MCQs
+    mcq_service = MCQService(mock_db)
+    mcq_service.seed_default_questions(force=True)
+
+    # Seed admin user
+    mock_db.admins.insert_one({"email": "superadmin@zap.dev"})
+
+    yield
+    set_test_database(None)
+
+
+client = TestClient(app)
+
+
+def test_list_contests_auto_seeds_sample_contest():
+    res = client.get("/api/v1/contests?summary=true")
+    assert res.status_code == 200
+    contests = res.json()
+    assert len(contests) >= 1
+
+    sample = contests[0]
+    assert sample["slug"] == "zap-grand-assessment-1"
+    assert sample["hasMcq"] is True
+    assert sample["hasCoding"] is True
+    assert sample["mcqQuestionsCount"] == 25
+    assert sample["codingQuestionsCount"] == 3
+
+
+def test_get_single_contest():
+    res = client.get("/api/v1/contests/zap-grand-assessment-1")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["title"] == "ZAP Grand Assessment #1: Core CS & Programming"
+    assert data["durationMinutes"] == 90
+    assert data["mcqConfig"]["enabled"] is True
+    assert data["codingConfig"]["enabled"] is True
+
+
+def test_start_contest_masks_mcq_answers():
+    res = client.post("/api/v1/contests/zap-grand-assessment-1/start?student_id=student-123")
+    assert res.status_code == 200
+    data = res.json()
+    assert "sessionId" in data
+    assert "mcqQuestions" in data
+    assert "codingQuestions" in data
+    assert len(data["mcqQuestions"]) == 25
+    assert len(data["codingQuestions"]) == 3
+
+    # Security verification: isCorrect and explanation must not be in payload
+    first_mcq = data["mcqQuestions"][0]
+    assert "explanation" not in first_mcq
+    for opt in first_mcq["options"]:
+        assert "isCorrect" not in opt
+        assert "explanation" not in opt
+
+
+def test_create_and_delete_contest_with_admin():
+    admin_email = "superadmin@zap.dev"
+
+    # Non-admin attempt should be 403
+    payload = {
+        "title": "Placement Mock Test",
+        "slug": "placement-mock-test",
+        "description": "Custom created placement test for campus drive",
+        "durationMinutes": 60,
+        "hasMcq": True,
+        "hasCoding": True,
+        "mcqConfig": {
+            "enabled": True,
+            "mode": "RANDOM",
+            "randomRules": [{"category": "DSA", "count": 5}],
+            "totalQuestions": 5,
+            "pointsPerQuestion": 1
+        },
+        "codingConfig": {
+            "enabled": True,
+            "mode": "RANDOM",
+            "randomRules": [{"difficulty": "EASY", "count": 2}],
+            "totalQuestions": 2,
+            "pointsPerQuestion": 10
+        },
+        "status": "PUBLISHED",
+        "totalPoints": 25
+    }
+
+    fail_res = client.post("/api/v1/contests", json=payload, headers={"X-Admin-Email": "student@college.edu"})
+    assert fail_res.status_code == 403
+
+    # Admin attempt should succeed
+    succ_res = client.post("/api/v1/contests", json=payload, headers={"X-Admin-Email": admin_email})
+    assert succ_res.status_code == 201
+    created = succ_res.json()
+    assert created["slug"] == "placement-mock-test"
+    contest_id = created["id"]
+
+    # Delete contest
+    del_res = client.delete(f"/api/v1/contests/{contest_id}", headers={"X-Admin-Email": admin_email})
+    assert del_res.status_code == 204
+
+
+def test_submit_contest_calculates_score():
+    # Start session first to get question IDs
+    start_res = client.post("/api/v1/contests/zap-grand-assessment-1/start?student_id=student-123")
+    assert start_res.status_code == 200
+    mcqs = start_res.json()["mcqQuestions"]
+    codings = start_res.json()["codingQuestions"]
+
+    # Answer first MCQ with its first option
+    mcq_answers = {}
+    for q in mcqs[:5]:
+        mcq_answers[q["id"]] = q["options"][0]["id"]
+
+    submit_payload = {
+        "studentId": "student-123",
+        "studentEmail": "student123@college.edu",
+        "studentName": "Alex Rivera",
+        "mcqAnswers": mcq_answers,
+        "codingSubmissions": {codings[0]["id"]: "sub-abc-123"},
+        "timeSpentSeconds": 1800
+    }
+
+    sub_res = client.post("/api/v1/contests/zap-grand-assessment-1/submit", json=submit_payload)
+    assert sub_res.status_code == 200
+    result = sub_res.json()
+
+    assert "submissionId" in result
+    assert result["studentId"] == "student-123"
+    assert result["codingProblemsAttempted"] == 1
+    assert result["codingScore"] == 10
+    assert len(result["mcqBreakdown"]) == 5
+    # Verification that answers are revealed post-submission
+    assert "correctOptionId" in result["mcqBreakdown"][0]
+    assert "isCorrect" in result["mcqBreakdown"][0]

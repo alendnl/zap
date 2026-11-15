@@ -15,12 +15,24 @@ import {
   ShieldCheck,
   ChevronDown,
   Users,
+  Trophy,
+  Clock,
+  Layers,
+  HelpCircle,
+  Send,
+  Check,
+  X,
+  Play,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
+import { ContestArena } from "@/components/ContestArena";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { QuestionData } from "@/components/QuestionPane";
 import { questionsApi } from "@/services/questionsApi";
+import { contestApi } from "@/services/contestApi";
 import { SubmissionSummary } from "@/services/submissionsApi";
 import { activityApi } from "@/services/activityApi";
 import { adminApi } from "@/services/adminApi";
@@ -30,8 +42,9 @@ import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi
 import { StudentAuthView } from "@/components/StudentAuthView";
 import type { Student } from "@/types/auth";
 import type { Question, QuestionSummary } from "@/types/question";
+import type { ContestSummary, ContestStartResponse } from "@/types/contest";
 
-type NavigationTopic = "dsa" | "basic" | "compiler";
+type NavigationTopic = "dsa" | "basic" | "compiler" | "contest";
 
 const DIFFICULTY_BADGES: Record<
   string,
@@ -109,6 +122,40 @@ export default function Home() {
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
+  // Contest Management & Session State
+  const [contests, setContests] = useState<ContestSummary[]>([]);
+  const [loadingContests, setLoadingContests] = useState(false);
+  const [activeContestOverview, setActiveContestOverview] = useState<ContestSummary | null>(null);
+  const [loadingContestStart, setLoadingContestStart] = useState(false);
+  const [activeContestSession, setActiveContestSession] = useState<ContestStartResponse | null>(null);
+  const [contestSearch, setContestSearch] = useState("");
+
+  const loadContestsList = useCallback(async () => {
+    setLoadingContests(true);
+    try {
+      const data = await contestApi.list("PUBLISHED", true);
+      setContests(data || []);
+    } catch {
+      setContests([]);
+    } finally {
+      setLoadingContests(false);
+    }
+  }, []);
+
+  const handleStartContest = async (contestSlugOrId: string) => {
+    setLoadingContestStart(true);
+    try {
+      const studentId = student?.id || (student as any)?._id || student?.studentId || "student-anonymous";
+      const session = await contestApi.start(contestSlugOrId, studentId);
+      setActiveContestSession(session);
+      setActiveContestOverview(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to initialize contest session. Please check backend connection.");
+    } finally {
+      setLoadingContestStart(false);
+    }
+  };
+
   const loadUserSolvedStatus = useCallback(async () => {
     const userIdent = student?.id || (student as any)?._id || student?.email;
     if (!userIdent) {
@@ -135,7 +182,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get("tab") as NavigationTopic | null;
-      if (tabParam && ["dsa", "basic", "compiler"].includes(tabParam)) {
+      if (tabParam && ["dsa", "basic", "compiler", "contest"].includes(tabParam)) {
         setActiveTab(tabParam);
       }
       const problemParam = urlParams.get("problem") || urlParams.get("id");
@@ -143,6 +190,7 @@ export default function Home() {
         setIntendedProblem(problemParam);
       }
     }
+    void loadContestsList();
   }, []);
 
   // Sync auth state across tabs and logouts
@@ -240,6 +288,9 @@ export default function Home() {
     setSearchQuery("");
     setDifficultyFilter("ALL");
     setSelectedTag(null);
+    if (newTab === "contest") {
+      void loadContestsList();
+    }
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", newTab);
@@ -364,6 +415,24 @@ export default function Home() {
     );
   }
 
+  // 3b. Authenticated: Render ContestArena if active contest session is running
+  if (activeContestSession) {
+    return (
+      <ContestArena
+        contest={activeContestSession.contest}
+        mcqQuestions={activeContestSession.mcqQuestions}
+        codingQuestions={activeContestSession.codingQuestions}
+        studentId={student.id || (student as any)?._id || student.studentId}
+        studentEmail={student.email}
+        studentName={student.name}
+        onExit={() => {
+          setActiveContestSession(null);
+          void loadContestsList();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       className={`bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col transition-colors duration-200 ${
@@ -440,6 +509,24 @@ export default function Home() {
                 <span>Compiler</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => handleTabSwitch("contest")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                  activeTab === "contest"
+                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span>Contests</span>
+                {contests.length > 0 && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
+                    {contests.length}
+                  </span>
+                )}
+              </button>
+
               {isAdmin && (
                 <div className="relative">
                   <button
@@ -483,6 +570,28 @@ export default function Home() {
                         <div className="flex flex-col">
                           <span className="font-medium text-xs">Questions Manager</span>
                           <span className="text-[10px] text-[#94a3b8]">Create & edit problems</span>
+                        </div>
+                      </Link>
+                      <Link
+                        href="/admin/mcq"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5 text-emerald-500" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-xs">MCQ Manager</span>
+                          <span className="text-[10px] text-[#94a3b8]">Multiple choice database</span>
+                        </div>
+                      </Link>
+                      <Link
+                        href="/admin/contests"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
+                      >
+                        <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-xs">Contest Studio</span>
+                          <span className="text-[10px] text-[#94a3b8]">Create & manage tests</span>
                         </div>
                       </Link>
                     </div>
@@ -870,6 +979,262 @@ export default function Home() {
           <div className="flex-1 min-h-0 w-full overflow-hidden">
             <VanillaCompiler />
           </div>
+        )}
+
+        {/* 4. CONTESTS TAB */}
+        {activeTab === "contest" && (
+          <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full space-y-8">
+            {/* High-Impact Hero Banner */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/50 text-[11px] font-semibold text-amber-700 dark:text-amber-300 shadow-xs">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="tracking-wide uppercase font-mono text-[10px]">
+                    Competitive Assessment Arena
+                  </span>
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-white tracking-tight">
+                  Contests & Technical Assessments
+                </h1>
+
+                <p className="text-xs sm:text-sm text-[#64748b] dark:text-[#94a3b8] max-w-2xl leading-relaxed">
+                  Timed comprehensive evaluations, campus placement test simulations, and multi-format benchmarks combining conceptual multiple-choice questions with hands-on algorithm judge challenges.
+                </p>
+              </div>
+
+              {/* Assessment Metrics Card */}
+              <div className="flex items-center gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-2xl shadow-xs min-w-[260px]">
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-bold font-mono text-[#0f172a] dark:text-white tracking-tight">
+                      {contests.length}
+                    </span>
+                    <span className="text-xs text-[#64748b] dark:text-[#94a3b8] font-mono">
+                      Available
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8]">
+                    Assessment Modules
+                  </span>
+                </div>
+
+                <div className="flex-1 flex flex-col gap-1 text-right text-[11px] font-mono text-[#64748b] dark:text-[#94a3b8]">
+                  <span>Status: Active</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Judge Live
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Contests Explorer List */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-semibold text-[#64748b] dark:text-[#94a3b8] uppercase font-mono">
+                  All Active Contests ({contests.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void loadContestsList()}
+                  disabled={loadingContests}
+                  className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingContests ? "animate-spin" : ""}`} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {loadingContests ? (
+                <div className="py-20 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
+                  Loading contests...
+                </div>
+              ) : contests.length === 0 ? (
+                <div className="py-20 text-center bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-8 space-y-3">
+                  <Trophy className="w-8 h-8 text-[#94a3b8] mx-auto" />
+                  <h3 className="text-sm font-bold text-[#0f172a] dark:text-white">
+                    No Published Contests Found
+                  </h3>
+                  <p className="text-xs text-[#64748b] dark:text-[#94a3b8] max-w-sm mx-auto">
+                    Check back shortly or visit the Contest Studio if you are an administrator.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5">
+                  {contests.map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-6 shadow-xs hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+                    >
+                      <div className="space-y-3 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono uppercase tracking-wide">
+                            {c.status}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold font-mono">
+                            {c.durationMinutes} Minutes
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold font-mono">
+                            {c.totalPoints} Total Points
+                          </span>
+                        </div>
+
+                        <div>
+                          <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] dark:text-white tracking-tight">
+                            {c.title}
+                          </h2>
+                          <p className="text-xs sm:text-sm text-[#64748b] dark:text-[#94a3b8] mt-1 leading-relaxed">
+                            {c.description}
+                          </p>
+                        </div>
+
+                        {/* Structure breakdown tags */}
+                        <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+                          {c.hasMcq && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
+                              <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                              <span>{c.mcqQuestionsCount} Multiple Choice Questions</span>
+                            </span>
+                          )}
+
+                          {c.hasCoding && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
+                              <Code2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>{c.codingQuestionsCount} Algorithm Coding Challenges</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Primary CTA Button */}
+                      <div className="shrink-0 flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setActiveContestOverview(c)}
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-600/25 cursor-pointer transition-transform active:scale-98"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>View Structure & Enter</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Contest Structure & Start Modal */}
+            {activeContestOverview && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+                <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl max-w-xl w-full p-6 sm:p-7 shadow-2xl space-y-6 animate-in fade-in-50 zoom-in-95">
+                  <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-mono font-bold uppercase">
+                        Assessment Blueprint
+                      </div>
+                      <h3 className="text-lg font-bold text-[#0f172a] dark:text-white">
+                        {activeContestOverview.title}
+                      </h3>
+                      <p className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                        Duration: <strong className="text-[#0f172a] dark:text-white">{activeContestOverview.durationMinutes} Minutes</strong> · Total Points: <strong className="text-[#0f172a] dark:text-white">{activeContestOverview.totalPoints} pts</strong>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveContestOverview(null)}
+                      className="text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white p-1 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Sections Breakdown Cards */}
+                  <div className="space-y-3">
+                    <span className="text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] uppercase font-mono">
+                      Included Sections:
+                    </span>
+
+                    {activeContestOverview.hasMcq && (
+                      <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10 flex items-start gap-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                          <BookOpen className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-bold text-[#0f172a] dark:text-white">
+                            Section 1: Conceptual Multiple Choice Questions
+                          </h4>
+                          <p className="text-[11px] text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+                            {activeContestOverview.mcqQuestionsCount} questions covering core computer science subjects. Jump between questions anytime with the top Q1–Q{activeContestOverview.mcqQuestionsCount} palette.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeContestOverview.hasCoding && (
+                      <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 flex items-start gap-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                          <Code2 className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-bold text-[#0f172a] dark:text-white">
+                            Section 2: Hands-on Algorithm Challenges
+                          </h4>
+                          <p className="text-[11px] text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+                            {activeContestOverview.codingQuestionsCount} problems embedded directly in the full Monaco judge compiler. Write, debug against public testcases, and submit code across C, C++, Java, Python, and JavaScript.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rules Checklist */}
+                  <div className="p-3.5 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-xs space-y-1.5 text-[#64748b] dark:text-[#94a3b8]">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Timer starts automatically once you click "Start Assessment".</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Answers are auto-saved locally during the assessment session.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Final score and full question explanations revealed post-submission.</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveContestOverview(null)}
+                      className="px-4 py-2 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] text-xs font-semibold text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loadingContestStart}
+                      onClick={() => handleStartContest(activeContestOverview.slug || activeContestOverview.id)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md disabled:opacity-50 cursor-pointer"
+                    >
+                      {loadingContestStart ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Preparing Workspace...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Start Assessment Now</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
         )}
       </div>
     </div>

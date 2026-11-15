@@ -148,3 +148,4 @@ def seed_mcq_questions(
 ):
     result = service.seed_default_questions(force=force)
     return {"status": "ok", **result}
+
