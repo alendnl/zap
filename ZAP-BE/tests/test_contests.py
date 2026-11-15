@@ -241,3 +241,33 @@ def test_contest_session_sync_and_resume():
     assert post_submit_start.status_code == 200
     assert post_submit_start.json()["alreadySubmitted"] is True
     assert post_submit_start.json()["submission"] is not None
+
+
+def test_get_contest_analytics():
+    admin_email = "superadmin@zap.dev"
+
+    # Non-admin access should be 403
+    unauth_res = client.get("/api/v1/contests/zap-grand-assessment-1/analytics?email=student@college.edu")
+    assert unauth_res.status_code == 403
+
+    # Admin access should succeed and return analytics
+    res = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/analytics",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert res.status_code == 200
+    data = res.json()
+
+    assert "contest" in data
+    assert "totalCandidates" in data
+    assert "completedCount" in data
+    assert "completionRate" in data
+    assert "averageScore" in data
+    assert "scoreDistribution" in data
+    assert "mcqStats" in data
+    assert "codingStats" in data
+    assert "proctoringStats" in data
+    assert "submissions" in data
+    assert len(data["scoreDistribution"]) == 5
+    assert data["proctoringStats"]["cleanRate"] >= 0.0
+

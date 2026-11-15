@@ -210,3 +210,59 @@ class ContestSubmitResponse(BaseModel):
     codingBreakdown: List[CodingReviewItem]
     proctoring: Optional[ProctoringTelemetry] = None
     codingState: Optional[Dict[str, Any]] = None
+
+
+class ScoreBucket(BaseModel):
+    range: str
+    count: int
+    percentage: float
+
+
+class QuestionAccuracyStat(BaseModel):
+    questionId: str
+    title: str
+    category: str
+    difficulty: str
+    totalAttempts: int
+    correctCount: int
+    accuracyRate: float
+
+
+class ProblemAcceptanceStat(BaseModel):
+    questionId: str
+    title: str
+    difficulty: str
+    attemptedCount: int
+    acceptedCount: int
+    acceptanceRate: float
+    languagesUsed: Dict[str, int] = Field(default_factory=dict)
+
+
+class ProctoringSummaryStats(BaseModel):
+    totalTabSwitches: int = 0
+    totalCopyPasteAttempts: int = 0
+    totalFullscreenExits: int = 0
+    totalInfractions: int = 0
+    cleanCandidatesCount: int = 0
+    flaggedCandidatesCount: int = 0
+    highRiskCandidatesCount: int = 0
+    cleanRate: float = 100.0
+
+
+class ContestAnalyticsResponse(BaseModel):
+    contest: ContestSummary
+    totalCandidates: int
+    completedCount: int
+    inProgressCount: int
+    completionRate: float
+    averageScore: float
+    medianScore: float
+    highestScore: int
+    lowestScore: int
+    averagePercentage: float
+    averageTimeSpentSeconds: int
+    scoreDistribution: List[ScoreBucket]
+    mcqStats: Dict[str, Any]
+    codingStats: Dict[str, Any]
+    proctoringStats: ProctoringSummaryStats
+    submissions: List[Dict[str, Any]]

@@ -230,3 +230,103 @@ export interface ContestSubmitResponse {
   proctoring?: ProctoringTelemetry;
   codingState?: Record<string, any>;
 }
+
+export interface ScoreBucket {
+  range: string;
+  count: number;
+  percentage: number;
+}
+
+export interface QuestionAccuracyStat {
+  questionId: string;
+  title: string;
+  category: string;
+  difficulty: string;
+  totalAttempts: number;
+  correctCount: number;
+  accuracyRate: number;
+}
+
+export interface ProblemAcceptanceStat {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  attemptedCount: number;
+  acceptedCount: number;
+  acceptanceRate: number;
+  languagesUsed: Record<string, number>;
+}
+
+export interface ProctoringSummaryStats {
+  totalTabSwitches: number;
+  totalCopyPasteAttempts: number;
+  totalFullscreenExits: number;
+  totalInfractions: number;
+  cleanCandidatesCount: number;
+  flaggedCandidatesCount: number;
+  highRiskCandidatesCount: number;
+  cleanRate: number;
+}
+
+export interface CandidateSubmissionItem {
+  id: string;
+  submissionId?: string;
+  contestId: string;
+  studentId: string;
+  studentEmail: string;
+  studentName?: string;
+  status: "SUBMITTED" | "IN_PROGRESS" | string;
+  startedAt?: string;
+  submittedAt?: string;
+  updatedAt?: string;
+  totalScore: number;
+  maxTotalScore: number;
+  percentage: number;
+  mcqScore: number;
+  maxMcqScore?: number;
+  mcqCorrectCount: number;
+  mcqTotalCount: number;
+  codingScore: number;
+  maxCodingScore?: number;
+  codingProblemsAttempted: number;
+  codingTotalCount: number;
+  timeSpentSeconds: number;
+  proctoring?: ProctoringTelemetry;
+  mcqAnswers?: Record<string, string>;
+  mcqBreakdown?: MCQReviewItem[];
+  codingBreakdown?: CodingReviewItem[];
+  codingState?: Record<string, CodingProblemState>;
+}
+
+export interface ContestAnalyticsResponse {
+  contest: ContestSummary;
+  totalCandidates: number;
+  completedCount: number;
+  inProgressCount: number;
+  completionRate: number;
+  averageScore: number;
+  medianScore: number;
+  highestScore: number;
+  lowestScore: number;
+  averagePercentage: number;
+  averageTimeSpentSeconds: number;
+  scoreDistribution: ScoreBucket[];
+  mcqStats: {
+    totalQuestions: number;
+    questions: Array<{
+      questionId: string;
+      title: string;
+      category: string;
+      difficulty: string;
+      totalAttempts: number;
+      correctCount: number;
+      accuracyRate: number;
+    }>;
+  };
+  codingStats: {
+    totalProblems: number;
+    problems: ProblemAcceptanceStat[];
+  };
+  proctoringStats: ProctoringSummaryStats;
+  submissions: CandidateSubmissionItem[];
+}

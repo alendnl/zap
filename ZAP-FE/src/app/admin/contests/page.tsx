@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Database,
   Sliders,
+  BarChart3,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi } from "@/services/adminApi";
@@ -455,6 +456,13 @@ export default function AdminContestsPage() {
               <Trophy className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
               <span>Contests</span>
             </Link>
+            <Link
+              href="/admin/contests/analytics"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#1a2233]"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Analytics</span>
+            </Link>
           </nav>
         </div>
 
@@ -482,6 +490,14 @@ export default function AdminContestsPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/contests/analytics"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-500/20 cursor-pointer shadow-xs"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Submissions Dashboard</span>
+            </Link>
+
             <button
               type="button"
               onClick={handleSeedSample}
@@ -612,6 +628,14 @@ export default function AdminContestsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href={`/admin/contests/analytics?contest=${c.slug}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 cursor-pointer"
+                        title="View Submission Analytics & Proctoring Telemetry"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span>Analytics</span>
+                      </Link>
                       <Link
                         href={`/?tab=contest&contest=${c.slug}`}
                         className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-[#1a2233] cursor-pointer"

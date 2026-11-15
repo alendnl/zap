@@ -6,6 +6,7 @@ import {
   ContestSubmitRequest,
   ContestSubmitResponse,
   ContestSessionSyncRequest,
+  ContestAnalyticsResponse,
 } from "@/types/contest";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
@@ -111,4 +112,7 @@ export const contestApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  getAnalytics: (idOrSlug: string): Promise<ContestAnalyticsResponse> =>
+    apiFetch(`/api/v1/contests/${idOrSlug}/analytics`),
 };

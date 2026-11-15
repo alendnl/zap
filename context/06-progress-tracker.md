@@ -27,6 +27,8 @@
 - [x] **Faculty Question Management**: CRUD operations for questions, starter templates, and test cases with visibility toggling (`PUBLIC` vs `HIDDEN`).
 - [x] **Admin Question Management Console**: Dedicated `/admin/questions` portal with admin authentication gating, full question CRUD (create, update, delete), live search, multi-filter, test cases editor, starter code management, and JSON import/export.
 - [x] **MCQ Question Subsystem & Admin Portal**: Dedicated MongoDB collection `mcq_questions` with 10 curated seed questions (DSA, DBMS, Networks, OOPS), FastAPI CRUD endpoints (`/api/v1/mcq/questions`), and full-featured Admin MCQ Manager portal at `/admin/mcq` with rich support for text, code snippet, and diagram image questions and options.
+- [x] **Contest Engine & Anti-Cheat Proctoring**: Dedicated timed assessment environment with isolated contest sessions, auto-sync, client proctoring guards (fullscreen enforcement, clipboard copy/paste interception, tab switch detection), and isolated submission pipeline.
+- [x] **Contest Submissions Analytics Dashboard**: Executive telemetry dashboard at `/admin/contests/analytics` featuring cohort metrics (completion rate, score distribution histogram, MCQ accuracy, coding acceptance), proctoring infraction analytics, candidate submissions leaderboard, and individual candidate inspection modal with chronological proctoring violation timeline and full source code viewer.
 - [x] **Load Testing Suite**: Headless Locust test runner simulating bursty 100-user concurrent submissions targeting lower database safely.
 
 ---

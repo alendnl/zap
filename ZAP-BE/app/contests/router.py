@@ -10,6 +10,7 @@ from app.contests.models import (
     ContestSubmitRequest,
     ContestSubmitResponse,
     ContestSessionSyncRequest,
+    ContestAnalyticsResponse,
 )
 from app.contests.service import ContestService
 from app.admin.service import AdminService
@@ -22,21 +23,23 @@ def get_contest_service(db=Depends(get_database)) -> ContestService:
 
 
 def verify_admin_access(
+    email: Optional[str] = Query(None, description="Admin email query fallback"),
     x_admin_email: Optional[str] = Header(None, alias="X-Admin-Email"),
     db=Depends(get_database)
 ):
-    if not x_admin_email:
+    target_email = (email or x_admin_email or "").strip()
+    if not target_email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Admin credentials missing. Please sign in as an authorized admin."
         )
     admin_service = AdminService(db)
-    if not admin_service.is_admin(x_admin_email):
+    if not admin_service.is_admin(target_email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied: '{x_admin_email}' does not possess admin privileges."
+            detail=f"Access denied: '{target_email}' does not possess admin privileges."
         )
-    return x_admin_email
+    return target_email
 
 
 @router.get("/contests", response_model=Union[List[ContestSummary], List[Contest]])
@@ -161,5 +164,18 @@ def submit_contest(
 ):
     try:
         return service.submit_contest(contest_id_or_slug, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/contests/{contest_id_or_slug}/analytics", response_model=ContestAnalyticsResponse)
+@router.get("/api/v1/contests/{contest_id_or_slug}/analytics", response_model=ContestAnalyticsResponse)
+def get_contest_analytics(
+    contest_id_or_slug: str,
+    service: ContestService = Depends(get_contest_service),
+    admin_email: str = Depends(verify_admin_access),
+):
+    try:
+        return service.get_contest_analytics(contest_id_or_slug)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
