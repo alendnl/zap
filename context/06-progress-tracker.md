@@ -26,6 +26,7 @@
 - [x] **Student Coding Arena**: Monaco editor with language switcher, split-screen layout, Run/Submit workflows, and real-time output terminal.
 - [x] **Faculty Question Management**: CRUD operations for questions, starter templates, and test cases with visibility toggling (`PUBLIC` vs `HIDDEN`).
 - [x] **Admin Question Management Console**: Dedicated `/admin/questions` portal with admin authentication gating, full question CRUD (create, update, delete), live search, multi-filter, test cases editor, starter code management, and JSON import/export.
+- [x] **MCQ Question Subsystem & Admin Portal**: Dedicated MongoDB collection `mcq_questions` with 10 curated seed questions (DSA, DBMS, Networks, OOPS), FastAPI CRUD endpoints (`/api/v1/mcq/questions`), and full-featured Admin MCQ Manager portal at `/admin/mcq` with rich support for text, code snippet, and diagram image questions and options.
 - [x] **Load Testing Suite**: Headless Locust test runner simulating bursty 100-user concurrent submissions targeting lower database safely.
 
 ---

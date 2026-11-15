@@ -20,6 +20,7 @@ import {
   Award,
   Code2,
   Activity,
+  HelpCircle,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi, UserAdminStats, AdminUsersOverview, UserDetailActivityResponse } from "@/services/adminApi";
@@ -304,8 +305,17 @@ export default function AdminUsersDashboardPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
                 title="Manage Questions & Test Cases"
               >
-                <Code2 className="w-3.5 h-3.5" />
-                <span>Questions Manager</span>
+                <Code2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Coding Questions</span>
+              </Link>
+
+              <Link
+                href="/admin/mcq"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+                title="Manage Multiple Choice Questions"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>MCQ Questions</span>
               </Link>
             </nav>
           </div>

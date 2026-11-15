@@ -26,6 +26,7 @@ import {
   Lock,
   FileJson,
   Check,
+  HelpCircle,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi } from "@/services/adminApi";
@@ -561,13 +562,22 @@ export default function AdminQuestionsPage() {
 
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]">
                 <Code2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Questions Manager</span>
+                <span>Coding Questions</span>
                 {questions.length > 0 && (
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold">
                     {questions.length}
                   </span>
                 )}
               </div>
+
+              <Link
+                href="/admin/mcq"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+                title="Manage Multiple Choice Questions"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>MCQ Questions</span>
+              </Link>
             </nav>
           </div>
 

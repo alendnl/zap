@@ -50,6 +50,13 @@ def ensure_indexes(db) -> None:
         if hasattr(db, "questions"):
             db.questions.create_index([("slug", 1)], unique=True)
             db.questions.create_index([("status", 1)])
+        # mcq_questions indexes:
+        if hasattr(db, "mcq_questions"):
+            db.mcq_questions.create_index([("slug", 1)], unique=True, sparse=True)
+            db.mcq_questions.create_index([("category", 1)])
+            db.mcq_questions.create_index([("difficulty", 1)])
+            db.mcq_questions.create_index([("status", 1)])
+            db.mcq_questions.create_index([("createdAt", -1)])
     except Exception as exc:
         logger.warning(f"Index creation warning: {exc}")
 
