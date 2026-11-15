@@ -25,6 +25,8 @@ import {
   Play,
   ArrowRight,
   RefreshCw,
+  BarChart3,
+  LayoutDashboard,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
@@ -537,7 +539,7 @@ export default function Home() {
                     onClick={() => setAdminDropdownOpen((prev) => !prev)}
                     onMouseEnter={() => setAdminDropdownOpen(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-semibold shadow-xs"
-                    title="Admin Portal"
+                    title="Admin Operations"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                     <span>Admin</span>
@@ -551,52 +553,96 @@ export default function Home() {
                   {adminDropdownOpen && (
                     <div
                       onMouseLeave={() => setAdminDropdownOpen(false)}
-                      className="absolute left-0 mt-1.5 w-52 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-1 text-xs"
+                      className="absolute right-0 sm:left-0 mt-1.5 w-72 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-2 text-xs animate-in fade-in slide-in-from-top-1 duration-150"
                     >
+                      {/* Overview Header */}
                       <Link
-                        href="/admin/users"
+                        href="/admin"
                         onClick={() => setAdminDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-colors"
+                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold transition-colors"
                       >
-                        <Users className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-xs">Users Dashboard</span>
-                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Student & college metrics</span>
+                        <div className="flex items-center gap-2">
+                          <LayoutDashboard className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <span>Admin Overview Hub</span>
                         </div>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
-                      <Link
-                        href="/admin/questions"
-                        onClick={() => setAdminDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
-                      >
-                        <Code2 className="w-3.5 h-3.5" />
-                        <div className="flex flex-col">
-                          <span className="font-medium text-xs">Questions Manager</span>
-                          <span className="text-[10px] text-[#94a3b8]">Create & edit problems</span>
+
+                      {/* Section 1: Dashboards */}
+                      <div className="space-y-0.5">
+                        <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                          <span>Dashboard</span>
+                          <span className="text-[9px] font-sans font-normal text-blue-500">Analytics</span>
                         </div>
-                      </Link>
-                      <Link
-                        href="/admin/mcq"
-                        onClick={() => setAdminDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
-                      >
-                        <HelpCircle className="w-3.5 h-3.5 text-emerald-500" />
-                        <div className="flex flex-col">
-                          <span className="font-medium text-xs">MCQ Manager</span>
-                          <span className="text-[10px] text-[#94a3b8]">Multiple choice database</span>
+
+                        <Link
+                          href="/admin/users"
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                        >
+                          <Users className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs">User Dashboard</span>
+                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Student & college metrics</span>
+                          </div>
+                        </Link>
+
+                        <Link
+                          href="/admin/contests/analytics"
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                        >
+                          <BarChart3 className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs">Contest Dashboard</span>
+                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Evaluations & proctoring</span>
+                          </div>
+                        </Link>
+                      </div>
+
+                      {/* Section 2: Studio */}
+                      <div className="space-y-0.5 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1.5">
+                        <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                          <span>Studio</span>
+                          <span className="text-[9px] font-sans font-normal text-purple-500">Authoring</span>
                         </div>
-                      </Link>
-                      <Link
-                        href="/admin/contests"
-                        onClick={() => setAdminDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#64748b] dark:text-[#94a3b8] transition-colors"
-                      >
-                        <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                        <div className="flex flex-col">
-                          <span className="font-medium text-xs">Contest Studio</span>
-                          <span className="text-[10px] text-[#94a3b8]">Create & manage tests</span>
-                        </div>
-                      </Link>
+
+                        <Link
+                          href="/admin/questions"
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                        >
+                          <Code2 className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs">Coding Questions</span>
+                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Challenges & test cases</span>
+                          </div>
+                        </Link>
+
+                        <Link
+                          href="/admin/mcq"
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                        >
+                          <HelpCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs">MCQs</span>
+                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Multiple choice database</span>
+                          </div>
+                        </Link>
+
+                        <Link
+                          href="/admin/contests"
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                        >
+                          <Trophy className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs">Contests</span>
+                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Assessments & scheduling</span>
+                          </div>
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>

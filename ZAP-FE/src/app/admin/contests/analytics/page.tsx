@@ -43,6 +43,7 @@ import { adminApi } from "@/services/adminApi";
 import { contestApi } from "@/services/contestApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AdminHeader } from "@/components/AdminHeader";
 import type { Student } from "@/types/auth";
 import type {
   ContestAnalyticsResponse,
@@ -278,64 +279,12 @@ function ContestAnalyticsContent() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col font-sans">
-      {/* 1. Top Admin Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] shadow-xs px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/admin/contests"
-            className="flex items-center gap-1.5 text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white font-medium transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Contest Studio</span>
-          </Link>
-
-          <span className="text-[#cbd5e1] dark:text-[#232f45]">|</span>
-
-          {/* Admin Navigation Pills */}
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#1a2233]"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Users</span>
-            </Link>
-            <Link
-              href="/admin/questions"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#1a2233]"
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              <span>Questions</span>
-            </Link>
-            <Link
-              href="/admin/mcq"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#1a2233]"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>MCQs</span>
-            </Link>
-            <Link
-              href="/admin/contests"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#1a2233]"
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              <span>Contests</span>
-            </Link>
-            <Link
-              href="/admin/contests/analytics"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Analytics</span>
-            </Link>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <EnvironmentSwitcher />
-          <ThemeToggle />
-        </div>
-      </header>
+      {/* Unified Admin Navigation Header */}
+      <AdminHeader
+        activeSection="dashboard"
+        activeItem="contests-analytics"
+        contestCount={contests.length}
+      />
 
       {/* 2. Main Analytics Canvas */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full space-y-8">

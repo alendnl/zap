@@ -34,6 +34,7 @@ import { adminApi } from "@/services/adminApi";
 import { questionsApi } from "@/services/questionsApi";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AdminHeader } from "@/components/AdminHeader";
 import type { Student } from "@/types/auth";
 import {
   Question,
@@ -531,90 +532,12 @@ export default function AdminQuestionsPage() {
         </div>
       )}
 
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-white/95 dark:bg-[#121824]/95 backdrop-blur-md flex-shrink-0 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Brand & Admin Navigation */}
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-              <span className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-sm shadow-blue-600/30">
-                Z
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm tracking-tight select-none text-[#0f172a] dark:text-white">
-                  ZAP
-                </span>
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                  Admin
-                </span>
-              </div>
-            </Link>
-
-            {/* Admin Segmented Subnavigation */}
-            <nav className="hidden sm:flex items-center gap-1 bg-[#f1f5f9] dark:bg-[#0b0f17] p-1 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b]">
-              <Link
-                href="/admin/users"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
-                title="Student Performance & Cohort Analytics"
-              >
-                <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Users Dashboard</span>
-              </Link>
-
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]">
-                <Code2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Coding Questions</span>
-                {questions.length > 0 && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold">
-                    {questions.length}
-                  </span>
-                )}
-              </div>
-
-              <Link
-                href="/admin/mcq"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
-                title="Manage Multiple Choice Questions"
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>MCQ Questions</span>
-              </Link>
-
-              <Link
-                href="/admin/contests"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white transition-colors"
-                title="Contest Management & Creation"
-              >
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                <span>Contests</span>
-              </Link>
-            </nav>
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#1a2233] hover:bg-[#f1f5f9] dark:hover:bg-[#232f45] text-xs font-medium text-[#475569] dark:text-[#cbd5e1] transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Return to Arena</span>
-            </Link>
-
-            <div className="hidden lg:flex items-center gap-1.5 border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] px-2.5 py-1 rounded-xl text-xs">
-              <span className="w-4 h-4 rounded-full bg-purple-600/15 text-purple-600 dark:text-purple-400 text-[10px] font-bold flex items-center justify-center">
-                {student.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="font-semibold text-[11px] text-[#0f172a] dark:text-white truncate max-w-[130px]">
-                {student.name}
-              </span>
-            </div>
-
-            <EnvironmentSwitcher />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      {/* Unified Admin Navigation Header */}
+      <AdminHeader
+        activeSection="studio"
+        activeItem="questions"
+        questionCount={questions.length}
+      />
 
       {/* Main Content Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1 flex flex-col gap-6">
