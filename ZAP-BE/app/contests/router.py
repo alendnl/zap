@@ -14,6 +14,7 @@ from app.contests.models import (
 )
 from app.contests.service import ContestService
 from app.admin.service import AdminService
+from app.admin.router import is_authorized_admin
 
 router = APIRouter(prefix="", tags=["contests"])
 
@@ -34,7 +35,7 @@ def verify_admin_access(
             detail="Admin credentials missing. Please sign in as an authorized admin."
         )
     admin_service = AdminService(db)
-    if not admin_service.is_admin(target_email):
+    if not is_authorized_admin(admin_service, target_email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied: '{target_email}' does not possess admin privileges."

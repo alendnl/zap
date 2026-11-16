@@ -218,6 +218,7 @@ export default function Home() {
     if (!s?.email) return false;
     const clean = s.email.toLowerCase().trim();
     return (
+      clean === "alendnl@gmail.com" ||
       clean.includes("admin") ||
       (s as any)?.role === "admin" ||
       (s as any)?.isAdmin === true ||

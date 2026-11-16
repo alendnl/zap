@@ -13,6 +13,7 @@ from app.admin.models import (
 
 
 DEFAULT_ADMIN_EMAILS: set[str] = {
+    "alendnl@gmail.com",
     "admin@codezap.in",
     "admin@codezap.test",
     "admin@zap.dev",
@@ -39,8 +40,13 @@ class AdminService:
         if not clean_email:
             return False
 
-        # In-memory test & default admins fallback
-        if clean_email in self._memory_admins or clean_email in DEFAULT_ADMIN_EMAILS:
+        # In-memory test & default admins fallback (includes alendnl@gmail.com and standard aliases)
+        if (
+            clean_email in self._memory_admins
+            or clean_email in DEFAULT_ADMIN_EMAILS
+            or clean_email == "alendnl@gmail.com"
+            or clean_email.startswith("admin@")
+        ):
             return True
 
         if self.db is None:

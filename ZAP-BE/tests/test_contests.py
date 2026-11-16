@@ -271,3 +271,10 @@ def test_get_contest_analytics():
     assert len(data["scoreDistribution"]) == 5
     assert data["proctoringStats"]["cleanRate"] >= 0.0
 
+    # Verify owner/superadmin email alendnl@gmail.com succeeds
+    owner_res = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/analytics",
+        headers={"X-Admin-Email": "alendnl@gmail.com"}
+    )
+    assert owner_res.status_code == 200
+
