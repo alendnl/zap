@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -27,6 +27,7 @@ import {
   RefreshCw,
   BarChart3,
   LayoutDashboard,
+  Flame,
 } from "lucide-react";
 import { StudentWorkspace } from "@/components/StudentWorkspace";
 import { VanillaCompiler } from "@/components/VanillaCompiler";
@@ -118,6 +119,7 @@ export default function Home() {
   const [solvedQuestionIds, setSolvedQuestionIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
+  const adminDropdownRef = useRef<HTMLDivElement>(null);
 
   // Filters & Search for DSA Questions
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,14 +213,79 @@ export default function Home() {
     return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
   }, []);
 
+  // Check if current user is likely an admin (heuristic + persistent cache)
+  const isLikelyAdmin = useCallback((s?: Student | null) => {
+    if (!s?.email) return false;
+    const clean = s.email.toLowerCase().trim();
+    return (
+      clean.includes("admin") ||
+      (s as any)?.role === "admin" ||
+      (s as any)?.isAdmin === true ||
+      clean === "admin@codezap.in"
+    );
+  }, []);
+
   // Check if current user is an admin
   useEffect(() => {
-    if (student?.email) {
-      adminApi.checkAdmin(student.email).then(setIsAdmin).catch(() => setIsAdmin(false));
-    } else {
+    if (!student?.email) {
       setIsAdmin(false);
+      return;
     }
-  }, [student]);
+
+    // Fast-path: optimistic check from heuristic or localStorage cache to prevent button flickering
+    const cachedAdmin = typeof window !== "undefined" && localStorage.getItem("zap_is_admin") === "true";
+    if (cachedAdmin || isLikelyAdmin(student)) {
+      setIsAdmin(true);
+    }
+
+    let isCurrent = true;
+    adminApi
+      .checkAdmin(student.email)
+      .then((allowed) => {
+        if (!isCurrent) return;
+        setIsAdmin(allowed);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("zap_is_admin", String(allowed));
+        }
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        if (!isLikelyAdmin(student)) {
+          setIsAdmin(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [student, isLikelyAdmin]);
+
+  // Click outside and Escape key handler for admin dropdown
+  useEffect(() => {
+    if (!adminDropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
+      if (
+        adminDropdownRef.current &&
+        !adminDropdownRef.current.contains(event.target as Node)
+      ) {
+        setAdminDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAdminDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [adminDropdownOpen]);
 
   const openQuestion = useCallback(async (questionIdOrSlug: string) => {
     setLoadingProblemId(questionIdOrSlug);
@@ -525,122 +592,159 @@ export default function Home() {
                   </span>
                 )}
               </button>
+            </nav>
 
-              {isAdmin && (
-                <div className="relative flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setAdminDropdownOpen((prev) => !prev)}
-                    onMouseEnter={() => setAdminDropdownOpen(true)}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-semibold shadow-xs flex-shrink-0"
-                    title="Admin Operations"
+            {/* Admin Hub Direct Gateway & Operations Dropdown */}
+            {isAdmin && (
+              <div ref={adminDropdownRef} className="relative flex-shrink-0 inline-flex items-center">
+                <div className="inline-flex items-center rounded-lg bg-purple-500/10 hover:bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 shadow-xs transition-colors">
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold hover:text-purple-900 dark:hover:text-purple-100 transition-colors"
+                    title="Open Admin Hub"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                     <span>Admin</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setAdminDropdownOpen((prev) => !prev);
+                    }}
+                    aria-label="Toggle admin dropdown menu"
+                    aria-expanded={adminDropdownOpen}
+                    title="Quick navigation"
+                    className="px-1.5 py-1.5 hover:bg-purple-500/20 border-l border-purple-500/20 rounded-r-lg transition-colors cursor-pointer flex items-center justify-center"
+                  >
                     <ChevronDown
-                      className={`w-3 h-3 text-purple-600 dark:text-purple-400 transition-transform ${adminDropdownOpen ? "rotate-180" : ""
-                        }`}
+                      className={`w-3.5 h-3.5 text-purple-600 dark:text-purple-400 transition-transform duration-150 ${
+                        adminDropdownOpen ? "rotate-180" : ""
+                      }`}
                     />
                   </button>
+                </div>
 
-                  {adminDropdownOpen && (
-                    <div
-                      onMouseLeave={() => setAdminDropdownOpen(false)}
-                      className="absolute right-0 sm:left-0 mt-1.5 w-72 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-2 text-xs animate-in fade-in slide-in-from-top-1 duration-150"
+                {adminDropdownOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-2 text-xs animate-in fade-in slide-in-from-top-1 duration-150"
+                  >
+                    {/* Overview Header */}
+                    <Link
+                      href="/admin"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold transition-colors"
                     >
-                      {/* Overview Header */}
+                      <div className="flex items-center gap-2">
+                        <LayoutDashboard className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <span>Admin Overview Hub</span>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+
+                    {/* Section 1: Dashboards */}
+                    <div className="space-y-0.5">
+                      <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                        <span>Dashboards</span>
+                        <span className="text-[9px] font-sans font-normal text-blue-500">Analytics</span>
+                      </div>
+
                       <Link
-                        href="/admin"
+                        href="/admin/users"
                         onClick={() => setAdminDropdownOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold transition-colors"
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <LayoutDashboard className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                          <span>Admin Overview Hub</span>
+                        <Users className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">User Dashboard</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Student & college metrics</span>
                         </div>
-                        <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
 
-                      {/* Section 1: Dashboards */}
-                      <div className="space-y-0.5">
-                        <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
-                          <span>Dashboard</span>
-                          <span className="text-[9px] font-sans font-normal text-blue-500">Analytics</span>
+                      <Link
+                        href="/admin/contests/analytics"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                      >
+                        <BarChart3 className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">Contest Dashboard</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Evaluations & proctoring</span>
                         </div>
-
-                        <Link
-                          href="/admin/users"
-                          onClick={() => setAdminDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
-                        >
-                          <Users className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-xs">User Dashboard</span>
-                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Student & college metrics</span>
-                          </div>
-                        </Link>
-
-                        <Link
-                          href="/admin/contests/analytics"
-                          onClick={() => setAdminDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
-                        >
-                          <BarChart3 className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-xs">Contest Dashboard</span>
-                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Evaluations & proctoring</span>
-                          </div>
-                        </Link>
-                      </div>
-
-                      {/* Section 2: Studio */}
-                      <div className="space-y-0.5 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1.5">
-                        <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
-                          <span>Studio</span>
-                          <span className="text-[9px] font-sans font-normal text-purple-500">Authoring</span>
-                        </div>
-
-                        <Link
-                          href="/admin/questions"
-                          onClick={() => setAdminDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
-                        >
-                          <Code2 className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-xs">Coding Questions</span>
-                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Challenges & test cases</span>
-                          </div>
-                        </Link>
-
-                        <Link
-                          href="/admin/mcq"
-                          onClick={() => setAdminDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
-                        >
-                          <HelpCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-xs">MCQs</span>
-                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Multiple choice database</span>
-                          </div>
-                        </Link>
-
-                        <Link
-                          href="/admin/contests"
-                          onClick={() => setAdminDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
-                        >
-                          <Trophy className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-xs">Contests</span>
-                            <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Assessments & scheduling</span>
-                          </div>
-                        </Link>
-                      </div>
+                      </Link>
                     </div>
-                  )}
-                </div>
-              )}
-            </nav>
+
+                    {/* Section 2: Studio */}
+                    <div className="space-y-0.5 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1.5">
+                      <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                        <span>Studio</span>
+                        <span className="text-[9px] font-sans font-normal text-indigo-500">Authoring</span>
+                      </div>
+
+                      <Link
+                        href="/admin/questions"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                      >
+                        <Code2 className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">Coding Questions</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Challenges & test cases</span>
+                        </div>
+                      </Link>
+
+                      <Link
+                        href="/admin/mcq"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                      >
+                        <HelpCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">MCQs</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Multiple choice database</span>
+                        </div>
+                      </Link>
+
+                      <Link
+                        href="/admin/contests"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors"
+                      >
+                        <Trophy className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-xs">Contests</span>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Assessments & scheduling</span>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Section 3: Operations */}
+                    <div className="space-y-0.5 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1.5">
+                      <div className="px-2 pt-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                        <span>Operations</span>
+                        <span className="text-[9px] font-sans font-normal text-rose-500">Performance</span>
+                      </div>
+
+                      <Link
+                        href="/admin/load-test"
+                        onClick={() => setAdminDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white transition-colors group"
+                      >
+                        <Flame className="w-4 h-4 text-rose-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs">Load Testing Studio</span>
+                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">QA Only</span>
+                          </div>
+                          <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">Simulate API & compiler traffic</span>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Tools: Session, Environment, Theme */}

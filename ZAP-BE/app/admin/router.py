@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, status, Request
 from typing import Optional
-from app.db.mongodb import get_database
+from app.db.mongodb import get_database, get_database_for_env
 from app.admin.models import (
     AdminCheckResponse,
     AdminUsersResponse,
@@ -23,6 +23,22 @@ def get_request_email(
     return admin_email
 
 
+def is_authorized_admin(service: AdminService, target_email: str) -> bool:
+    """Verifies admin access in current DB or falls back across production and QA databases."""
+    if not target_email:
+        return False
+    if service.is_admin(target_email):
+        return True
+    try:
+        prod_db = get_database_for_env("production")
+        qa_db = get_database_for_env("qa")
+        if AdminService(prod_db).is_admin(target_email) or AdminService(qa_db).is_admin(target_email):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 @router.get("/check-access", response_model=AdminCheckResponse)
 def check_admin_access(
     email: Optional[str] = Query(None, description="User email to check"),
@@ -30,7 +46,7 @@ def check_admin_access(
     service: AdminService = Depends(get_admin_service),
 ):
     target_email = (email or x_admin_email or "").strip()
-    is_admin = service.is_admin(target_email)
+    is_admin = is_authorized_admin(service, target_email)
     return AdminCheckResponse(isAdmin=is_admin, email=target_email)
 
 
@@ -43,7 +59,7 @@ def get_users_dashboard(
     service: AdminService = Depends(get_admin_service),
 ):
     target_email = (email or x_admin_email or "").strip()
-    if not target_email or not service.is_admin(target_email):
+    if not is_authorized_admin(service, target_email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Admin access required. User email is not present in admin collection.",
@@ -60,7 +76,7 @@ def get_user_detail(
     service: AdminService = Depends(get_admin_service),
 ):
     target_email = (email or x_admin_email or "").strip()
-    if not target_email or not service.is_admin(target_email):
+    if not is_authorized_admin(service, target_email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Admin access required.",

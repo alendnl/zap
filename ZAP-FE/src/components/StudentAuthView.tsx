@@ -303,10 +303,19 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
             </button>
           </form>
 
-          {/* Footer note */}
-          <div className="px-6 py-3 bg-[#f8fafc] dark:bg-[#0e1420] border-t border-[#e2e8f0] dark:border-[#1e293b] flex items-center justify-center gap-2 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Dedicated DSA & Technical Interview Preparation</span>
+          {/* Footer note & Admin Access Link */}
+          <div className="px-6 py-3 bg-[#f8fafc] dark:bg-[#0e1420] border-t border-[#e2e8f0] dark:border-[#1e293b] flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <span>DSA & Technical Preparation</span>
+            </div>
+            <a
+              href="/admin"
+              className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold flex items-center gap-1 transition-colors"
+            >
+              <span>Admin Portal</span>
+              <ArrowRight className="w-3 h-3" />
+            </a>
           </div>
         </div>
       </div>
