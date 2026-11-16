@@ -363,7 +363,7 @@ function ContestAnalyticsContent() {
         ) : (
           <>
             {/* 3. Executive KPI Ribbon (6 High-Density Metric Cards) */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {/* Total Candidates */}
               <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-2xl shadow-xs space-y-2">
                 <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8]">

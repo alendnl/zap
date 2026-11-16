@@ -595,7 +595,7 @@ export default function AdminQuestionsPage() {
         )}
 
         {/* KPI Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {/* Total Questions */}
           <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-4 shadow-xs">
             <div className="flex items-center justify-between mb-2">
@@ -692,11 +692,10 @@ export default function AdminQuestionsPage() {
                 <button
                   key={diff}
                   onClick={() => setDifficultyFilter(diff)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    difficultyFilter === diff
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${difficultyFilter === diff
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   {diff === "ALL" ? "All Levels" : diff.charAt(0) + diff.slice(1).toLowerCase()}
                 </button>
@@ -709,11 +708,10 @@ export default function AdminQuestionsPage() {
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    statusFilter === st
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${statusFilter === st
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   {st === "ALL" ? "All Status" : st.charAt(0) + st.slice(1).toLowerCase()}
                 </button>
@@ -755,17 +753,15 @@ export default function AdminQuestionsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span
-                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                      DIFFICULTY_BADGE[q.difficulty] || DIFFICULTY_BADGE["MEDIUM"]
-                    }`}
+                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${DIFFICULTY_BADGE[q.difficulty] || DIFFICULTY_BADGE["MEDIUM"]
+                      }`}
                   >
                     {q.difficulty}
                   </span>
 
                   <span
-                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                      STATUS_BADGE[q.status] || STATUS_BADGE["DRAFT"]
-                    }`}
+                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${STATUS_BADGE[q.status] || STATUS_BADGE["DRAFT"]
+                      }`}
                   >
                     {q.status}
                   </span>
@@ -911,11 +907,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("basic")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "basic"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "basic"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
                 <span>Basic Info</span>
@@ -924,11 +919,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("statement")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "statement"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "statement"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <FileCode className="w-3.5 h-3.5" />
                 <span>Statement &amp; Constraints</span>
@@ -937,11 +931,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("testcases")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "testcases"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "testcases"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>Test Cases ({form.testCases.length})</span>
@@ -950,11 +943,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("limits")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "limits"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "limits"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Limits &amp; Languages</span>
@@ -963,11 +955,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("starter")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "starter"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "starter"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Code2 className="w-3.5 h-3.5" />
                 <span>Starter Code</span>
@@ -976,11 +967,10 @@ export default function AdminQuestionsPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange("json")}
-                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  modalTab === "json"
+                className={`py-3 px-3 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${modalTab === "json"
                     ? "border-blue-600 text-blue-600 dark:text-blue-400"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <FileJson className="w-3.5 h-3.5" />
                 <span>Raw JSON</span>
@@ -1232,11 +1222,10 @@ export default function AdminQuestionsPage() {
                                   tc.visibility === "PUBLIC" ? "HIDDEN" : "PUBLIC"
                                 )
                               }
-                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
-                                tc.visibility === "PUBLIC"
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${tc.visibility === "PUBLIC"
                                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                                   : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
-                              }`}
+                                }`}
                               title="Click to toggle Public / Hidden"
                             >
                               {tc.visibility === "PUBLIC" ? (
@@ -1397,19 +1386,17 @@ export default function AdminQuestionsPage() {
                           <div
                             key={lang.id}
                             onClick={() => toggleLanguage(lang.id)}
-                            className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all select-none ${
-                              isChecked
+                            className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all select-none ${isChecked
                                 ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400"
                                 : "bg-[#f8fafc] dark:bg-[#0e1420] border-[#e2e8f0] dark:border-[#232f45] text-[#64748b] dark:text-[#94a3b8]"
-                            }`}
+                              }`}
                           >
                             <span className="text-xs font-semibold">{lang.label}</span>
                             <div
-                              className={`w-4 h-4 rounded-md flex items-center justify-center border ${
-                                isChecked
+                              className={`w-4 h-4 rounded-md flex items-center justify-center border ${isChecked
                                   ? "bg-blue-600 border-blue-600 text-white"
                                   : "border-[#94a3b8]"
-                              }`}
+                                }`}
                             >
                               {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                             </div>
@@ -1440,11 +1427,10 @@ export default function AdminQuestionsPage() {
                           key={lang}
                           type="button"
                           onClick={() => setActiveStarterLang(lang)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            activeStarterLang === lang
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${activeStarterLang === lang
                               ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                               : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                          }`}
+                            }`}
                         >
                           {lang}
                         </button>

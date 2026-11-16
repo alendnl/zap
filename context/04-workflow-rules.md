@@ -93,6 +93,10 @@ Before marking any feature, bug fix, or refactor complete, execute the verificat
    ```bash
    bash .agents/skills/build/scripts/verify_build.sh
    ```
+4. **Cloud & Database Verification (When Applicable)**:
+   ```bash
+   .agents/skills/cloud-ops/scripts/zap-ops doctor
+   ```
 All checks must pass with zero regressions and zero broken imports.
 
 ### Step 7: Capped Iteration Guardrail (Max 2-3 Iterations)

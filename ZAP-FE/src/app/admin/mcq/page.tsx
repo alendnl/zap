@@ -253,7 +253,7 @@ export default function AdminMCQPage() {
       const next = { ...prev, [key]: val };
       try {
         setJsonText(JSON.stringify(next, null, 2));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -578,14 +578,13 @@ export default function AdminMCQPage() {
         </div>
 
         {/* Category Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <div
             onClick={() => setSelectedCategory("ALL")}
-            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-              selectedCategory === "ALL"
+            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${selectedCategory === "ALL"
                 ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-2 ring-blue-500/20"
                 : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-blue-400"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8] mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider">All Categories</span>
@@ -598,11 +597,10 @@ export default function AdminMCQPage() {
 
           <div
             onClick={() => setSelectedCategory("DSA")}
-            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-              selectedCategory === "DSA"
+            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${selectedCategory === "DSA"
                 ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700 ring-2 ring-emerald-500/20"
                 : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-emerald-400"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8] mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider">DSA</span>
@@ -615,11 +613,10 @@ export default function AdminMCQPage() {
 
           <div
             onClick={() => setSelectedCategory("DBMS")}
-            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-              selectedCategory === "DBMS"
+            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${selectedCategory === "DBMS"
                 ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/20"
                 : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-indigo-400"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8] mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider">DBMS</span>
@@ -632,11 +629,10 @@ export default function AdminMCQPage() {
 
           <div
             onClick={() => setSelectedCategory("NETWORKS")}
-            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-              selectedCategory === "NETWORKS"
+            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${selectedCategory === "NETWORKS"
                 ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 ring-2 ring-amber-500/20"
                 : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-amber-400"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8] mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Networks</span>
@@ -649,11 +645,10 @@ export default function AdminMCQPage() {
 
           <div
             onClick={() => setSelectedCategory("OOPS")}
-            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-              selectedCategory === "OOPS"
+            className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${selectedCategory === "OOPS"
                 ? "bg-purple-50/50 dark:bg-purple-950/20 border-purple-300 dark:border-purple-700 ring-2 ring-purple-500/20"
                 : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-purple-400"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between text-[#64748b] dark:text-[#94a3b8] mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider">OOPS</span>
@@ -815,9 +810,8 @@ export default function AdminMCQPage() {
 
                         {/* Difficulty */}
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                            DIFFICULTY_BADGE[q.difficulty] || DIFFICULTY_BADGE.EASY
-                          }`}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${DIFFICULTY_BADGE[q.difficulty] || DIFFICULTY_BADGE.EASY
+                            }`}
                         >
                           {q.difficulty}
                         </span>
@@ -845,9 +839,8 @@ export default function AdminMCQPage() {
 
                       {/* Status */}
                       <span
-                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                          STATUS_BADGE[q.status] || STATUS_BADGE.PUBLISHED
-                        }`}
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${STATUS_BADGE[q.status] || STATUS_BADGE.PUBLISHED
+                          }`}
                       >
                         {q.status}
                       </span>
@@ -980,11 +973,10 @@ export default function AdminMCQPage() {
               <button
                 type="button"
                 onClick={() => setModalTab("details")}
-                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                  modalTab === "details"
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${modalTab === "details"
                     ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-[#121824]"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
                 <span>1. Basic Details</span>
@@ -993,11 +985,10 @@ export default function AdminMCQPage() {
               <button
                 type="button"
                 onClick={() => setModalTab("content")}
-                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                  modalTab === "content"
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${modalTab === "content"
                     ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-[#121824]"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>2. Question Content</span>
@@ -1006,11 +997,10 @@ export default function AdminMCQPage() {
               <button
                 type="button"
                 onClick={() => setModalTab("options")}
-                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                  modalTab === "options"
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${modalTab === "options"
                     ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-[#121824]"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>3. Options & Answers ({form.options.length})</span>
@@ -1022,11 +1012,10 @@ export default function AdminMCQPage() {
                   setModalTab("json");
                   setJsonText(JSON.stringify(form, null, 2));
                 }}
-                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                  modalTab === "json"
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${modalTab === "json"
                     ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-[#121824]"
                     : "border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <FileJson className="w-3.5 h-3.5" />
                 <span>Raw JSON</span>
@@ -1084,11 +1073,10 @@ export default function AdminMCQPage() {
                             key={c}
                             type="button"
                             onClick={() => updateForm("category", c)}
-                            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
-                              form.category.toUpperCase() === c
+                            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${form.category.toUpperCase() === c
                                 ? "bg-emerald-600 text-white border-emerald-600"
                                 : "bg-[#f8fafc] dark:bg-[#0e1420] text-[#64748b] dark:text-[#94a3b8] border-[#e2e8f0] dark:border-[#1e293b]"
-                            }`}
+                              }`}
                           >
                             {c}
                           </button>
@@ -1202,11 +1190,10 @@ export default function AdminMCQPage() {
                       <button
                         type="button"
                         onClick={() => updateForm("questionType", "text")}
-                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                          form.questionType === "text"
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${form.questionType === "text"
                             ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/20"
                             : "border-[#e2e8f0] dark:border-[#1e293b] text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-[#0e1420]"
-                        }`}
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span>Text / Markdown</span>
@@ -1215,11 +1202,10 @@ export default function AdminMCQPage() {
                       <button
                         type="button"
                         onClick={() => updateForm("questionType", "code")}
-                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                          form.questionType === "code"
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${form.questionType === "code"
                             ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/20"
                             : "border-[#e2e8f0] dark:border-[#1e293b] text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-[#0e1420]"
-                        }`}
+                          }`}
                       >
                         <Code className="w-4 h-4" />
                         <span>Code Snippet</span>
@@ -1228,11 +1214,10 @@ export default function AdminMCQPage() {
                       <button
                         type="button"
                         onClick={() => updateForm("questionType", "image")}
-                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                          form.questionType === "image"
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${form.questionType === "image"
                             ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/20"
                             : "border-[#e2e8f0] dark:border-[#1e293b] text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-[#0e1420]"
-                        }`}
+                          }`}
                       >
                         <ImageIcon className="w-4 h-4" />
                         <span>Image Diagram</span>
@@ -1358,11 +1343,10 @@ export default function AdminMCQPage() {
                       return (
                         <div
                           key={opt.id || idx}
-                          className={`p-4 rounded-xl border transition-all ${
-                            opt.isCorrect
+                          className={`p-4 rounded-xl border transition-all ${opt.isCorrect
                               ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700/60 ring-1 ring-emerald-500/20"
                               : "bg-[#f8fafc] dark:bg-[#0e1420] border-[#e2e8f0] dark:border-[#1e293b]"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2 mb-2.5">
                             {/* Option Label & Correct Radio */}
@@ -1374,11 +1358,10 @@ export default function AdminMCQPage() {
                               <button
                                 type="button"
                                 onClick={() => setCorrectOption(idx)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                                  opt.isCorrect
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${opt.isCorrect
                                     ? "bg-emerald-600 text-white shadow-xs"
                                     : "bg-white dark:bg-[#121824] text-[#64748b] dark:text-[#94a3b8] border border-[#e2e8f0] dark:border-[#1e293b] hover:text-[#0f172a] dark:hover:text-white"
-                                }`}
+                                  }`}
                               >
                                 {opt.isCorrect ? (
                                   <>
@@ -1626,9 +1609,8 @@ export default function AdminMCQPage() {
                       {previewQuestion.category}
                     </span>
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                        DIFFICULTY_BADGE[previewQuestion.difficulty]
-                      }`}
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${DIFFICULTY_BADGE[previewQuestion.difficulty]
+                        }`}
                     >
                       {previewQuestion.difficulty}
                     </span>

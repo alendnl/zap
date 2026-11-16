@@ -29,6 +29,7 @@
 - [x] **MCQ Question Subsystem & Admin Portal**: Dedicated MongoDB collection `mcq_questions` with 10 curated seed questions (DSA, DBMS, Networks, OOPS), FastAPI CRUD endpoints (`/api/v1/mcq/questions`), and full-featured Admin MCQ Manager portal at `/admin/mcq` with rich support for text, code snippet, and diagram image questions and options.
 - [x] **Contest Engine & Anti-Cheat Proctoring**: Dedicated timed assessment environment with isolated contest sessions, auto-sync, client proctoring guards (fullscreen enforcement, clipboard copy/paste interception, tab switch detection), and isolated submission pipeline.
 - [x] **Contest Submissions Analytics Dashboard**: Executive telemetry dashboard at `/admin/contests/analytics` featuring cohort metrics (completion rate, score distribution histogram, MCQ accuracy, coding acceptance), proctoring infraction analytics, candidate submissions leaderboard, and individual candidate inspection modal with chronological proctoring violation timeline and full source code viewer.
+- [x] **Cloud & Database Operations Skill (`cloud-ops`)**: Dedicated operational agent skill and zero-setup CLI tool (`zap-ops`) unifying MongoDB Atlas queries/schema inspection, GCP Cloud Run/Tasks/Logs management, and GitHub CI/CD monitoring with strict production safety guardrails.
 - [x] **Load Testing Suite**: Headless Locust test runner simulating bursty 100-user concurrent submissions targeting lower database safely.
 
 ---
@@ -72,4 +73,11 @@
 - **Context**: Scattered documentation and prompt drift degrade AI agent effectiveness over time.
 - **Decision**: Consolidate all core context into 6 canonical files in `context/`, while keeping `.agents/rules/` and `AGENTS.md` synchronized as direct harness bridges.
 - **Consequences**: Standardized context architecture compatible with Antigravity IDE, Cursor, Claude Code, and human engineers with zero breakage.
+
+### ADR-006: Dedicated Cloud & Database Operational Agent Skill (`cloud-ops`)
+- **Status**: Accepted
+- **Context**: Managing, troubleshooting, and querying MongoDB Atlas, GCP Cloud Run/Tasks/Logs, and GitHub CI/CD required disparate ad-hoc scripts with risks of accidental mutation on production.
+- **Decision**: Implement the `cloud-ops` agent skill with a dedicated, safe CLI tool (`zap-ops`) providing unified diagnostic health checks, read-only defaults, production write guardrails, one-way sync to QA, and log inspection.
+- **Consequences**: Instant operational visibility and safe developer troubleshooting across cloud infrastructure with zero accidental production blast radius.
+
 

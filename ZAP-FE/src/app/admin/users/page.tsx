@@ -336,7 +336,7 @@ export default function AdminUsersDashboardPage() {
         )}
 
         {/* KPI Overview Metrics Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {/* Card 1: Total Registered Students */}
           <div className="p-4 rounded-2xl border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] shadow-xs">
             <div className="flex items-center justify-between mb-2">
@@ -818,13 +818,12 @@ export default function AdminUsersDashboardPage() {
                               )}
                             </div>
                             <span
-                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                                q.difficulty === "EASY"
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${q.difficulty === "EASY"
                                   ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                   : q.difficulty === "HARD"
-                                  ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                              }`}
+                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                }`}
                             >
                               {q.difficulty}
                             </span>
@@ -861,13 +860,12 @@ export default function AdminUsersDashboardPage() {
                             </div>
 
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                sub.verdict === "ACCEPTED"
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sub.verdict === "ACCEPTED"
                                   ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                   : sub.verdict === "WRONG_ANSWER"
-                                  ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                              }`}
+                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                }`}
                             >
                               {sub.verdict || sub.status}
                             </span>

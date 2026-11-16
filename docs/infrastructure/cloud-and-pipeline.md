@@ -63,11 +63,11 @@ flowchart LR
 - **`zap-api`**:
   - URL: `https://zap-api-394729648143.us-central1.run.app`
   - Access: Public (`--allow-unauthenticated`).
-  - Sizing: CPU 1, Memory 512Mi, Concurrency 80, Scale `0 → 10`.
+  - Sizing: CPU 1, Memory 512Mi, Concurrency 80, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `1 → 10`.
 - **`zap-executor`**:
   - URL: `https://zap-executor-394729648143.us-central1.run.app`
   - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
-  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Scale `0 → 10`, Request timeout 120s.
+  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Target Concurrency 40% (`--scaling-concurrency-target=0.40`), CPU Boost enabled, Scale `1 → 10`, Request timeout 120s.
 
 ### 2.4 Cloud Tasks Queues
 - **Production Queue**: `zap-submissions` (Max 4.0 dispatches/sec, max 20 concurrent dispatches, min backoff 3s, max backoff 60s)

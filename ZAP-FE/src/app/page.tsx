@@ -440,24 +440,22 @@ export default function Home() {
 
   return (
     <div
-      className={`bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col transition-colors duration-200 ${
-        activeTab === "compiler" ? "h-screen overflow-hidden" : "min-h-screen"
-      }`}
+      className={`bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col transition-colors duration-200 ${activeTab === "compiler" ? "h-screen overflow-hidden" : "min-h-screen"
+        }`}
     >
       {/* Top Workbench Navigation Bar */}
       <header className="sticky top-0 z-30 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] flex-shrink-0 shadow-xs">
         <div
-          className={`mx-auto px-4 h-13 flex items-center justify-between gap-4 ${
-            activeTab === "compiler" ? "w-full" : "max-w-6xl"
-          }`}
+          className={`mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2 sm:gap-4 ${activeTab === "compiler" ? "w-full" : "max-w-6xl"
+            }`}
         >
           {/* Brand & Section Switcher */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
               <span className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs select-none shadow-sm shadow-blue-600/30">
                 Z
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="hidden xs:flex items-center gap-1.5">
                 <span className="font-extrabold text-sm tracking-tight select-none text-[#0f172a] dark:text-white">
                   ZAP
                 </span>
@@ -467,19 +465,18 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Segmented Topic Navigation */}
-            <nav className="flex items-center gap-1 bg-[#f1f5f9] dark:bg-[#0b0f17] p-1 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b]">
+            {/* Segmented Topic Navigation (Responsive scroll on mobile) */}
+            <nav className="flex items-center gap-1 bg-[#f1f5f9] dark:bg-[#0b0f17] p-1 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] overflow-x-auto no-scrollbar max-w-full">
               <button
                 type="button"
                 onClick={() => handleTabSwitch("dsa")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  activeTab === "dsa"
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "dsa"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
-                <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>DSA Problems</span>
+                <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span>DSA<span className="hidden sm:inline"> Problems</span></span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
                   {dsaQuestions.length}
                 </span>
@@ -488,14 +485,13 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("basic")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  activeTab === "basic"
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "basic"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
-                <BookOpen className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                <span>Basic Programming</span>
+                <BookOpen className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+                <span><span className="hidden md:inline">Basic </span>Concepts</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
                   {basicQuestions.length}
                 </span>
@@ -504,26 +500,24 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleTabSwitch("compiler")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  activeTab === "compiler"
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "compiler"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
-                <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
                 <span>Compiler</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTabSwitch("contest")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  activeTab === "contest"
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "contest"
                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                }`}
+                  }`}
               >
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <Trophy className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 <span>Contests</span>
                 {contests.length > 0 && (
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
@@ -533,20 +527,19 @@ export default function Home() {
               </button>
 
               {isAdmin && (
-                <div className="relative">
+                <div className="relative flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setAdminDropdownOpen((prev) => !prev)}
                     onMouseEnter={() => setAdminDropdownOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-semibold shadow-xs"
+                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-semibold shadow-xs flex-shrink-0"
                     title="Admin Operations"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                     <span>Admin</span>
                     <ChevronDown
-                      className={`w-3 h-3 text-purple-600 dark:text-purple-400 transition-transform ${
-                        adminDropdownOpen ? "rotate-180" : ""
-                      }`}
+                      className={`w-3 h-3 text-purple-600 dark:text-purple-400 transition-transform ${adminDropdownOpen ? "rotate-180" : ""
+                        }`}
                     />
                   </button>
 
@@ -651,26 +644,28 @@ export default function Home() {
           </div>
 
           {/* Right Tools: Session, Environment, Theme */}
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] px-2.5 py-1 rounded-xl text-xs shadow-xs">
-              <span className="w-4 h-4 rounded-full bg-blue-600/15 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
-                {student.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="font-semibold text-[11px] text-[#0f172a] dark:text-white truncate max-w-[140px]">
-                {student.name}
-              </span>
-              <span className="text-[#94a3b8] text-[10px] font-mono">
-                {student.studentId}
-              </span>
-              <button
-                type="button"
-                onClick={() => authApi.logout()}
-                title="Sign out"
-                className="ml-1 text-[#64748b] dark:text-[#94a3b8] hover:text-rose-600 dark:hover:text-rose-400 p-0.5 cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            {student && (
+              <div className="hidden lg:flex items-center gap-2 border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] px-2.5 py-1 rounded-xl text-xs shadow-xs">
+                <span className="w-4 h-4 rounded-full bg-blue-600/15 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
+                  {student.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="font-semibold text-[11px] text-[#0f172a] dark:text-white truncate max-w-[120px]">
+                  {student.name}
+                </span>
+                <span className="text-[#94a3b8] text-[10px] font-mono hidden xl:inline">
+                  {student.studentId}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => authApi.logout()}
+                  title="Sign out"
+                  className="ml-1 text-[#64748b] dark:text-[#94a3b8] hover:text-rose-600 dark:hover:text-rose-400 p-0.5 cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             <EnvironmentSwitcher />
             <ThemeToggle />
@@ -709,7 +704,7 @@ export default function Home() {
 
                 {/* Progress & Solved Ratio Card */}
                 {currentTopicQuestions.length > 0 && (
-                  <div className="flex items-center gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-2xl shadow-xs dark:shadow-black/20 min-w-[280px]">
+                  <div className="flex items-center gap-4 sm:gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-3.5 sm:p-4 rounded-2xl shadow-xs dark:shadow-black/20 w-full lg:w-auto min-w-0 sm:min-w-[280px]">
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-2xl font-bold font-mono text-[#0f172a] dark:text-white tracking-tight">
@@ -781,19 +776,17 @@ export default function Home() {
                       key={diff}
                       type="button"
                       onClick={() => setDifficultyFilter(diff)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isSelected
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${isSelected
                           ? "bg-[#f1f5f9] dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
                           : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                      }`}
+                        }`}
                     >
                       <span>{diff === "ALL" ? "All" : diff.charAt(0) + diff.slice(1).toLowerCase()}</span>
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md ${
-                          isSelected
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md ${isSelected
                             ? "bg-white dark:bg-[#0b0f17] text-[#0f172a] dark:text-white"
                             : "bg-[#f1f5f9] dark:bg-[#161e2e] text-[#64748b] dark:text-[#94a3b8]"
-                        }`}
+                          }`}
                       >
                         {count}
                       </span>
@@ -812,11 +805,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setSelectedTag(null)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 cursor-pointer ${
-                    selectedTag === null
+                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 cursor-pointer ${selectedTag === null
                       ? "bg-blue-600 text-white font-semibold shadow-xs shadow-blue-600/20"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b]"
-                  }`}
+                    }`}
                 >
                   All Topics
                 </button>
@@ -825,11 +817,10 @@ export default function Home() {
                     key={tag}
                     type="button"
                     onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                    className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 border cursor-pointer ${
-                      selectedTag === tag
+                    className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all flex-shrink-0 border cursor-pointer ${selectedTag === tag
                         ? "border-blue-600 bg-blue-600 text-white font-semibold shadow-xs shadow-blue-600/20"
                         : "border-[#e2e8f0] dark:border-[#1e293b] text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white bg-white dark:bg-[#121824]"
-                    }`}
+                      }`}
                   >
                     {tag}
                   </button>
@@ -862,8 +853,8 @@ export default function Home() {
               </div>
             ) : (
               <div className="border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] rounded-2xl overflow-hidden shadow-xs">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0e1420] text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] uppercase tracking-wider">
+                {/* Table Header (Desktop/Tablet) */}
+                <div className="hidden sm:grid grid-cols-12 gap-3 px-5 py-3 border-b border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0e1420] text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] uppercase tracking-wider">
                   <div className="col-span-1">Status</div>
                   <div className="col-span-6 md:col-span-7">Problem Title</div>
                   <div className="col-span-2">Difficulty</div>
@@ -885,74 +876,133 @@ export default function Home() {
                       <div
                         key={q.id}
                         onClick={() => !isOpening && void openQuestion(q.id)}
-                        className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-[#f1f5f9]/70 dark:hover:bg-[#1a2233]/60 transition-all cursor-pointer group text-xs"
+                        className="hover:bg-[#f1f5f9]/70 dark:hover:bg-[#1a2233]/60 transition-all cursor-pointer group text-xs"
                       >
-                        {/* Status Icon */}
-                        <div className="col-span-1">
-                          {isSolved ? (
-                            <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="w-4 h-4" aria-label="Solved" />
+                        {/* Desktop / Tablet Grid Row */}
+                        <div className="hidden sm:grid grid-cols-12 gap-3 px-5 py-3.5 items-center">
+                          {/* Status Icon */}
+                          <div className="col-span-1">
+                            {isSolved ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-4 h-4" aria-label="Solved" />
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-[#f1f5f9] dark:bg-[#161e2e] border border-dashed border-[#cbd5e1] dark:border-[#334155] flex items-center justify-center text-[#94a3b8]">
+                                <Circle className="w-3 h-3 text-[#94a3b8]" aria-label="Not solved" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Title and Tags */}
+                          <div className="col-span-6 md:col-span-7 min-w-0 pr-3">
+                            <div className="font-semibold text-sm text-[#0f172a] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                              {q.title}
                             </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-[#f1f5f9] dark:bg-[#161e2e] border border-dashed border-[#cbd5e1] dark:border-[#334155] flex items-center justify-center text-[#94a3b8]">
-                              <Circle className="w-3 h-3 text-[#94a3b8]" aria-label="Not solved" />
-                            </div>
-                          )}
+                            {q.tags && q.tags.length > 0 && (
+                              <div className="flex items-center gap-1.5 mt-1 overflow-hidden flex-wrap">
+                                {q.tags
+                                  .filter((t) => t !== "basic-programming")
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="text-[10px] text-[#64748b] dark:text-[#94a3b8] bg-[#f1f5f9] dark:bg-[#161e2e] px-2 py-0.5 rounded-md border border-[#e2e8f0] dark:border-[#1e293b] font-medium"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Difficulty */}
+                          <div className="col-span-2">
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${diffConfig.className}`}
+                            >
+                              {diffConfig.label}
+                            </span>
+                          </div>
+
+                          {/* Test Cases Count */}
+                          <div className="hidden md:block col-span-1 text-right text-[11px] font-mono text-[#64748b] dark:text-[#94a3b8]">
+                            {q.testCasesCount != null ? q.testCasesCount : "—"}
+                          </div>
+
+                          {/* Action */}
+                          <div className="col-span-3 md:col-span-1 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void openQuestion(q.id);
+                              }}
+                              disabled={isOpening}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${isSolved
+                                  ? "border-[#e2e8f0] dark:border-[#232f45] bg-[#f8fafc] dark:bg-[#1a2233] text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                                  : "border-blue-600 dark:border-blue-500 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-xs shadow-blue-600/25"
+                                }`}
+                            >
+                              {isOpening ? "Loading" : isSolved ? "Review" : "Solve →"}
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Title and Tags */}
-                        <div className="col-span-6 md:col-span-7 min-w-0 pr-3">
-                          <div className="font-semibold text-sm text-[#0f172a] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
-                            {q.title}
+                        {/* Mobile Stacked Card (Clean, Unsquished, Responsive) */}
+                        <div className="sm:hidden p-4 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isSolved ? (
+                                <div className="w-5 h-5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                                  <CheckCircle2 className="w-3.5 h-3.5" aria-label="Solved" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-[#f1f5f9] dark:bg-[#161e2e] border border-dashed border-[#cbd5e1] dark:border-[#334155] flex items-center justify-center text-[#94a3b8] flex-shrink-0">
+                                  <Circle className="w-2.5 h-2.5 text-[#94a3b8]" aria-label="Not solved" />
+                                </div>
+                              )}
+                              <span className="font-semibold text-sm text-[#0f172a] dark:text-white truncate">
+                                {q.title}
+                              </span>
+                            </div>
+                            <span
+                              className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${diffConfig.className}`}
+                            >
+                              {diffConfig.label}
+                            </span>
                           </div>
-                          {q.tags && q.tags.length > 0 && (
-                            <div className="flex items-center gap-1.5 mt-1.5 overflow-hidden flex-wrap">
-                              {q.tags
-                                .filter((t) => t !== "basic-programming")
-                                .slice(0, 4)
-                                .map((tag) => (
+
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#f1f5f9] dark:border-[#1a2233]">
+                            <div className="flex items-center gap-1.5 overflow-hidden flex-wrap flex-1 min-w-0">
+                              {q.tags && q.tags.length > 0 ? (
+                                q.tags.slice(0, 3).map((tag) => (
                                   <span
                                     key={tag}
-                                    className="text-[10px] text-[#64748b] dark:text-[#94a3b8] bg-[#f1f5f9] dark:bg-[#161e2e] px-2 py-0.5 rounded-md border border-[#e2e8f0] dark:border-[#1e293b] font-medium"
+                                    className="text-[9px] text-[#64748b] dark:text-[#94a3b8] bg-[#f1f5f9] dark:bg-[#161e2e] px-1.5 py-0.5 rounded-md border border-[#e2e8f0] dark:border-[#1e293b] font-medium"
                                   >
                                     {tag}
                                   </span>
-                                ))}
+                                ))
+                              ) : (
+                                <span className="text-[10px] text-[#94a3b8]">DSA Algorithm</span>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        {/* Difficulty */}
-                        <div className="col-span-2">
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${diffConfig.className}`}
-                          >
-                            {diffConfig.label}
-                          </span>
-                        </div>
-
-                        {/* Test Cases Count */}
-                        <div className="hidden md:block col-span-1 text-right text-[11px] font-mono text-[#64748b] dark:text-[#94a3b8]">
-                          {q.testCasesCount != null ? q.testCasesCount : "—"}
-                        </div>
-
-                        {/* Action */}
-                        <div className="col-span-3 md:col-span-1 text-right">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void openQuestion(q.id);
-                            }}
-                            disabled={isOpening}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
-                              isSolved
-                                ? "border-[#e2e8f0] dark:border-[#232f45] bg-[#f8fafc] dark:bg-[#1a2233] text-[#475569] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                                : "border-blue-600 dark:border-blue-500 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-xs shadow-blue-600/25"
-                            }`}
-                          >
-                            {isOpening ? "Loading" : isSolved ? "Review" : "Solve →"}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void openQuestion(q.id);
+                              }}
+                              disabled={isOpening}
+                              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border cursor-pointer flex-shrink-0 ${isSolved
+                                  ? "border-[#e2e8f0] dark:border-[#232f45] bg-[#f8fafc] dark:bg-[#1a2233] text-[#475569] dark:text-[#94a3b8]"
+                                  : "border-blue-600 bg-blue-600 text-white shadow-2xs"
+                                }`}
+                            >
+                              {isOpening ? "Loading" : isSolved ? "Review" : "Solve →"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1053,7 +1103,7 @@ export default function Home() {
               </div>
 
               {/* Assessment Metrics Card */}
-              <div className="flex items-center gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-2xl shadow-xs min-w-[260px]">
+              <div className="flex items-center gap-4 sm:gap-5 bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-3.5 sm:p-4 rounded-2xl shadow-xs w-full lg:w-auto min-w-0 sm:min-w-[260px]">
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl font-bold font-mono text-[#0f172a] dark:text-white tracking-tight">
