@@ -21,7 +21,7 @@ zap/
 │       ├── components/      # UI components (Monaco Editor, Panels, TestRunner)
 │       ├── services/        # API clients with X-ZAP-ENV header injection
 │       └── types/           # Shared TypeScript interfaces
-└── load_test/               # Locust load test suite with safe QA environment targeting
+└── load_test/               # QA test question sync and lower environment documentation (load testing is now in ZAP-FE /admin/load-test)
 ```
 
 ---

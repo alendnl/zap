@@ -19,6 +19,7 @@ import {
   Database,
   ExternalLink,
   BookOpen,
+  Flame,
 } from "lucide-react";
 import { AdminHeader } from "@/components/AdminHeader";
 import { getStoredStudent } from "@/services/authApi";
@@ -436,6 +437,94 @@ export default function AdminOverviewHub() {
                 </span>
               </div>
             </Link>
+          </div>
+        </section>
+
+        {/* PILLAR 3: OPERATIONS & INFRASTRUCTURE */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                <Flame className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#0f172a] dark:text-white">
+                  Operations & Infrastructure Testing
+                </h2>
+                <p className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                  Direct browser-driven stress testing and telemetry for production API and sandboxed compilers with strict lower DB isolation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Load Testing Studio Card */}
+            <Link
+              href="/admin/load-test"
+              className="group relative bg-white dark:bg-[#121824] rounded-2xl border border-[#e2e8f0] dark:border-[#1e293b] hover:border-amber-500/50 dark:hover:border-amber-500/50 p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Flame className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    QA Lower DB Locked
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-[#0f172a] dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1.5">
+                  <span>Load Testing Studio</span>
+                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </h3>
+                <p className="text-xs text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+                  Direct in-browser load testing engine. Configure virtual users, ramp-up schedules, target REST routes or compilation-heavy C++/Java sandboxes, monitor real-time RPS, and manage lower DB test data.
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-[#f1f5f9] dark:border-[#1a2233] flex items-center justify-between text-xs">
+                <span className="text-[#64748b] dark:text-[#94a3b8] font-mono text-[11px]">
+                  Configurable API & Compiler Engine
+                </span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <span>Launch Studio</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            </Link>
+
+            {/* Safety & Environment Guardrail Summary Card */}
+            <div className="bg-white/60 dark:bg-[#121824]/60 rounded-2xl border border-[#e2e8f0] dark:border-[#1e293b] p-6 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                    Architecture Invariant
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-[#0f172a] dark:text-white">
+                  Zero Production Contamination
+                </h3>
+                <p className="text-xs text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+                  Single Cloud Run deployment topology with dynamic request-header environment routing. All test accounts, code submissions, and execution metrics strictly use <code className="text-emerald-500 font-mono">zap_platform_lower</code> and lower Cloud Tasks queues.
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-[#f1f5f9] dark:border-[#1a2233] flex items-center justify-between text-xs">
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-semibold">
+                  ✓ X-ZAP-ENV: qa auto-injected
+                </span>
+                <Link
+                  href="/admin/load-test"
+                  className="font-semibold text-slate-600 dark:text-slate-400 hover:text-white flex items-center gap-1"
+                >
+                  <span>Purge Lower Data</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       </main>

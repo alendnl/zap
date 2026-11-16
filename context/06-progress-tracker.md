@@ -30,7 +30,7 @@
 - [x] **Contest Engine & Anti-Cheat Proctoring**: Dedicated timed assessment environment with isolated contest sessions, auto-sync, client proctoring guards (fullscreen enforcement, clipboard copy/paste interception, tab switch detection), and isolated submission pipeline.
 - [x] **Contest Submissions Analytics Dashboard**: Executive telemetry dashboard at `/admin/contests/analytics` featuring cohort metrics (completion rate, score distribution histogram, MCQ accuracy, coding acceptance), proctoring infraction analytics, candidate submissions leaderboard, and individual candidate inspection modal with chronological proctoring violation timeline and full source code viewer.
 - [x] **Cloud & Database Operations Skill (`cloud-ops`)**: Dedicated operational agent skill and zero-setup CLI tool (`zap-ops`) unifying MongoDB Atlas queries/schema inspection, GCP Cloud Run/Tasks/Logs management, and GitHub CI/CD monitoring with strict production safety guardrails.
-- [x] **Load Testing Suite**: Headless Locust test runner simulating bursty 100-user concurrent submissions targeting lower database safely.
+- [x] **In-Browser Admin Load Testing Studio (`/admin/load-test`)**: Replaced unmaintainable local CLI load testing scripts with a full-featured, zero-setup in-browser load testing studio. Features dual target subsystems (ZAP API & ZAP Executor), configurable concurrency, linear vs instant spike ramp-up schedules, multi-language compiler stress (C++, Java, Python, C, JavaScript) across Light/Medium/Heavy workloads, live telemetry streaming, response time percentiles (p50, p75, p90, p95, p99), historical run recording in `zap_platform_lower`, and strict environment isolation with an automated lower DB synthetic data cleanup modal.
 
 ---
 

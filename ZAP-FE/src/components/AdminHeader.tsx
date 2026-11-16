@@ -20,20 +20,22 @@ import {
   Sparkles,
   ArrowRight,
   Check,
+  Flame,
 } from "lucide-react";
 import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getStoredStudent, authApi } from "@/services/authApi";
 import type { Student } from "@/types/auth";
 
-export type AdminSection = "dashboard" | "studio" | "overview";
+export type AdminSection = "dashboard" | "studio" | "overview" | "operations";
 export type AdminItem =
   | "overview"
   | "users"
   | "contests-analytics"
   | "questions"
   | "mcq"
-  | "contests";
+  | "contests"
+  | "load-test";
 
 interface AdminHeaderProps {
   activeSection?: AdminSection;
@@ -104,6 +106,14 @@ const ITEMS_META: Record<
     badgeColor: "text-amber-600 bg-amber-500/10",
     desc: "Timed competitive assessments & schedules",
   },
+  "load-test": {
+    title: "Load Testing Studio",
+    section: "operations",
+    href: "/admin/load-test",
+    icon: Flame,
+    badgeColor: "text-amber-600 bg-amber-500/10",
+    desc: "Custom API & sandboxed compiler stress testing",
+  },
 };
 
 export function AdminHeader({
@@ -152,17 +162,19 @@ export function AdminHeader({
     activeItem ||
     (pathname === "/admin"
       ? "overview"
-      : pathname.startsWith("/admin/users")
-        ? "users"
-        : pathname.startsWith("/admin/contests/analytics")
-          ? "contests-analytics"
-          : pathname.startsWith("/admin/questions")
-            ? "questions"
-            : pathname.startsWith("/admin/mcq")
-              ? "mcq"
-              : pathname.startsWith("/admin/contests")
-                ? "contests"
-                : "overview");
+      : pathname.startsWith("/admin/load-test")
+        ? "load-test"
+        : pathname.startsWith("/admin/users")
+          ? "users"
+          : pathname.startsWith("/admin/contests/analytics")
+            ? "contests-analytics"
+            : pathname.startsWith("/admin/questions")
+              ? "questions"
+              : pathname.startsWith("/admin/mcq")
+                ? "mcq"
+                : pathname.startsWith("/admin/contests")
+                  ? "contests"
+                  : "overview");
 
   const currentMeta = ITEMS_META[currentItem];
   const CurrentIcon = currentMeta.icon;
@@ -177,6 +189,9 @@ export function AdminHeader({
     currentItem === "questions" ||
     currentItem === "mcq" ||
     currentItem === "contests";
+
+  const isOperationsActive =
+    activeSection === "operations" || currentItem === "load-test";
 
   return (
     <div className="sticky top-0 z-40 flex flex-col border-b border-[#e2e8f0] dark:border-[#1e293b] bg-white/95 dark:bg-[#121824]/95 backdrop-blur-md shadow-xs transition-colors duration-200">
@@ -349,6 +364,32 @@ export function AdminHeader({
                   </Link>
                 </div>
 
+                {/* Section 3: OPERATIONS */}
+                <div className="space-y-0.5 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1.5">
+                  <div className="px-2.5 pt-1 pb-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] flex items-center justify-between">
+                    <span>Operations & Stress</span>
+                    <span className="text-[9px] font-sans font-normal text-amber-500 font-mono">1 Tool</span>
+                  </div>
+
+                  <Link
+                    href="/admin/load-test"
+                    onClick={() => setContextSwitcherOpen(false)}
+                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl transition-colors ${currentItem === "load-test"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30"
+                        : "hover:bg-slate-100 dark:hover:bg-[#1a2233] text-[#0f172a] dark:text-white"
+                      }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Flame className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-xs">Load Testing Studio</span>
+                        <span className="text-[10px] text-[#64748b] dark:text-[#94a3b8]">API & compiler sandbox stress testing</span>
+                      </div>
+                    </div>
+                    {currentItem === "load-test" && <Check className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />}
+                  </Link>
+                </div>
+
                 {/* Footer Link */}
                 <div className="border-t border-[#f1f5f9] dark:border-[#1a2233] pt-1">
                   <Link
@@ -502,6 +543,19 @@ export function AdminHeader({
               </div>
             )}
           </div>
+
+          {/* Operations / Load Testing Link */}
+          <Link
+            href="/admin/load-test"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              currentItem === "load-test"
+                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-2xs"
+                : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white hover:bg-[#f1f5f9] dark:hover:bg-[#1a2233]"
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-500" />
+            <span>Load Test</span>
+          </Link>
 
           {/* Hub Link */}
           <Link
@@ -824,6 +878,31 @@ export function AdminHeader({
                 </div>
               </div>
               {currentItem === "contests" && <Check className="w-4 h-4 text-amber-600" />}
+            </Link>
+          </div>
+
+          {/* Section 3: Operations */}
+          <div className="space-y-1 border-t border-[#f1f5f9] dark:border-[#1a2233] pt-3">
+            <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] px-2 flex items-center justify-between">
+              <span>Operations (Infra & Stress)</span>
+              <span className="text-amber-500 font-sans">1 tool</span>
+            </div>
+            <Link
+              href="/admin/load-test"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold ${currentItem === "load-test"
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                  : "text-[#475569] dark:text-[#94a3b8] hover:bg-slate-50 dark:hover:bg-[#1a2233]"
+                }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Flame className="w-4 h-4 text-amber-500" />
+                <div className="flex flex-col">
+                  <span>Load Testing Studio</span>
+                  <span className="text-[10px] font-normal text-[#94a3b8]">API & compiler stress testing</span>
+                </div>
+              </div>
+              {currentItem === "load-test" && <Check className="w-4 h-4 text-amber-600" />}
             </Link>
           </div>
 
