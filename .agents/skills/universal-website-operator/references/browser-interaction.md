@@ -104,20 +104,29 @@ Now click on the 'Admin' link in the top navigation bar.
 
 Modern web applications often have pages gated by authentication (e.g., student login, faculty/admin credentials).
 
-### Handling Auth Walls
+### Handling Auth Walls & QA Test Personas
 
-1. **Detecting Auth Gates**:
-   - The subagent observes URL redirect to `/login` or appearance of `<form>` requesting username/password or token.
-2. **Local / Test Environments**:
-   - If test credentials exist in the local environment or seed script (e.g. `student@test.com` / demo password), instruct the browser subagent to input them into the login form.
-3. **Interactive User Authentication**:
-   - If real credentials, SSO, MFA, or CAPTCHA are encountered, the subagent pauses.
-   - The coordinator agent informs the user directly:
-     > *"The `/admin` portal requires authentication. Please sign in via the browser window, or confirm your test credentials, so we can proceed with page verification."*
-   - Once the user completes sign-in, resume the existing subagent via `send_message`.
+1. **Strict QA Routing**:
+   - Before interacting with login forms or submitting answers, verify that the browser session is set to QA:
+     ```javascript
+     localStorage.setItem("zap.environment", "qa");
+     ```
+   - All outgoing requests will carry `X-ZAP-ENV: qa` to operate solely against `zap_platform_lower`.
+2. **Student Authentication Flow**:
+   - When validating student views, public problem workspaces, or contest participation:
+     - **Email**: `qa.student@codezap.in`
+     - **Password**: `QAPassword123!`
+   - Verify that student credentials log in, store student profile in `localStorage`, and navigate cleanly to problem arena.
+3. **Admin & Faculty Authentication Flow**:
+   - When validating privileged management pages (`/admin`, `/admin/users`, `/admin/questions`, `/admin/mcq`, `/admin/contests`):
+     - **Email**: `qa.admin@codezap.in`
+     - **Password**: `QAAdminPass123!`
+   - Verify that `/api/v1/admin/check-access` validates `isAdmin: true` and loads the Admin Hub without 403 barriers.
+4. **Interactive User Authentication**:
+   - If third-party SSO, MFA, or CAPTCHA are encountered, pause and ask the user directly, resuming the subagent session with `send_message`.
 
 > [!CAUTION]
-> Never attempt to bypass access controls, spoof authentication tokens, or crack credentials. Always respect authentication boundaries.
+> Never attempt to bypass access controls or operate on `zap_platform_prod`. Always utilize the QA personas in `zap_platform_lower`.
 
 ---
 

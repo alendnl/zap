@@ -23,6 +23,7 @@ This is a general-purpose website interaction and frontend engineering capabilit
 3. **Respect Existing Code & Reuse**: Inspect before modifying. Reuse existing components, design tokens, and utilities rather than duplicating parallel elements.
 4. **Browser-First Live Verification**: A successful build (`npm run build` or `pytest`) does NOT prove the UI works. Visual and functional verification in the browser across viewports is mandatory.
 5. **Strict Safety & Gated Permissions**: Read-only during discovery. Never tamper with production databases, never expose credentials, and ask the user when authentication is required.
+6. **Strict QA Database Isolation (Single Backend, Dual Data)**: While the backend server is always production (`zap-api`), the data layer routes dynamically via `X-ZAP-ENV: qa` to the QA database (`zap_platform_lower`). NEVER write to or modify `zap_platform_prod`. All test accounts, test submissions, and automated browser sessions must operate exclusively against `zap_platform_lower`.
 
 ---
 
@@ -105,7 +106,30 @@ send_message(
 
 ---
 
-### 3. Full Website Redesign Protocol
+### 3. QA Database Testing & Persona Login Protocol
+
+The platform runs a single production backend on Cloud Run (`zap-api`), with dynamic runtime database routing controlled by request headers. All automated exploration, test users, and data modifications **must strictly target the lower QA database (`zap_platform_lower`)**:
+
+1. **Activate QA Environment**:
+   - In browser subagent, ensure `localStorage.setItem("zap.environment", "qa")` is executed or the `EnvironmentSwitcher` in the top bar is toggled to **QA**.
+   - All outgoing requests inject `X-ZAP-ENV: qa`, routing queries to `zap_platform_lower`.
+2. **Student Flow Testing**:
+   - **Credentials**: `qa.student@codezap.in` / `QAPassword123!`
+   - Log in at `/login` to test public problem arena, code compiler, and contest participation.
+   - Access to `/admin` is properly denied (`isAdmin: false`).
+3. **Admin & Faculty Flow Testing**:
+   - **Credentials**: `qa.admin@codezap.in` / `QAAdminPass123!`
+   - Log in at `/login` to test Admin Hub (`/admin`), User Stats (`/admin/users`), Question Studio (`/admin/questions`), MCQ Studio (`/admin/mcq`), and Faculty creation (`/faculty/questions/new`).
+4. **Manage QA Users Script**:
+   ```bash
+   # Reset or verify QA test users in zap_platform_lower (never touches prod)
+   .venv/bin/python .agents/skills/universal-website-operator/scripts/qa_db_seed_users.py seed
+   ```
+> Full details: [qa-environment-testing.md](./references/qa-environment-testing.md)
+
+---
+
+### 4. Full Website Redesign Protocol
 
 When requested to redesign the website:
 
@@ -122,7 +146,7 @@ When requested to redesign the website:
 
 ---
 
-### 4. Frontend Debugging Protocol
+### 5. Frontend Debugging Protocol
 
 When addressing bugs, visual glitches, or broken interactions:
 
@@ -135,7 +159,7 @@ When addressing bugs, visual glitches, or broken interactions:
 
 ---
 
-### 5. Multi-Viewport Verification Gate
+### 6. Multi-Viewport Verification Gate
 
 Before declaring any frontend task complete:
 
@@ -150,21 +174,24 @@ Before declaring any frontend task complete:
 
 ## 🛡️ Safety & Operational Rules
 
-1. **Read-Only During Discovery**: Never alter application code or database records during discovery or audit tasks.
-2. **Preserve User Changes**: Never overwrite or revert unrelated changes made by the user.
-3. **No Destructive Operations**: Never delete database tables, submit real transactions, or trigger destructive API actions without explicit user approval.
-4. **No Security Bypasses**: Never attempt to bypass authentication guards, spoof security tokens, or disable access control checks.
-5. **Honest Verification**: Never mark a page as "Verified" unless it has actually been visited and inspected in the browser.
+1. **Strict QA Database Isolation**: All user testing, exploratory mutations, and credential creation MUST occur exclusively in `zap_platform_lower`. Writing to `zap_platform_prod` is prohibited.
+2. **Read-Only During Discovery**: Never alter application code or database records during discovery or audit tasks.
+3. **Preserve User Changes**: Never overwrite or revert unrelated changes made by the user.
+4. **No Destructive Operations**: Never delete database tables, submit real transactions, or trigger destructive API actions without explicit user approval.
+5. **No Security Bypasses**: Never attempt to bypass authentication guards, spoof security tokens, or disable access control checks.
+6. **Honest Verification**: Never mark a page as "Verified" unless it has actually been visited and inspected in the browser.
 
 ---
 
 ## 🗂️ Supporting References & Scripts
 
 - **Discovery Deep-Dive**: [references/discovery-strategy.md](./references/discovery-strategy.md)
+- **QA Database & Personas**: [references/qa-environment-testing.md](./references/qa-environment-testing.md)
 - **Browser Automation Manual**: [references/browser-interaction.md](./references/browser-interaction.md)
 - **Source Code Architecture**: [references/source-code-analysis.md](./references/source-code-analysis.md)
 - **Design System & Redesign**: [references/ui-design-guidelines.md](./references/ui-design-guidelines.md)
 - **Debugging & Diagnostics**: [references/debugging-strategy.md](./references/debugging-strategy.md)
 - **Verification Standards**: [references/verification-guidelines.md](./references/verification-guidelines.md)
+- **QA Test User Manager**: [scripts/qa_db_seed_users.py](./scripts/qa_db_seed_users.py)
 - **Route Scanner Script**: [scripts/discover_routes.py](./scripts/discover_routes.py)
 - **Runtime Inventory Generator**: [scripts/generate_inventory.py](./scripts/generate_inventory.py)
