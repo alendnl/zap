@@ -2,30 +2,19 @@ export type ZAPEnvironment = "qa" | "production";
 
 export const ENVIRONMENT_HEADER = "X-ZAP-ENV";
 export const ENVIRONMENT_CHANGE_EVENT = "zap:environment-change";
-const STORAGE_KEY = "zap.environment";
 
 /**
- * Config-based toggle for the QA environment switcher.
- * Set to true when testing QA. Currently turned OFF.
+ * Platform Environment Policy:
+ * All user & admin facing pages strictly connect to the Production Database (zap_platform).
+ * The Load Test page alone strictly routes to the Lower QA Database (zap_platform_lower).
+ * There are zero environment selection controls in the UI for any user or admin.
  */
-export const ENABLE_QA_ENVIRONMENT: boolean =
-  process.env.NEXT_PUBLIC_ENABLE_QA_ENV === "true" || false;
+export const ENABLE_QA_ENVIRONMENT: boolean = false;
 
 export function getEnvironment(): ZAPEnvironment {
-  if (!ENABLE_QA_ENVIRONMENT) {
-    return "production";
-  }
-  const stored = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-  return stored === "qa" ? "qa" : "production";
+  return "production";
 }
 
-export function setEnvironment(environment: ZAPEnvironment): void {
-  if (!ENABLE_QA_ENVIRONMENT) return;
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, environment);
-  }
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(ENVIRONMENT_CHANGE_EVENT));
-  }
+export function setEnvironment(_environment: ZAPEnvironment): void {
+  // Permanently disabled in UI. All standard pages strictly run against production DB.
 }
-

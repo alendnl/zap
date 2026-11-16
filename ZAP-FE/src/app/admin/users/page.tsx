@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi, UserAdminStats, AdminUsersOverview, UserDetailActivityResponse } from "@/services/adminApi";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminHeader } from "@/components/AdminHeader";
 import type { Student } from "@/types/auth";

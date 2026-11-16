@@ -22,7 +22,6 @@ import {
   Check,
   Flame,
 } from "lucide-react";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getStoredStudent, authApi } from "@/services/authApi";
 import type { Student } from "@/types/auth";
@@ -603,7 +602,6 @@ export function AdminHeader({
             </div>
           )}
 
-          <EnvironmentSwitcher />
           <ThemeToggle />
 
           {/* Mobile Menu Toggle Button */}

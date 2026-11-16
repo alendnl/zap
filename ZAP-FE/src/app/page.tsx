@@ -39,7 +39,6 @@ import { contestApi } from "@/services/contestApi";
 import { SubmissionSummary } from "@/services/submissionsApi";
 import { activityApi } from "@/services/activityApi";
 import { adminApi } from "@/services/adminApi";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ENVIRONMENT_CHANGE_EVENT } from "@/services/environment";
 import { getStoredStudent, AUTH_CHANGE_EVENT, authApi } from "@/services/authApi";
 import { StudentAuthView } from "@/components/StudentAuthView";
@@ -772,7 +771,6 @@ export default function Home() {
               </div>
             )}
 
-            <EnvironmentSwitcher />
             <ThemeToggle />
           </div>
         </div>

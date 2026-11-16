@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { questionsApi } from "@/services/questionsApi";
 import type { QuestionSummary } from "@/types/question";
@@ -62,7 +61,6 @@ export default function FacultyDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <EnvironmentSwitcher />
             <ThemeToggle />
             <Link
               href="/admin/questions"

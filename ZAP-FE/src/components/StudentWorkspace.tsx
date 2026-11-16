@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuestionPane, QuestionData } from "./QuestionPane";
 import { EditorPane } from "./EditorPane";
@@ -1023,7 +1022,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             </button>
           )}
 
-          <EnvironmentSwitcher />
           <ThemeToggle />
         </div>
       </header>

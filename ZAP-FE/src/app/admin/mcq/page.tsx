@@ -37,7 +37,6 @@ import {
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi } from "@/services/adminApi";
 import { mcqApi } from "@/services/mcqApi";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminHeader } from "@/components/AdminHeader";
 import type { Student } from "@/types/auth";

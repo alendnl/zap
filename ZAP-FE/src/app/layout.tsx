@@ -20,18 +20,24 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var stored = localStorage.getItem('zap-theme');
-                  var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+                  var stored = localStorage.getItem('zap-theme') || localStorage.getItem('zap_theme') || localStorage.getItem('theme');
+                  var theme = 'dark';
+                  if (stored === 'light' || stored === 'dark') {
+                    theme = stored;
+                  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    theme = 'light';
+                  }
                   if (theme === 'light') {
                     document.documentElement.classList.remove('dark');
                     document.documentElement.classList.add('light');
+                    document.documentElement.style.colorScheme = 'light';
                   } else {
                     document.documentElement.classList.remove('light');
                     document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
                   }
-                } catch (e) {
-                  document.documentElement.classList.add('dark');
-                }
+                  document.documentElement.setAttribute('data-theme', theme);
+                } catch (e) {}
               })();
             `,
           }}
@@ -52,4 +58,3 @@ export default function RootLayout({
     </html>
   );
 }
-

@@ -35,7 +35,6 @@ import { adminApi } from "@/services/adminApi";
 import { contestApi } from "@/services/contestApi";
 import { mcqApi } from "@/services/mcqApi";
 import { questionsApi } from "@/services/questionsApi";
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminHeader } from "@/components/AdminHeader";
 import type { Student } from "@/types/auth";
@@ -404,7 +403,10 @@ export default function AdminContestsPage() {
 
   if (!student || !isAdmin) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] flex flex-col items-center justify-center p-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-8 rounded-2xl max-w-md w-full text-center shadow-lg space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-6 h-6" />

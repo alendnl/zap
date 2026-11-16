@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 type Theme = "dark" | "light";
 
@@ -11,41 +11,84 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "dark",
+  theme: "light",
   toggleTheme: () => {},
   setTheme: () => {},
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const getInitialTheme = (): Theme => {
+    if (typeof window === "undefined") return "light";
+    try {
+      const stored = (localStorage.getItem("zap-theme") ||
+        localStorage.getItem("zap_theme") ||
+        localStorage.getItem("theme")) as Theme | null;
+      if (stored === "light" || stored === "dark") return stored;
+      if (document.documentElement.classList.contains("dark")) return "dark";
+      if (document.documentElement.classList.contains("light")) return "light";
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        return "dark";
+      }
+    } catch {}
+    return "light";
+  };
 
-  const applyTheme = (t: Theme) => {
+  const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
+
+  const applyTheme = useCallback((t: Theme) => {
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
     if (t === "dark") {
       root.classList.remove("light");
       root.classList.add("dark");
+      root.style.colorScheme = "dark";
+      root.setAttribute("data-theme", "dark");
     } else {
       root.classList.remove("dark");
       root.classList.add("light");
+      root.style.colorScheme = "light";
+      root.setAttribute("data-theme", "light");
     }
-  };
+  }, []);
+
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      setThemeState(newTheme);
+      try {
+        localStorage.setItem("zap-theme", newTheme);
+        localStorage.setItem("zap_theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+        document.cookie = `zap-theme=${newTheme}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch {}
+      applyTheme(newTheme);
+    },
+    [applyTheme]
+  );
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("zap-theme", next);
+        localStorage.setItem("zap_theme", next);
+        localStorage.setItem("theme", next);
+        document.cookie = `zap-theme=${next}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch {}
+      applyTheme(next);
+      return next;
+    });
+  }, [applyTheme]);
 
   useEffect(() => {
-    // 1. Initial sync from localStorage or active document class
-    const stored = (typeof window !== "undefined" ? localStorage.getItem("zap-theme") : null) as Theme | null;
-    const initialTheme: Theme =
-      stored === "light" || stored === "dark"
-        ? stored
-        : typeof document !== "undefined" && document.documentElement.classList.contains("light")
-        ? "light"
-        : "dark";
+    const current = getInitialTheme();
+    setThemeState(current);
+    applyTheme(current);
 
-    setThemeState(initialTheme);
-    applyTheme(initialTheme);
-
-    // 2. Cross-tab & multi-window storage sync
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === "zap-theme" && (e.newValue === "light" || e.newValue === "dark")) {
+      if (
+        (e.key === "zap-theme" || e.key === "zap_theme" || e.key === "theme") &&
+        (e.newValue === "light" || e.newValue === "dark")
+      ) {
         setThemeState(e.newValue);
         applyTheme(e.newValue);
       }
@@ -53,20 +96,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    try {
-      localStorage.setItem("zap-theme", newTheme);
-    } catch {}
-    applyTheme(newTheme);
-  };
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-  };
+  }, [applyTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

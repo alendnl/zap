@@ -609,14 +609,17 @@ export function ContestArena({
               Assessment Results: {contest.title}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onExit}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Contests</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onExit}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Return to Contests</span>
+            </button>
+          </div>
         </header>
 
         {/* Results Canvas */}
@@ -1015,8 +1018,11 @@ export function ContestArena({
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col font-sans select-none">
       {/* 1. Fullscreen Exit Lock Overlay (Content Hidden until candidate re-enters fullscreen) */}
       {!isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 dark:bg-[#0b0f17]/90 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white dark:bg-[#121824] border border-rose-500/30 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-[#0b0f17]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white dark:bg-[#121824] border border-rose-500/30 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl relative">
+            <div className="absolute top-4 right-4">
+              <ThemeToggle />
+            </div>
             <div className="w-14 h-14 rounded-full bg-rose-500/15 text-rose-500 dark:text-rose-400 mx-auto flex items-center justify-center">
               <Lock className="w-7 h-7" />
             </div>

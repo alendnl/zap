@@ -16,7 +16,6 @@ import {
 import { authApi } from "@/services/authApi";
 import type { Student } from "@/types/auth";
 
-import { EnvironmentSwitcher } from "@/components/EnvironmentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface StudentAuthViewProps {
@@ -85,7 +84,6 @@ export const StudentAuthView: React.FC<StudentAuthViewProps> = ({
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden transition-colors duration-200">
       {/* Top right utility bar: Environment & Theme */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        <EnvironmentSwitcher />
         <ThemeToggle />
       </div>
 
