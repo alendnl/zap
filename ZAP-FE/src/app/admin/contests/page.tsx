@@ -309,6 +309,10 @@ export default function AdminContestsPage() {
       setErrorNotice("Contest slug is required.");
       return;
     }
+    if (!formData.description.trim()) {
+      setErrorNotice("Instructions & Description is required.");
+      return;
+    }
     if (!formData.hasMcq && !formData.hasCoding) {
       setErrorNotice("Contest must include at least one section: MCQ or Coding.");
       return;
@@ -555,13 +559,22 @@ export default function AdminContestsPage() {
                     className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-5 shadow-xs hover:border-purple-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                   >
                     <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono">
                           {c.status}
                         </span>
                         <span className="text-[10px] font-mono text-[#64748b] dark:text-[#94a3b8]">
-                          {c.slug}
+                          Slug: {c.slug}
                         </span>
+                        <Link
+                          href={`/contest/${c.slug}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded transition-colors"
+                          title="Open dedicated candidate contest URL"
+                        >
+                          <span>/contest/{c.slug}</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </Link>
                       </div>
                       <h3 className="text-base font-bold text-[#0f172a] dark:text-white">
                         {c.title}
@@ -602,12 +615,26 @@ export default function AdminContestsPage() {
                         <span>Analytics</span>
                       </Link>
                       <Link
-                        href={`/?tab=contest&contest=${c.slug}`}
-                        className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-[#1a2233] cursor-pointer"
-                        title="Candidate Preview"
+                        href={`/contest/${c.slug}`}
+                        target="_blank"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 cursor-pointer"
+                        title="Open candidate contest page"
                       >
-                        Preview
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Candidate Page</span>
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const directUrl = `${window.location.origin}/contest/${c.slug}`;
+                          void navigator.clipboard.writeText(directUrl);
+                          setSuccessNotice(`Direct candidate contest link copied: ${directUrl}`);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] text-xs font-semibold text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white cursor-pointer"
+                        title="Copy direct candidate link"
+                      >
+                        Copy URL
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteContest(c.id, c.title)}

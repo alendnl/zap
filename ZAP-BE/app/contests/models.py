@@ -49,7 +49,7 @@ class CodingSectionConfig(BaseModel):
 class ContestBase(BaseModel):
     title: str = Field(..., min_length=3, max_length=150)
     slug: str = Field(..., min_length=2, max_length=150)
-    description: str = Field(..., min_length=10)
+    description: str = Field(..., min_length=1)
     durationMinutes: int = Field(default=90, ge=5, le=1440)
     hasMcq: bool = True
     hasCoding: bool = True

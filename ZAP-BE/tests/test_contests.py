@@ -278,3 +278,83 @@ def test_get_contest_analytics():
     )
     assert owner_res.status_code == 200
 
+
+def test_create_contest_with_short_description_and_reset_candidate():
+    admin_email = "superadmin@zap.dev"
+
+    # 1. Create a contest with short description like "random"
+    create_payload = {
+        "title": "Short Description Contest",
+        "slug": "test-2",
+        "description": "random",  # previously failed min_length=10
+        "durationMinutes": 90,
+        "hasMcq": True,
+        "hasCoding": False,
+        "mcqConfig": {
+            "enabled": True,
+            "mode": "RANDOM",
+            "randomRules": [{"category": "DSA", "difficulty": "ALL", "count": 2}],
+            "totalQuestions": 2,
+            "pointsPerQuestion": 1,
+        },
+        "status": "PUBLISHED",
+        "totalPoints": 2,
+    }
+
+    create_res = client.post(
+        "/api/v1/contests",
+        json=create_payload,
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert create_res.status_code == 201
+    contest_data = create_res.json()
+    assert contest_data["slug"] == "test-2"
+    assert contest_data["description"] == "random"
+
+    # 2. Student starts and submits this contest
+    student_id = "candidate-xyz"
+    student_email = "candidate@college.edu"
+
+    start_res = client.post(
+        f"/api/v1/contests/test-2/start?student_id={student_id}&student_email={student_email}&student_name=Alice"
+    )
+    assert start_res.status_code == 200
+    assert start_res.json()["alreadySubmitted"] is False
+
+    submit_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "mcqAnswers": {},
+        "timeSpentSeconds": 50,
+    }
+    submit_res = client.post("/api/v1/contests/test-2/submit", json=submit_payload)
+    assert submit_res.status_code == 200
+
+    # Verify student is now locked as alreadySubmitted: True
+    post_res = client.post(
+        f"/api/v1/contests/test-2/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert post_res.status_code == 200
+    assert post_res.json()["alreadySubmitted"] is True
+
+    # 3. Admin resets the candidate's contest data
+    # Non-admin reset should fail
+    unauth_reset = client.delete(
+        f"/api/v1/contests/test-2/submissions/{student_id}"
+    )
+    assert unauth_reset.status_code == 401
+
+    admin_reset = client.delete(
+        f"/api/v1/contests/test-2/submissions/{student_id}",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert admin_reset.status_code == 200
+    assert admin_reset.json()["ok"] is True
+
+    # 4. Student can now re-enter the contest freshly (alreadySubmitted is False again!)
+    re_start_res = client.post(
+        f"/api/v1/contests/test-2/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert re_start_res.status_code == 200
+    assert re_start_res.json()["alreadySubmitted"] is False
+

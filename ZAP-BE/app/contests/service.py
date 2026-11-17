@@ -217,28 +217,48 @@ class ContestService:
         return [Contest(**r) for r in results]
 
     def get_contest(self, contest_id_or_slug: str) -> Optional[Contest]:
+        key = (contest_id_or_slug or "").strip()
+        if not key:
+            return None
+
         coll = self._get_contests_coll()
         if coll is not None:
-            doc = coll.find_one({"$or": [{"_id": contest_id_or_slug}, {"id": contest_id_or_slug}, {"slug": contest_id_or_slug}]})
+            doc = coll.find_one({
+                "$or": [
+                    {"_id": key},
+                    {"id": key},
+                    {"slug": key},
+                    {"slug": key.lower()},
+                ]
+            })
             if doc:
                 doc["id"] = str(doc.get("id") or doc.get("_id"))
                 doc.pop("_id", None)
                 return Contest(**doc)
-            if contest_id_or_slug in ["zap-grand-assessment-1", "contest-grand-01"]:
+            if key.lower() in ["zap-grand-assessment-1", "contest-grand-01"]:
                 return self.seed_sample_contest(force=False)
             return None
 
         for doc in self._memory_contests.values():
-            if doc.get("id") == contest_id_or_slug or doc.get("slug") == contest_id_or_slug:
+            if (
+                doc.get("id") == key
+                or doc.get("slug") == key
+                or (doc.get("slug") and doc.get("slug").lower() == key.lower())
+            ):
                 clean = dict(doc)
                 clean["id"] = str(clean.get("id") or clean.get("_id"))
                 clean.pop("_id", None)
                 return Contest(**clean)
-        if contest_id_or_slug in ["zap-grand-assessment-1", "contest-grand-01"]:
+        if key.lower() in ["zap-grand-assessment-1", "contest-grand-01"]:
             return self.seed_sample_contest(force=False)
         return None
 
     def create_contest(self, payload: ContestCreate, created_by: str = "admin") -> Contest:
+        slug = slugify(payload.slug) if payload.slug else slugify(payload.title)
+        if not slug:
+            slug = f"contest-{uuid.uuid4().hex[:6]}"
+        payload.slug = slug
+
         existing = self.get_contest(payload.slug)
         if existing:
             payload.slug = f"{payload.slug}-{uuid.uuid4().hex[:4]}"
@@ -289,10 +309,55 @@ class ContestService:
         coll = self._get_contests_coll()
         if coll is not None:
             coll.delete_one({"$or": [{"_id": existing.id}, {"id": existing.id}]})
+            subs_coll = self._get_submissions_coll()
+            if subs_coll is not None:
+                subs_coll.delete_many({"contestId": existing.id})
         else:
             self._memory_contests.pop(existing.id, None)
+            to_remove = [k for k, v in self._memory_submissions.items() if v.get("contestId") == existing.id]
+            for k in to_remove:
+                self._memory_submissions.pop(k, None)
 
         return True
+
+    def delete_contest_submission(self, contest_id_or_slug: str, student_id_or_sub_id: str) -> bool:
+        """Deletes/resets a particular candidate's contest submission and session so they can retake it."""
+        contest = self.get_contest(contest_id_or_slug)
+        if not contest:
+            raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        coll = self._get_submissions_coll()
+        target = student_id_or_sub_id.strip()
+        query = {
+            "contestId": contest.id,
+            "$or": [
+                {"_id": target},
+                {"id": target},
+                {"studentId": target},
+                {"studentEmail": target.lower()},
+            ],
+        }
+
+        deleted = False
+        if coll is not None:
+            res = coll.delete_many(query)
+            deleted = res.deleted_count > 0
+
+        # Also clean memory submissions
+        to_delete = [
+            k for k, v in self._memory_submissions.items()
+            if v.get("contestId") == contest.id and (
+                v.get("id") == target or
+                v.get("studentId") == target or
+                v.get("studentEmail", "").lower() == target.lower() or
+                k == target
+            )
+        ]
+        for k in to_delete:
+            self._memory_submissions.pop(k, None)
+            deleted = True
+
+        return deleted
 
     def start_contest_session(
         self,

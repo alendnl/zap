@@ -5,6 +5,29 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
   (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
 
+function formatErrorMessage(err: any, status: number): string {
+  if (!err) return `API error: ${status}`;
+  if (typeof err === "string") return err;
+  const detail = err.detail ?? err.message ?? err.error;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item: any) => {
+        if (typeof item === "string") return item;
+        if (item?.loc && item?.msg) {
+          const field = item.loc[item.loc.length - 1];
+          return `${field ? `${field}: ` : ""}${item.msg}`;
+        }
+        return item?.msg || JSON.stringify(item);
+      })
+      .join("; ");
+  }
+  if (typeof detail === "object" && detail !== null) {
+    return detail.message || detail.msg || JSON.stringify(detail);
+  }
+  return `API error: ${status}`;
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!API_BASE) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured for this deployment.");
@@ -32,7 +55,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error((err as any).detail ?? `API error: ${res.status}`);
+    throw new Error(formatErrorMessage(err, res.status));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

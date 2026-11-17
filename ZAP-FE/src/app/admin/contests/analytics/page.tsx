@@ -37,6 +37,7 @@ import {
   PieChart,
   Info,
   SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react";
 import { getStoredStudent } from "@/services/authApi";
 import { adminApi } from "@/services/adminApi";
@@ -84,6 +85,8 @@ function ContestAnalyticsContent() {
   const [inspectingStudent, setInspectingStudent] = useState<CandidateSubmissionItem | null>(null);
   const [studentDrawerTab, setStudentDrawerTab] = useState<"overview" | "proctoring" | "mcq" | "coding">("overview");
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [resettingCandidateId, setResettingCandidateId] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // 1. Check Admin Auth
   useEffect(() => {
@@ -172,6 +175,41 @@ function ContestAnalyticsContent() {
     setSelectedContestSlug(newSlug);
     setInspectingStudent(null);
     router.push(`/admin/contests/analytics?contest=${newSlug}`);
+  };
+
+  // Reset candidate contest data
+  const handleResetCandidate = async (sub: CandidateSubmissionItem) => {
+    const candidateName = sub.studentName || sub.studentEmail || sub.studentId || "Candidate";
+    const identifier = sub.submissionId || sub.id || sub.studentId || sub.studentEmail;
+    if (!identifier) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to reset and delete contest data for "${candidateName}"?\n\n` +
+      `This will permanently remove their scorecard, responses, and proctoring logs for this contest, allowing them to enter and take it again from scratch.`
+    );
+    if (!confirmed) return;
+
+    setResettingCandidateId(identifier);
+    setActionFeedback(null);
+    try {
+      const contestSlugOrId = analytics?.contest.slug || analytics?.contest.id || selectedContestSlug;
+      await contestApi.resetCandidate(contestSlugOrId, identifier);
+      setActionFeedback({
+        type: "success",
+        text: `Contest data for candidate "${candidateName}" was successfully reset.`,
+      });
+      if (inspectingStudent && (inspectingStudent.studentId === sub.studentId || inspectingStudent.id === sub.id)) {
+        setInspectingStudent(null);
+      }
+      void loadAnalytics();
+    } catch (err: any) {
+      setActionFeedback({
+        type: "error",
+        text: err.message || `Failed to reset candidate contest data.`,
+      });
+    } finally {
+      setResettingCandidateId(null);
+    }
   };
 
   // Filtered & Sorted Candidate Submissions List
@@ -355,6 +393,33 @@ function ContestAnalyticsContent() {
               <span>{errorNotice}</span>
             </div>
             <button type="button" onClick={() => setErrorNotice(null)} className="cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Action Feedback Toast */}
+        {actionFeedback && (
+          <div
+            className={`p-4 rounded-2xl text-xs flex items-center justify-between ${
+              actionFeedback.type === "success"
+                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {actionFeedback.type === "success" ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{actionFeedback.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActionFeedback(null)}
+              className="cursor-pointer hover:opacity-75"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -946,16 +1011,28 @@ function ContestAnalyticsContent() {
                             </td>
 
                             <td className="py-3 px-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setInspectingStudent(sub);
-                                  setStudentDrawerTab("overview");
-                                }}
-                                className="px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold text-xs cursor-pointer transition-all"
-                              >
-                                Inspect
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setInspectingStudent(sub);
+                                    setStudentDrawerTab("overview");
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold text-xs cursor-pointer transition-all"
+                                >
+                                  Inspect
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={resettingCandidateId === (sub.submissionId || sub.id || sub.studentId)}
+                                  onClick={() => void handleResetCandidate(sub)}
+                                  className="px-2.5 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold text-xs cursor-pointer transition-all flex items-center gap-1 disabled:opacity-50"
+                                  title="Reset and delete candidate contest data"
+                                >
+                                  <RotateCcw className={`w-3 h-3 ${resettingCandidateId === (sub.submissionId || sub.id || sub.studentId) ? "animate-spin" : ""}`} />
+                                  <span>Reset Data</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -995,6 +1072,16 @@ function ContestAnalyticsContent() {
                 <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
                   Total: {inspectingStudent.totalScore} pts ({inspectingStudent.percentage}%)
                 </span>
+                <button
+                  type="button"
+                  disabled={resettingCandidateId === (inspectingStudent.submissionId || inspectingStudent.id || inspectingStudent.studentId)}
+                  onClick={() => void handleResetCandidate(inspectingStudent)}
+                  className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold text-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  title="Reset and delete candidate data for this contest"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${resettingCandidateId === (inspectingStudent.submissionId || inspectingStudent.id || inspectingStudent.studentId) ? "animate-spin" : ""}`} />
+                  <span>Reset Data</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setInspectingStudent(null)}

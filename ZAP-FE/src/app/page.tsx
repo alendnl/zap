@@ -194,6 +194,29 @@ export default function Home() {
       if (problemParam) {
         setIntendedProblem(problemParam);
       }
+      const contestParam = urlParams.get("contest");
+      if (contestParam) {
+        setActiveTab("contest");
+        void contestApi.get(contestParam).then((c) => {
+          if (c) {
+            setActiveContestOverview({
+              id: c.id,
+              title: c.title,
+              slug: c.slug,
+              description: c.description,
+              durationMinutes: c.durationMinutes,
+              hasMcq: c.hasMcq,
+              hasCoding: c.hasCoding,
+              mcqQuestionsCount: c.mcqConfig?.totalQuestions ?? 0,
+              codingQuestionsCount: c.codingConfig?.totalQuestions ?? 0,
+              totalPoints: c.totalPoints,
+              status: c.status,
+              createdAt: c.createdAt || new Date().toISOString(),
+              updatedAt: c.updatedAt || new Date().toISOString(),
+            });
+          }
+        }).catch(() => {});
+      }
     }
     void loadContestsList();
   }, []);

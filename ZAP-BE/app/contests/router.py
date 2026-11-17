@@ -180,3 +180,23 @@ def get_contest_analytics(
         return service.get_contest_analytics(contest_id_or_slug)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.delete("/contests/{contest_id_or_slug}/submissions/{student_id_or_sub_id}")
+@router.delete("/api/v1/contests/{contest_id_or_slug}/submissions/{student_id_or_sub_id}")
+def reset_contest_candidate_submission(
+    contest_id_or_slug: str,
+    student_id_or_sub_id: str,
+    service: ContestService = Depends(get_contest_service),
+    admin_email: str = Depends(verify_admin_access),
+):
+    try:
+        deleted = service.delete_contest_submission(contest_id_or_slug, student_id_or_sub_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Candidate submission '{student_id_or_sub_id}' not found for contest '{contest_id_or_slug}'"
+            )
+        return {"ok": True, "message": "Candidate contest submission deleted/reset successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
