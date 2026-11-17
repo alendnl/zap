@@ -351,10 +351,10 @@ export default function AdminLoadTestingPage() {
   // Loading & Access Denied states
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-[#0d1117] text-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-          <span className="text-sm font-mono text-slate-400">Verifying Admin Access & Guardrails...</span>
+          <RefreshCw className="w-8 h-8 text-blue-600 dark:text-blue-500 animate-spin" />
+          <span className="text-sm font-mono text-[#64748b] dark:text-slate-400">Verifying Admin Access & Guardrails...</span>
         </div>
       </div>
     );
@@ -362,12 +362,12 @@ export default function AdminLoadTestingPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#0d1117] text-slate-100">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-slate-100">
         <AdminHeader />
-        <div className="max-w-2xl mx-auto mt-20 p-8 rounded-2xl bg-[#161b22] border border-rose-500/30 text-center space-y-4">
+        <div className="max-w-2xl mx-auto mt-20 p-8 rounded-2xl bg-white dark:bg-[#161b22] border border-rose-500/30 text-center space-y-4 shadow-sm">
           <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Admin Privileges Required</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-xl font-bold text-[#0f172a] dark:text-white">Admin Privileges Required</h2>
+          <p className="text-sm text-[#64748b] dark:text-slate-400">
             The Load Testing & Stress Studio is restricted to platform administrators. Your account does
             not have the required authorization.
           </p>
@@ -389,12 +389,12 @@ export default function AdminLoadTestingPage() {
       : config.executorConfig.users * config.executorConfig.submissionsPerUser;
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Admin Header */}
       <AdminHeader />
 
       {/* Sub-Header & Strict Environment Guardrail Bar */}
-      <div className="border-b border-[#1f293d] bg-[#0f1726]/80 backdrop-blur-md sticky top-14 z-30 px-4 sm:px-8 py-3">
+      <div className="border-b border-[#e2e8f0] dark:border-[#1f293d] bg-white/90 dark:bg-[#0f1726]/80 backdrop-blur-md sticky top-14 z-30 px-4 sm:px-8 py-3">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-white">
@@ -402,12 +402,12 @@ export default function AdminLoadTestingPage() {
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-bold text-white tracking-tight">Load Testing Studio</h1>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <h1 className="text-lg font-bold text-[#0f172a] dark:text-white tracking-tight">Load Testing Studio</h1>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
                   In-Browser Runner
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#64748b] dark:text-slate-400">
                 Direct front-end stress engine testing production server compute with lower database isolation.
               </p>
             </div>
@@ -415,8 +415,8 @@ export default function AdminLoadTestingPage() {
 
           {/* Strict Guardrail Badge & Quick Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-semibold shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-semibold shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
               <span>LOWER DB LOCKED: zap_platform_lower</span>
             </div>
 
@@ -426,13 +426,13 @@ export default function AdminLoadTestingPage() {
                 fetchDbStats();
                 setCleanModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-200 border border-[#cbd5e1] dark:border-slate-700 text-xs font-semibold transition-all shadow-xs cursor-pointer"
               title="Inspect Lower DB data and purge synthetic test records"
             >
-              <Database className="w-3.5 h-3.5 text-blue-400" />
+              <Database className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>Clean Lower DB</span>
               {dataStats && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-300 text-[10px] font-mono">
+                <span className="ml-1 px-1.5 py-0.2 rounded-md bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-mono">
                   {dataStats.syntheticUsersCount + dataStats.syntheticSubmissionsCount} items
                 </span>
               )}
@@ -441,14 +441,14 @@ export default function AdminLoadTestingPage() {
         </div>
 
         {/* View Tabs */}
-        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-4 border-b border-[#1e293b]">
+        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-4 border-b border-[#e2e8f0] dark:border-[#1e293b]">
           <button
             type="button"
             onClick={() => setActiveTab("config")}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "config"
-                ? "border-blue-500 text-blue-400 bg-blue-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                : "border-transparent text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-200"
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -460,8 +460,8 @@ export default function AdminLoadTestingPage() {
             onClick={() => setActiveTab("monitor")}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "monitor"
-                ? "border-blue-500 text-blue-400 bg-blue-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                : "border-transparent text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-200"
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
@@ -476,14 +476,14 @@ export default function AdminLoadTestingPage() {
             onClick={() => setActiveTab("results")}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "results"
-                ? "border-blue-500 text-blue-400 bg-blue-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                : "border-transparent text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-200"
             }`}
           >
             <BarChart2 className="w-3.5 h-3.5" />
             <span>Results & Analytics</span>
             {lastReport && (
-              <span className="px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-mono">
+              <span className="px-1.5 py-0.2 rounded-md bg-purple-500/10 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-mono">
                 {lastReport.summary.totalRequests} reqs
               </span>
             )}
@@ -494,13 +494,13 @@ export default function AdminLoadTestingPage() {
             onClick={() => setActiveTab("history")}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "history"
-                ? "border-blue-500 text-blue-400 bg-blue-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                : "border-transparent text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-200"
             }`}
           >
             <History className="w-3.5 h-3.5" />
             <span>Saved Configs & History</span>
-            <span className="px-1.5 py-0.2 rounded-md bg-slate-800 text-slate-400 text-[10px] font-mono">
+            <span className="px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-slate-800 text-[#475569] dark:text-slate-400 text-[10px] font-mono">
               {historicalRuns.length}
             </span>
           </button>
@@ -515,13 +515,13 @@ export default function AdminLoadTestingPage() {
         {activeTab === "config" && (
           <div className="space-y-6">
             {/* Presets Bar */}
-            <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   Select Pre-Configured Test Profile
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-[#64748b] dark:text-slate-400">
                   Click any card to populate parameters
                 </span>
               </div>
@@ -537,30 +537,30 @@ export default function AdminLoadTestingPage() {
                       className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                         isSelected
                           ? "bg-blue-600/15 border-blue-500 shadow-md shadow-blue-500/10"
-                          : "bg-[#161f30] border-[#223048] hover:border-slate-600 hover:bg-[#1a253a]"
+                          : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] hover:border-blue-400 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-[#1a253a]"
                       }`}
                     >
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-white tracking-tight">
+                          <span className="font-bold text-xs text-[#0f172a] dark:text-white tracking-tight">
                             {preset.name}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
                               isApi
-                                ? "bg-cyan-500/20 text-cyan-300"
-                                : "bg-amber-500/20 text-amber-300"
+                                ? "bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20"
+                                : "bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20"
                             }`}
                           >
                             {preset.targetService.toUpperCase()}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 line-clamp-2">
+                        <p className="text-[11px] text-[#64748b] dark:text-slate-400 line-clamp-2">
                           {preset.description}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-3 text-[10px] font-mono text-slate-400 border-t border-[#233149] pt-2">
+                      <div className="flex items-center gap-3 text-[10px] font-mono text-[#64748b] dark:text-slate-400 border-t border-[#e2e8f0] dark:border-[#233149] pt-2">
                         <span>
                           👥 {isApi ? preset.apiConfig.users : preset.executorConfig.users} VUs
                         </span>
@@ -578,19 +578,19 @@ export default function AdminLoadTestingPage() {
             </div>
 
             {/* Target Service Toggle */}
-            <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[#0f172a] dark:text-white flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-400" />
                     Target System / Subsystem
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#64748b] dark:text-slate-400">
                     Select whether you want to test general REST API endpoints or the compiler sandbox execution engine.
                   </p>
                 </div>
 
-                <div className="inline-flex p-1 rounded-xl bg-[#161f30] border border-[#223048]">
+                <div className="inline-flex p-1 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
                   <button
                     type="button"
                     onClick={() => {
@@ -599,7 +599,7 @@ export default function AdminLoadTestingPage() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       config.targetService === "api"
                         ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-white"
+                        : "text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
                     }`}
                   >
                     <Globe className="w-3.5 h-3.5" />
@@ -614,7 +614,7 @@ export default function AdminLoadTestingPage() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       config.targetService === "executor"
                         ? "bg-amber-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-white"
+                        : "text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
                     }`}
                   >
                     <Cpu className="w-3.5 h-3.5" />
@@ -627,8 +627,8 @@ export default function AdminLoadTestingPage() {
               <div
                 className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
                   config.targetService === "api"
-                    ? "bg-blue-500/10 border-blue-500/25 text-blue-300"
-                    : "bg-amber-500/10 border-amber-500/25 text-amber-300"
+                    ? "bg-blue-500/10 border-blue-500/25 text-blue-800 dark:text-blue-300"
+                    : "bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-300"
                 }`}
               >
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -655,26 +655,26 @@ export default function AdminLoadTestingPage() {
               {/* Left 2 Cols: Form Parameters */}
               <div className="lg:col-span-2 space-y-6">
                 {/* General Settings */}
-                <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4">
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                     1. Test Identity & Concurrency
                   </h4>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1">
                         Test Profile Name
                       </label>
                       <input
                         type="text"
                         value={config.name}
                         onChange={(e) => setConfig((prev) => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-xl bg-[#161f30] border border-[#223048] text-white text-xs focus:outline-hidden focus:border-blue-500"
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-[#0f172a] dark:text-white text-xs focus:outline-hidden focus:border-blue-500 shadow-xs"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1">
                         Ramp-Up Profile
                       </label>
                       <select
@@ -697,7 +697,7 @@ export default function AdminLoadTestingPage() {
                             }));
                           }
                         }}
-                        className="w-full px-3 py-2 rounded-xl bg-[#161f30] border border-[#223048] text-white text-xs focus:outline-hidden focus:border-blue-500"
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-[#0f172a] dark:text-white text-xs focus:outline-hidden focus:border-blue-500 shadow-xs"
                       >
                         <option value="instant">Instant Spike (All VUs start immediately)</option>
                         <option value="gradual">Gradual Linear Ramp-Up (Slow to high)</option>
@@ -710,7 +710,7 @@ export default function AdminLoadTestingPage() {
                     <div className="space-y-4 pt-2">
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Virtual Users (Concurrency):</span>
+                          <span className="text-[#334155] dark:text-slate-300">Virtual Users (Concurrency):</span>
                           <span className="font-mono font-bold text-blue-400">
                             {config.apiConfig.users} users
                           </span>
@@ -732,7 +732,7 @@ export default function AdminLoadTestingPage() {
 
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Test Duration:</span>
+                          <span className="text-[#334155] dark:text-slate-300">Test Duration:</span>
                           <span className="font-mono font-bold text-blue-400">
                             {config.apiConfig.durationSeconds} seconds
                           </span>
@@ -756,7 +756,7 @@ export default function AdminLoadTestingPage() {
                       {config.apiConfig.rampUpStyle === "gradual" && (
                         <div>
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-300">Spawn Rate:</span>
+                            <span className="text-[#334155] dark:text-slate-300">Spawn Rate:</span>
                             <span className="font-mono font-bold text-blue-400">
                               {config.apiConfig.spawnRate} users / sec
                             </span>
@@ -779,7 +779,7 @@ export default function AdminLoadTestingPage() {
 
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Think Time / Request Delay:</span>
+                          <span className="text-[#334155] dark:text-slate-300">Think Time / Request Delay:</span>
                           <span className="font-mono font-bold text-blue-400">
                             {config.apiConfig.thinkTimeMs} ms
                           </span>
@@ -804,7 +804,7 @@ export default function AdminLoadTestingPage() {
                     <div className="space-y-4 pt-2">
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Virtual Users (Simultaneous Coders):</span>
+                          <span className="text-[#334155] dark:text-slate-300">Virtual Users (Simultaneous Coders):</span>
                           <span className="font-mono font-bold text-amber-400">
                             {config.executorConfig.users} users
                           </span>
@@ -826,7 +826,7 @@ export default function AdminLoadTestingPage() {
 
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Submissions per User:</span>
+                          <span className="text-[#334155] dark:text-slate-300">Submissions per User:</span>
                           <span className="font-mono font-bold text-amber-400">
                             {config.executorConfig.submissionsPerUser} submissions
                           </span>
@@ -849,7 +849,7 @@ export default function AdminLoadTestingPage() {
                       {config.executorConfig.rampUpStyle === "gradual" && (
                         <div>
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-300">Spawn Rate:</span>
+                            <span className="text-[#334155] dark:text-slate-300">Spawn Rate:</span>
                             <span className="font-mono font-bold text-amber-400">
                               {config.executorConfig.spawnRate} users / sec
                             </span>
@@ -872,7 +872,7 @@ export default function AdminLoadTestingPage() {
 
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-300">Think Time Between Submissions:</span>
+                          <span className="text-[#334155] dark:text-slate-300">Think Time Between Submissions:</span>
                           <span className="font-mono font-bold text-amber-400">
                             {config.executorConfig.thinkTimeMs} ms
                           </span>
@@ -899,11 +899,11 @@ export default function AdminLoadTestingPage() {
                 {/* Subsystem Specific Configuration */}
                 {config.targetService === "api" ? (
                   /* API Endpoints Selection */
-                  <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                       2. Target API Endpoints
                     </h4>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[#64748b] dark:text-slate-400">
                       Select which API endpoints the virtual users will query. Requests will be distributed randomly across selected routes.
                     </p>
 
@@ -915,8 +915,8 @@ export default function AdminLoadTestingPage() {
                             key={ep.id}
                             className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
                               isChecked
-                                ? "bg-blue-600/10 border-blue-500/40 text-white"
-                                : "bg-[#161f30] border-[#223048] text-slate-400 hover:border-slate-600"
+                                ? "bg-blue-50 dark:bg-blue-600/10 border-blue-500/50 text-[#0f172a] dark:text-white shadow-xs"
+                                : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-600"
                             }`}
                           >
                             <input
@@ -936,10 +936,10 @@ export default function AdminLoadTestingPage() {
                               className="mt-0.5 accent-blue-600 rounded"
                             />
                             <div className="space-y-0.5">
-                              <span className="font-semibold text-xs text-white block">
+                              <span className="font-semibold text-xs text-[#0f172a] dark:text-white block">
                                 {ep.label}
                               </span>
-                              <span className="text-[11px] text-slate-400">{ep.desc}</span>
+                              <span className="text-[11px] text-[#64748b] dark:text-slate-400">{ep.desc}</span>
                             </div>
                           </label>
                         );
@@ -948,22 +948,22 @@ export default function AdminLoadTestingPage() {
                   </div>
                 ) : (
                   /* Executor Specific Configuration */
-                  <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                       2. Compiler & Sandbox Configuration
                     </h4>
 
                     {/* Mode */}
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1.5">
                         Execution Mode
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label
                           className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                             config.executorConfig.mode === "compiler_run"
-                              ? "bg-amber-600/15 border-amber-500 text-white"
-                              : "bg-[#161f30] border-[#223048] text-slate-400 hover:border-slate-600"
+                              ? "bg-amber-50 dark:bg-amber-600/15 border-amber-500 text-[#0f172a] dark:text-white shadow-xs"
+                              : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-600"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -979,9 +979,9 @@ export default function AdminLoadTestingPage() {
                               }
                               className="accent-amber-500"
                             />
-                            <span className="font-bold text-xs text-white">Direct Compiler Benchmark</span>
+                            <span className="font-bold text-xs text-[#0f172a] dark:text-white">Direct Compiler Benchmark</span>
                           </div>
-                          <span className="text-[11px] text-slate-400 mt-1 pl-5">
+                          <span className="text-[11px] text-[#64748b] dark:text-slate-400 mt-1 pl-5">
                             POST /api/v1/compiler/run synchronous execution. Tests raw compiler RPS without Cloud Tasks queue overhead.
                           </span>
                         </label>
@@ -989,8 +989,8 @@ export default function AdminLoadTestingPage() {
                         <label
                           className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                             config.executorConfig.mode === "full_submission"
-                              ? "bg-purple-600/15 border-purple-500 text-white"
-                              : "bg-[#161f30] border-[#223048] text-slate-400 hover:border-slate-600"
+                              ? "bg-purple-50 dark:bg-purple-600/15 border-purple-500 text-[#0f172a] dark:text-white shadow-xs"
+                              : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-600"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1006,9 +1006,9 @@ export default function AdminLoadTestingPage() {
                               }
                               className="accent-purple-500"
                             />
-                            <span className="font-bold text-xs text-white">Full Async Submission</span>
+                            <span className="font-bold text-xs text-[#0f172a] dark:text-white">Full Async Submission</span>
                           </div>
-                          <span className="text-[11px] text-slate-400 mt-1 pl-5">
+                          <span className="text-[11px] text-[#64748b] dark:text-slate-400 mt-1 pl-5">
                             Real-world flow: synthetic signup -&gt; POST /submissions -&gt; Cloud Tasks execution -&gt; Polling latch in QA DB.
                           </span>
                         </label>
@@ -1017,7 +1017,7 @@ export default function AdminLoadTestingPage() {
 
                     {/* Programming Languages */}
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1.5">
                         Programming Languages to Test
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1028,8 +1028,8 @@ export default function AdminLoadTestingPage() {
                               key={lang.id}
                               className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
                                 isSelected
-                                  ? "bg-amber-600/10 border-amber-500/50 text-white"
-                                  : "bg-[#161f30] border-[#223048] text-slate-400 hover:border-slate-600"
+                                  ? "bg-amber-50 dark:bg-amber-600/10 border-amber-500/50 text-[#0f172a] dark:text-white shadow-xs"
+                                  : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-600"
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -1051,7 +1051,7 @@ export default function AdminLoadTestingPage() {
                                 />
                                 <span className="font-bold text-xs">{lang.label}</span>
                               </div>
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#e2e8f0] dark:bg-slate-800 text-[#475569] dark:text-slate-400">
                                 {lang.badge}
                               </span>
                             </label>
@@ -1062,7 +1062,7 @@ export default function AdminLoadTestingPage() {
 
                     {/* Workload Complexity */}
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1.5">
                         Code Workload Complexity
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1081,7 +1081,7 @@ export default function AdminLoadTestingPage() {
                               className={`py-2 px-3 rounded-xl border text-xs font-bold capitalize transition-all cursor-pointer ${
                                 isSel
                                   ? "bg-amber-500 text-slate-950 border-amber-400 shadow-sm"
-                                  : "bg-[#161f30] border-[#223048] text-slate-400 hover:text-white"
+                                  : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
                               }`}
                             >
                               {c}
@@ -1096,21 +1096,21 @@ export default function AdminLoadTestingPage() {
 
               {/* Right Col: Summary & Action Card */}
               <div className="space-y-4">
-                <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4 sticky top-36">
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4 sticky top-36">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                     Execution Summary
                   </h4>
 
-                  <div className="space-y-3 divide-y divide-[#1e293b] text-xs">
+                  <div className="space-y-3 divide-y divide-[#e2e8f0] dark:divide-[#1e293b] text-xs">
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-400">Target Service:</span>
-                      <span className="font-bold font-mono text-white">
+                      <span className="text-[#64748b] dark:text-slate-400">Target Service:</span>
+                      <span className="font-bold font-mono text-[#0f172a] dark:text-white">
                         {config.targetService.toUpperCase()}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-400">Simulated VUs:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">Simulated VUs:</span>
                       <span className="font-bold font-mono text-blue-400">
                         {config.targetService === "api"
                           ? config.apiConfig.users
@@ -1120,14 +1120,14 @@ export default function AdminLoadTestingPage() {
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-400">Est. Total Requests:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">Est. Total Requests:</span>
                       <span className="font-bold font-mono text-emerald-400">
                         ~{totalEstimatedRequests} requests
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-400">Ramp-Up Profile:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">Ramp-Up Profile:</span>
                       <span className="font-bold font-mono text-purple-400 uppercase">
                         {config.targetService === "api"
                           ? config.apiConfig.rampUpStyle
@@ -1136,7 +1136,7 @@ export default function AdminLoadTestingPage() {
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-400">Target Database:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">Target Database:</span>
                       <span className="font-bold font-mono text-emerald-400">
                         zap_platform_lower
                       </span>
@@ -1158,14 +1158,14 @@ export default function AdminLoadTestingPage() {
                       type="button"
                       disabled={savingPreset}
                       onClick={handleSavePreset}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-200 border border-[#cbd5e1] dark:border-slate-700 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       <Save className="w-3.5 h-3.5" />
                       <span>{savingPreset ? "Saving..." : "Save Custom Preset to QA DB"}</span>
                     </button>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-[#e2e8f0] dark:border-slate-800 text-[11px] text-[#64748b] dark:text-slate-400 flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
                     <span>
                       Zero-risk execution: All operations strictly append <code className="text-emerald-300 font-mono">X-ZAP-ENV: qa</code>. Production data remains 100% isolated.
@@ -1183,7 +1183,7 @@ export default function AdminLoadTestingPage() {
         {activeTab === "monitor" && (
           <div className="space-y-6">
             {/* Live Controller Bar */}
-            <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-3.5 h-3.5 rounded-full ${
@@ -1200,7 +1200,7 @@ export default function AdminLoadTestingPage() {
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-white">{config.name}</span>
+                    <span className="font-bold text-sm text-[#0f172a] dark:text-white">{config.name}</span>
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                         liveMetrics?.status === "RUNNING"
@@ -1215,9 +1215,9 @@ export default function AdminLoadTestingPage() {
                       {liveMetrics?.status || "READY"}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-[#64748b] dark:text-slate-400">
                     Elapsed Time:{" "}
-                    <strong className="text-white font-mono">{liveMetrics?.elapsedSeconds || 0}s</strong>
+                    <strong className="text-[#0f172a] dark:text-white font-mono">{liveMetrics?.elapsedSeconds || 0}s</strong>
                   </span>
                 </div>
               </div>
@@ -1272,19 +1272,19 @@ export default function AdminLoadTestingPage() {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 block mb-1">
                   Active Virtual Users
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-extrabold font-mono text-white">
+                  <span className="text-2xl font-extrabold font-mono text-[#0f172a] dark:text-white">
                     {liveMetrics?.activeVirtualUsers || 0}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
+                  <span className="text-xs text-[#64748b] dark:text-slate-400 font-mono">
                     / {liveMetrics?.totalVirtualUsers || 0} VUs
                   </span>
                 </div>
-                <div className="w-full bg-[#1e293b] h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="w-full bg-[#e2e8f0] dark:bg-[#1e293b] h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
                     className="bg-blue-500 h-full rounded-full transition-all duration-300"
                     style={{
@@ -1298,15 +1298,15 @@ export default function AdminLoadTestingPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 block mb-1">
                   Throughput (RPS)
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-extrabold font-mono text-emerald-400">
                     {liveMetrics?.currentRps || 0}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
+                  <span className="text-xs text-[#64748b] dark:text-slate-400 font-mono">
                     req/s (Peak: {liveMetrics?.peakRps || 0})
                   </span>
                 </div>
@@ -1315,15 +1315,15 @@ export default function AdminLoadTestingPage() {
                 </span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 block mb-1">
                   Success Rate
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-extrabold font-mono text-purple-400">
                     {liveMetrics?.successRate || 100}%
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
+                  <span className="text-xs text-[#64748b] dark:text-slate-400 font-mono">
                     ({liveMetrics?.failedRequests || 0} fails)
                   </span>
                 </div>
@@ -1332,15 +1332,15 @@ export default function AdminLoadTestingPage() {
                 </span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#121824] border border-[#1e293b]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 block mb-1">
                   Latency (p50 / p95)
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-extrabold font-mono text-amber-400">
                     {liveMetrics?.p50LatencyMs || 0}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
+                  <span className="text-xs text-[#64748b] dark:text-slate-400 font-mono">
                     ms (p95: {liveMetrics?.p95LatencyMs || 0}ms)
                   </span>
                 </div>
@@ -1351,9 +1351,9 @@ export default function AdminLoadTestingPage() {
             </div>
 
             {/* Live Chart: Throughput & Latency Over Time */}
-            <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 flex items-center gap-2">
                   <Activity className="w-3.5 h-3.5 text-blue-400" />
                   Live Throughput Timeline (RPS & Active VUs)
                 </span>
@@ -1361,7 +1361,7 @@ export default function AdminLoadTestingPage() {
               </div>
 
               {liveMetrics?.timeline && liveMetrics.timeline.length > 0 ? (
-                <div className="h-32 flex items-end gap-1 border-b border-[#1f293d] pb-1 overflow-x-auto pt-4">
+                <div className="h-32 flex items-end gap-1 border-b border-[#e2e8f0] dark:border-[#1f293d] pb-1 overflow-x-auto pt-4">
                   {liveMetrics.timeline.slice(-60).map((tick, i) => {
                     const maxRps = Math.max(10, liveMetrics.peakRps || 1);
                     const heightPercent = Math.min(100, Math.round((tick.rps / maxRps) * 100));
@@ -1392,16 +1392,16 @@ export default function AdminLoadTestingPage() {
             </div>
 
             {/* Live Terminal Output Stream */}
-            <div className="p-5 rounded-2xl bg-[#090d14] border border-[#1e293b] space-y-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#090d14] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#334155] dark:text-slate-300">
                     Live Telemetry Stream
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs text-[#64748b] dark:text-slate-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={autoScrollLogs}
@@ -1418,7 +1418,7 @@ export default function AdminLoadTestingPage() {
 
               <div
                 ref={logsContainerRef}
-                className="h-64 overflow-y-auto font-mono text-xs space-y-1 pr-2 bg-[#06090e] p-3 rounded-xl border border-[#151c28]"
+                className="h-64 overflow-y-auto font-mono text-xs space-y-1 pr-2 bg-slate-950 dark:bg-[#06090e] p-3 rounded-xl border border-slate-800 dark:border-[#151c28] text-slate-100"
               >
                 {liveMetrics?.recentLogs && liveMetrics.recentLogs.length > 0 ? (
                   liveMetrics.recentLogs.map((log) => {
@@ -1450,7 +1450,7 @@ export default function AdminLoadTestingPage() {
                           {log.status}
                         </span>
                         <span className="text-amber-300/80">{log.durationMs}ms</span>
-                        {log.message && <span className="text-slate-400">({log.message})</span>}
+                        {log.message && <span className="text-[#64748b] dark:text-slate-400">({log.message})</span>}
                       </div>
                     );
                   })
@@ -1468,10 +1468,10 @@ export default function AdminLoadTestingPage() {
         {activeTab === "results" && (
           <div className="space-y-6">
             {!lastReport ? (
-              <div className="p-12 text-center rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
+              <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
                 <BarChart2 className="w-12 h-12 text-slate-600 mx-auto" />
-                <h3 className="text-sm font-bold text-white">No Test Results Available</h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                <h3 className="text-sm font-bold text-[#0f172a] dark:text-white">No Test Results Available</h3>
+                <p className="text-xs text-[#64748b] dark:text-slate-400 max-w-md mx-auto">
                   Run a load test from the Configure tab or load a previous test run from the History tab to inspect comprehensive analytics.
                 </p>
                 <button
@@ -1485,10 +1485,10 @@ export default function AdminLoadTestingPage() {
             ) : (
               <div className="space-y-6">
                 {/* Result Header */}
-                <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-bold text-white">{lastReport.configName}</span>
+                      <span className="text-base font-bold text-[#0f172a] dark:text-white">{lastReport.configName}</span>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                           lastReport.status === "COMPLETED"
@@ -1499,7 +1499,7 @@ export default function AdminLoadTestingPage() {
                         {lastReport.status}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-[#64748b] dark:text-slate-400">
                       Started: {new Date(lastReport.startedAt).toLocaleTimeString()} | Duration:{" "}
                       {lastReport.summary.totalTimeSeconds}s | Target: {lastReport.targetService.toUpperCase()}
                     </span>
@@ -1509,7 +1509,7 @@ export default function AdminLoadTestingPage() {
                     <button
                       type="button"
                       onClick={handleExportJson}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-200 border border-[#cbd5e1] dark:border-slate-700 text-xs font-semibold cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5 text-blue-400" />
                       <span>Export JSON Report</span>
@@ -1531,43 +1531,43 @@ export default function AdminLoadTestingPage() {
 
                 {/* Summary Metrics Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">Total Requests</span>
-                    <span className="text-xl font-bold font-mono text-white mt-1 block">
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">Total Requests</span>
+                    <span className="text-xl font-bold font-mono text-[#0f172a] dark:text-white mt-1 block">
                       {lastReport.summary.totalRequests}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">Success Rate</span>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">Success Rate</span>
                     <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
                       {lastReport.summary.successRate}%
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">Overall RPS</span>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">Overall RPS</span>
                     <span className="text-xl font-bold font-mono text-blue-400 mt-1 block">
                       {lastReport.summary.overallRps}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">Peak RPS</span>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">Peak RPS</span>
                     <span className="text-xl font-bold font-mono text-purple-400 mt-1 block">
                       {lastReport.summary.peakRps}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">Median (p50)</span>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">Median (p50)</span>
                     <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
                       {lastReport.summary.latencyPercentiles.p50}ms
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#121824] border border-[#1e293b]">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase block">95th % (p95)</span>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
+                    <span className="text-[10px] font-mono text-[#64748b] dark:text-slate-400 uppercase block">95th % (p95)</span>
                     <span className="text-xl font-bold font-mono text-rose-400 mt-1 block">
                       {lastReport.summary.latencyPercentiles.p95}ms
                     </span>
@@ -1575,49 +1575,49 @@ export default function AdminLoadTestingPage() {
                 </div>
 
                 {/* Latency Percentiles Table */}
-                <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                     Response Time Percentiles (Full Test Suite)
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1 font-mono text-center">
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">Min</span>
-                      <span className="font-bold text-white text-sm">{lastReport.summary.latencyPercentiles.min}ms</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">Min</span>
+                      <span className="font-bold text-[#0f172a] dark:text-white text-sm">{lastReport.summary.latencyPercentiles.min}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">Average</span>
-                      <span className="font-bold text-white text-sm">{lastReport.summary.latencyPercentiles.avg}ms</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">Average</span>
+                      <span className="font-bold text-[#0f172a] dark:text-white text-sm">{lastReport.summary.latencyPercentiles.avg}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">p50</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">p50</span>
                       <span className="font-bold text-emerald-400 text-sm">{lastReport.summary.latencyPercentiles.p50}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">p75</span>
-                      <span className="font-bold text-white text-sm">{lastReport.summary.latencyPercentiles.p75}ms</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">p75</span>
+                      <span className="font-bold text-[#0f172a] dark:text-white text-sm">{lastReport.summary.latencyPercentiles.p75}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">p90</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">p90</span>
                       <span className="font-bold text-amber-400 text-sm">{lastReport.summary.latencyPercentiles.p90}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">p95</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">p95</span>
                       <span className="font-bold text-amber-500 text-sm">{lastReport.summary.latencyPercentiles.p95}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">p99</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">p99</span>
                       <span className="font-bold text-rose-400 text-sm">{lastReport.summary.latencyPercentiles.p99}ms</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#161f30] border border-[#223048]">
-                      <span className="text-[10px] text-slate-400 block">Max</span>
+                    <div className="p-2.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                      <span className="text-[10px] text-[#64748b] dark:text-slate-400 block">Max</span>
                       <span className="font-bold text-rose-500 text-sm">{lastReport.summary.latencyPercentiles.max}ms</span>
                     </div>
                   </div>
                 </div>
 
                 {/* HTTP Status Code Distribution */}
-                <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                     HTTP Response Status Distribution
                   </h4>
                   <div className="flex flex-wrap items-center gap-3">
@@ -1634,7 +1634,7 @@ export default function AdminLoadTestingPage() {
                           }`}
                         >
                           <span className="font-bold">{statusStr}</span>
-                          <span className="text-slate-400">({count} requests)</span>
+                          <span className="text-[#64748b] dark:text-slate-400">({count} requests)</span>
                         </div>
                       );
                     })}
@@ -1643,13 +1643,13 @@ export default function AdminLoadTestingPage() {
 
                 {/* Endpoint or Language Breakdown */}
                 {lastReport.summary.languageBreakdown && Object.keys(lastReport.summary.languageBreakdown).length > 0 && (
-                  <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                       Compiler Breakdown by Programming Language
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs font-mono">
-                        <thead className="text-[11px] text-slate-400 border-b border-[#1f293d]">
+                        <thead className="text-[11px] text-[#64748b] dark:text-slate-400 border-b border-[#e2e8f0] dark:border-[#1f293d]">
                           <tr>
                             <th className="py-2.5">Language</th>
                             <th className="py-2.5">Total Runs</th>
@@ -1660,16 +1660,16 @@ export default function AdminLoadTestingPage() {
                             <th className="py-2.5">Max Latency</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#182234]">
+                        <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#182234]">
                           {Object.entries(lastReport.summary.languageBreakdown).map(([lang, metric]: any) => (
-                            <tr key={lang} className="hover:bg-slate-800/40">
+                            <tr key={lang} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                               <td className="py-2.5 font-bold uppercase text-amber-400">{lang}</td>
-                              <td className="py-2.5 text-white">{metric.count}</td>
+                              <td className="py-2.5 text-[#0f172a] dark:text-white">{metric.count}</td>
                               <td className="py-2.5 text-rose-400">{metric.fails}</td>
-                              <td className="py-2.5 text-slate-300">{metric.avg_ms}ms</td>
+                              <td className="py-2.5 text-[#334155] dark:text-slate-300">{metric.avg_ms}ms</td>
                               <td className="py-2.5 text-emerald-400">{metric.p50_ms}ms</td>
                               <td className="py-2.5 text-amber-400">{metric.p95_ms}ms</td>
-                              <td className="py-2.5 text-slate-400">{metric.max_ms}ms</td>
+                              <td className="py-2.5 text-[#64748b] dark:text-slate-400">{metric.max_ms}ms</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1680,13 +1680,13 @@ export default function AdminLoadTestingPage() {
 
                 {/* Endpoint Breakdown */}
                 {lastReport.summary.endpoints && Object.keys(lastReport.summary.endpoints).length > 0 && (
-                  <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-3">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-3">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
                       Breakdown by API Endpoint Route
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs font-mono">
-                        <thead className="text-[11px] text-slate-400 border-b border-[#1f293d]">
+                        <thead className="text-[11px] text-[#64748b] dark:text-slate-400 border-b border-[#e2e8f0] dark:border-[#1f293d]">
                           <tr>
                             <th className="py-2.5">Endpoint</th>
                             <th className="py-2.5">Count</th>
@@ -1696,13 +1696,13 @@ export default function AdminLoadTestingPage() {
                             <th className="py-2.5">p95</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#182234]">
+                        <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#182234]">
                           {Object.entries(lastReport.summary.endpoints).map(([ep, metric]: any) => (
-                            <tr key={ep} className="hover:bg-slate-800/40">
+                            <tr key={ep} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                               <td className="py-2.5 font-semibold text-blue-400 truncate max-w-xs">{ep}</td>
-                              <td className="py-2.5 text-white">{metric.count}</td>
+                              <td className="py-2.5 text-[#0f172a] dark:text-white">{metric.count}</td>
                               <td className="py-2.5 text-rose-400">{metric.fails}</td>
-                              <td className="py-2.5 text-slate-300">{metric.avg_ms}ms</td>
+                              <td className="py-2.5 text-[#334155] dark:text-slate-300">{metric.avg_ms}ms</td>
                               <td className="py-2.5 text-emerald-400">{metric.p50_ms}ms</td>
                               <td className="py-2.5 text-amber-400">{metric.p95_ms}ms</td>
                             </tr>
@@ -1723,14 +1723,14 @@ export default function AdminLoadTestingPage() {
         {activeTab === "history" && (
           <div className="space-y-6">
             {/* Top Saved Configurations */}
-            <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[#0f172a] dark:text-white flex items-center gap-2">
                     <Save className="w-4 h-4 text-blue-400" />
                     Saved Custom Test Configurations (QA MongoDB)
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#64748b] dark:text-slate-400">
                     Saved in collection <code className="text-emerald-400 font-mono">load_test_configs</code> in lower DB.
                   </p>
                 </div>
@@ -1738,7 +1738,7 @@ export default function AdminLoadTestingPage() {
                 <button
                   type="button"
                   onClick={fetchHistoryAndConfigs}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  className="p-1.5 rounded-lg bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-300 border border-[#cbd5e1] dark:border-slate-700"
                   title="Refresh"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? "animate-spin" : ""}`} />
@@ -1754,11 +1754,11 @@ export default function AdminLoadTestingPage() {
                   {savedConfigs.map((cfg) => (
                     <div
                       key={cfg.id}
-                      className="p-4 rounded-xl bg-[#161f30] border border-[#223048] flex flex-col justify-between gap-3"
+                      className="p-4 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048] flex flex-col justify-between gap-3"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-sm text-white">{cfg.name}</span>
+                          <span className="font-bold text-sm text-[#0f172a] dark:text-white">{cfg.name}</span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
                               cfg.targetService === "api"
@@ -1769,10 +1769,10 @@ export default function AdminLoadTestingPage() {
                             {cfg.targetService}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400">{cfg.description}</p>
+                        <p className="text-xs text-[#64748b] dark:text-slate-400">{cfg.description}</p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-[#233149] text-xs">
+                      <div className="flex items-center justify-between pt-2 border-t border-[#e2e8f0] dark:border-[#233149] text-xs">
                         <span className="text-[10px] text-slate-500 font-mono">
                           Saved by: {cfg.createdBy || "Admin"}
                         </span>
@@ -1790,7 +1790,7 @@ export default function AdminLoadTestingPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteConfig(cfg.id)}
-                            className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                            className="p-1 rounded-lg hover:bg-rose-500/20 text-[#64748b] dark:text-slate-400 hover:text-rose-400 transition-colors"
                             title="Delete config"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1804,8 +1804,8 @@ export default function AdminLoadTestingPage() {
             </div>
 
             {/* Historical Runs */}
-            <div className="p-5 rounded-2xl bg-[#121824] border border-[#1e293b] space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-[#0f172a] dark:text-white flex items-center gap-2">
                 <History className="w-4 h-4 text-purple-400" />
                 Historical Test Runs (QA MongoDB)
               </h3>
@@ -1817,7 +1817,7 @@ export default function AdminLoadTestingPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="text-[11px] text-slate-400 border-b border-[#1f293d]">
+                    <thead className="text-[11px] text-[#64748b] dark:text-slate-400 border-b border-[#e2e8f0] dark:border-[#1f293d]">
                       <tr>
                         <th className="py-2.5">Run Name</th>
                         <th className="py-2.5">Target</th>
@@ -1830,10 +1830,10 @@ export default function AdminLoadTestingPage() {
                         <th className="py-2.5 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#182234]">
+                    <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#182234]">
                       {historicalRuns.map((run: any) => (
-                        <tr key={run.id || run._id} className="hover:bg-slate-800/40">
-                          <td className="py-3 font-bold text-white">{run.configName}</td>
+                        <tr key={run.id || run._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-3 font-bold text-[#0f172a] dark:text-white">{run.configName}</td>
                           <td className="py-3">
                             <span
                               className={`px-1.5 py-0.5 rounded text-[9px] uppercase ${
@@ -1845,10 +1845,10 @@ export default function AdminLoadTestingPage() {
                               {run.targetService}
                             </span>
                           </td>
-                          <td className="py-3 text-slate-400">
+                          <td className="py-3 text-[#64748b] dark:text-slate-400">
                             {new Date(run.startedAt).toLocaleString()}
                           </td>
-                          <td className="py-3 text-white">{run.summary?.totalRequests}</td>
+                          <td className="py-3 text-[#0f172a] dark:text-white">{run.summary?.totalRequests}</td>
                           <td className="py-3 text-emerald-400">{run.summary?.successRate}%</td>
                           <td className="py-3 text-blue-400">{run.summary?.overallRps}</td>
                           <td className="py-3 text-amber-400">{run.summary?.latencyPercentiles?.p50}ms</td>
@@ -1861,14 +1861,14 @@ export default function AdminLoadTestingPage() {
                                   setLastReport(run);
                                   setActiveTab("results");
                                 }}
-                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]"
+                                className="px-2 py-1 rounded bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-200 border border-[#cbd5e1] dark:border-slate-700 text-[11px]"
                               >
                                 View Report
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteRun(run.id)}
-                                className="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-400"
+                                className="p-1 rounded hover:bg-rose-500/20 text-[#64748b] dark:text-slate-400 hover:text-rose-400"
                                 title="Delete Run Record"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1890,40 +1890,40 @@ export default function AdminLoadTestingPage() {
       {/* CLEAN LOWER DB MODAL */}
       {/* ===================================================================== */}
       {cleanModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-[#121824] border border-rose-500/40 p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#121824] border border-rose-500/40 p-6 shadow-2xl space-y-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Clean Lower Database Data</h3>
+                  <h3 className="text-base font-bold text-[#0f172a] dark:text-white">Clean Lower Database Data</h3>
                   <span className="text-xs font-mono text-emerald-400">Target: zap_platform_lower</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setCleanModalOpen(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
             {/* Current Stats */}
-            <div className="p-3.5 rounded-xl bg-[#161f30] border border-[#223048] space-y-1.5 text-xs font-mono">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
+            <div className="p-3.5 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048] space-y-1.5 text-xs font-mono">
+              <span className="text-[10px] text-[#64748b] dark:text-slate-400 uppercase tracking-wider block mb-1">
                 Current Records in zap_platform_lower
               </span>
-              <div className="grid grid-cols-2 gap-2 text-slate-300">
+              <div className="grid grid-cols-2 gap-2 text-[#334155] dark:text-slate-300">
                 <div>
                   Synthetic Users:{" "}
                   <strong className="text-amber-400">{dataStats?.syntheticUsersCount ?? 0}</strong>
                 </div>
                 <div>
                   Total Users:{" "}
-                  <strong className="text-white">{dataStats?.totalUsersCount ?? 0}</strong>
+                  <strong className="text-[#0f172a] dark:text-white">{dataStats?.totalUsersCount ?? 0}</strong>
                 </div>
                 <div>
                   Synthetic Submissions:{" "}
@@ -1933,20 +1933,20 @@ export default function AdminLoadTestingPage() {
                 </div>
                 <div>
                   Total Submissions:{" "}
-                  <strong className="text-white">{dataStats?.totalSubmissionsCount ?? 0}</strong>
+                  <strong className="text-[#0f172a] dark:text-white">{dataStats?.totalSubmissionsCount ?? 0}</strong>
                 </div>
               </div>
             </div>
 
             {/* Options */}
             <div className="space-y-2 text-xs">
-              <label className="block text-slate-300 font-semibold mb-1">Select Cleanup Scope:</label>
+              <label className="block text-[#334155] dark:text-slate-300 font-semibold mb-1">Select Cleanup Scope:</label>
 
               <label
                 className={`flex items-start gap-2.5 p-3 rounded-xl border transition-all cursor-pointer ${
                   cleanTarget === "synthetic"
-                    ? "bg-amber-500/10 border-amber-500/40 text-white"
-                    : "bg-[#161f30] border-[#223048] text-slate-400"
+                    ? "bg-amber-50 dark:bg-amber-500/10 border-amber-500/40 text-[#0f172a] dark:text-white shadow-xs"
+                    : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400"
                 }`}
               >
                 <input
@@ -1957,10 +1957,10 @@ export default function AdminLoadTestingPage() {
                   className="mt-0.5 accent-amber-500"
                 />
                 <div>
-                  <span className="font-bold block text-white">
+                  <span className="font-bold block text-[#0f172a] dark:text-white">
                     Clean Synthetic Load-Test Records Only (Recommended)
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-[#64748b] dark:text-slate-400">
                     Deletes only generated accounts matching <code className="text-amber-300">loadtest_*</code> and their submissions. Preserves regular QA test questions & faculty accounts.
                   </span>
                 </div>
@@ -1969,8 +1969,8 @@ export default function AdminLoadTestingPage() {
               <label
                 className={`flex items-start gap-2.5 p-3 rounded-xl border transition-all cursor-pointer ${
                   cleanTarget === "all_test_data"
-                    ? "bg-rose-500/10 border-rose-500/40 text-white"
-                    : "bg-[#161f30] border-[#223048] text-slate-400"
+                    ? "bg-rose-50 dark:bg-rose-500/10 border-rose-500/40 text-[#0f172a] dark:text-white shadow-xs"
+                    : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400"
                 }`}
               >
                 <input
@@ -1981,10 +1981,10 @@ export default function AdminLoadTestingPage() {
                   className="mt-0.5 accent-rose-500"
                 />
                 <div>
-                  <span className="font-bold block text-white">
+                  <span className="font-bold block text-[#0f172a] dark:text-white">
                     Clean All Non-Admin Data in Lower DB
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-[#64748b] dark:text-slate-400">
                     Completely resets users, submissions, and activities in <code className="text-rose-400">zap_platform_lower</code>.
                   </span>
                 </div>
@@ -1993,7 +1993,7 @@ export default function AdminLoadTestingPage() {
 
             {/* Guardrail Confirmation Input */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
+              <label className="block text-xs font-semibold text-[#334155] dark:text-slate-300">
                 Type <span className="font-mono text-rose-400 font-bold">&quot;clean-lower&quot;</span> to confirm:
               </label>
               <input
@@ -2001,7 +2001,7 @@ export default function AdminLoadTestingPage() {
                 value={cleanConfirmText}
                 onChange={(e) => setCleanConfirmText(e.target.value)}
                 placeholder="clean-lower"
-                className="w-full px-3 py-2 rounded-xl bg-[#161f30] border border-[#223048] text-white font-mono text-xs focus:outline-hidden focus:border-rose-500"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-[#0f172a] dark:text-white font-mono text-xs focus:outline-hidden focus:border-rose-500 shadow-xs"
               />
             </div>
 
@@ -2011,11 +2011,11 @@ export default function AdminLoadTestingPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#1e293b]">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#e2e8f0] dark:border-[#1e293b]">
               <button
                 type="button"
                 onClick={() => setCleanModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-[#f1f5f9] dark:bg-slate-800 hover:bg-[#e2e8f0] dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-300 border border-[#cbd5e1] dark:border-slate-700 text-xs font-semibold"
               >
                 Cancel
               </button>
