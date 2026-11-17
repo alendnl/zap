@@ -72,8 +72,8 @@ DB_NAMES = {
 QUEUE_NAMES = {
     "prod": "zap-submissions",
     "production": "zap-submissions",
-    "lower": "zap-submissions-lower",
-    "qa": "zap-submissions-lower",
+    "lower": "zap-submissions",
+    "qa": "zap-submissions",
 }
 
 # Terminal colors and formatting
@@ -766,7 +766,7 @@ def main():
 
     # gcp queue-state
     g_qstate = gcp_sub.add_parser("queue-state", help="Pause or resume a Cloud Tasks queue")
-    g_qstate.add_argument("queue", help="Queue name (e.g. zap-submissions-lower)")
+    g_qstate.add_argument("queue", help="Queue name (e.g. zap-submissions)")
     g_qstate.add_argument("action", choices=["pause", "resume"], help="Action to perform")
     g_qstate.add_argument("--confirm-prod", action="store_true", help="Explicit confirmation for production queue")
     g_qstate.add_argument("--project", default=DEFAULT_GCP_PROJECT, help="GCP Project ID")

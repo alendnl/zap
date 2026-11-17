@@ -86,7 +86,7 @@ def test_untrusted_origin_is_not_allowed_by_cors():
 def test_qa_environment_config():
     config = Settings().get_environment_config("qa")
     assert config.database_name == "zap_platform_lower"
-    assert config.queue_name == "zap-submissions-lower"
+    assert config.queue_name == "zap-submissions"
 
 
 def test_production_environment_config():

@@ -21,7 +21,7 @@
   - C++23 runner with GCC `-O2 -std=c++23`.
   - C runner with GCC `-O2`.
 - [x] **Automated Harness Generator**: Auto-generates drivers, parses JSON/array inputs, and handles standard I/O formatters.
-- [x] **Asynchronous Execution Pipeline**: Google Cloud Tasks (`zap-submissions` & `zap-submissions-lower`) to prevent HTTP request timeouts during complex evaluations.
+- [x] **Asynchronous Execution Pipeline**: Google Cloud Tasks (`zap-submissions`) to prevent HTTP request timeouts during complex evaluations.
 - [x] **Dynamic Multi-Tenant Environment Routing**: Single deployment on GCP Cloud Run supporting `production` and `qa` via `X-ZAP-ENV` header.
 - [x] **Student Coding Arena**: Monaco editor with language switcher, split-screen layout, Run/Submit workflows, and real-time output terminal.
 - [x] **Faculty Question Management**: CRUD operations for questions, starter templates, and test cases with visibility toggling (`PUBLIC` vs `HIDDEN`).

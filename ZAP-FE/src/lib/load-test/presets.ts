@@ -84,7 +84,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
   },
   {
     name: "Executor C++ & Java Heavy Benchmark",
-    description: "Tests compiler container CPU & memory limits using template-heavy C++ and Java class compilation.",
+    description: "Tests compiler container CPU & memory limits using template-heavy C++ and Java class compilation via Cloud Tasks and zap-executor.",
     targetService: "executor",
     apiConfig: {
       endpoints: ["/api/v1/questions?summary=true"],
@@ -95,7 +95,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       thinkTimeMs: 100,
     },
     executorConfig: {
-      mode: "compiler_run",
+      mode: "full_submission",
       users: 15,
       submissionsPerUser: 5,
       rampUpStyle: "gradual",
@@ -109,7 +109,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
   },
   {
     name: "Executor Multi-Language Burst (All 5)",
-    description: "Simultaneous execution across C, C++, Java, Python, and JavaScript to stress sandbox concurrency.",
+    description: "Simultaneous execution across C, C++, Java, Python, and JavaScript through Cloud Tasks to stress zap-executor sandbox concurrency.",
     targetService: "executor",
     apiConfig: {
       endpoints: ["/api/v1/questions?summary=true"],
@@ -120,7 +120,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       thinkTimeMs: 100,
     },
     executorConfig: {
-      mode: "compiler_run",
+      mode: "full_submission",
       users: 20,
       submissionsPerUser: 4,
       rampUpStyle: "instant",

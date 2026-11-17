@@ -38,10 +38,10 @@ class Settings(BaseSettings):
     TASKS_SERVICE_ACCOUNT: str = ""
     TASKS_EXECUTION_LEASE_SECONDS: int = 120
 
-    # Per-environment (only DB name + queue name differ)
+    # Per-environment (only MongoDB database differs; single unified queue)
     DEFAULT_ENVIRONMENT: str = "production"
     QA_DATABASE_NAME: str = "zap_platform_lower"
-    QA_QUEUE_NAME: str = "zap-submissions-lower"
+    QA_QUEUE_NAME: str = "zap-submissions"
     PRODUCTION_DATABASE_NAME: str = "zap_platform_prod"
     PRODUCTION_QUEUE_NAME: str = "zap-submissions"
 
@@ -57,11 +57,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
     def get_environment_config(self, env: str) -> EnvironmentConfig:
-        """Return the per-environment config. Unknown envs default to production."""
+        """Return the per-environment config. Database differs; queue is unified."""
         if env == "qa":
             return EnvironmentConfig(
                 database_name=self.QA_DATABASE_NAME,
-                queue_name=self.QA_QUEUE_NAME,
+                queue_name=self.PRODUCTION_QUEUE_NAME,
             )
         return EnvironmentConfig(
             database_name=self.PRODUCTION_DATABASE_NAME,

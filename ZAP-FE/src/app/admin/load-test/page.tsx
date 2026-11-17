@@ -609,7 +609,11 @@ export default function AdminLoadTestingPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setConfig((prev) => ({ ...prev, targetService: "executor" }));
+                      setConfig((prev) => ({
+                        ...prev,
+                        targetService: "executor",
+                        executorConfig: { ...prev.executorConfig, mode: "full_submission" },
+                      }));
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       config.targetService === "executor"

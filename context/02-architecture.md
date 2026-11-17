@@ -32,7 +32,7 @@ zap/
 flowchart TB
     Client["Client Browser / Next.js (Vercel)"] -- "HTTPS + X-ZAP-ENV" --> API["zap-api (GCP Cloud Run)"]
     API -- "CRUD Question & Submissions" --> Mongo[(MongoDB Atlas)]
-    API -- "Enqueue Execution Task" --> Tasks["Google Cloud Tasks<br/>(zap-submissions / zap-submissions-lower)"]
+    API -- "Enqueue Execution Task" --> Tasks["Google Cloud Tasks<br/>(zap-submissions)"]
     Tasks -- "HTTP POST (OIDC Auth)" --> Exec["zap-executor (GCP Cloud Run)"]
     Exec -- "Fetch Code & Tests" --> Mongo
     Exec -- "Run in Temp Sandbox" --> Sandbox["Sandbox / Language Runners<br/>(Python, JS, Java, C++, C)"]
@@ -70,7 +70,7 @@ Instead of running duplicate infrastructure per branch or environment, ZAP maint
 |---|---|---|
 | **Header** | `X-ZAP-ENV: production` (or omitted) | `X-ZAP-ENV: qa` |
 | **Database** | MongoDB `zap_platform_prod` | MongoDB `zap_platform_lower` |
-| **Task Queue** | Cloud Tasks `zap-submissions` | Cloud Tasks `zap-submissions-lower` |
+| **Task Queue** | Cloud Tasks `zap-submissions` (Unified) | Cloud Tasks `zap-submissions` (Unified) |
 | **Compute** | Shared `zap-api` & `zap-executor` | Shared `zap-api` & `zap-executor` |
 
 ### Invariant 4: Asynchronous Processing for Full Submissions

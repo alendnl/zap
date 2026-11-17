@@ -212,7 +212,7 @@ jobs:
             --project="$PROJECT_ID" \
             --member="serviceAccount:${TASK_CALLER_SA}" \
             --role=roles/iam.serviceAccountTokenCreator --quiet &
-          for queue in zap-submissions zap-submissions-lower; do
+          for queue in zap-submissions; do
             gcloud tasks queues add-iam-policy-binding "$queue" \
               --project="$PROJECT_ID" --location="$REGION" \
               --member="serviceAccount:${API_RUNTIME_SA}" \
@@ -265,7 +265,7 @@ jobs:
             --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
             --min=1 --max=10 --cpu=2 --memory=2Gi --concurrency=4 --scaling-concurrency-target=0.40 --cpu-boost --timeout=120 \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions-lower,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
+            --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
             --quiet &
           PID_EXEC=$!
 
@@ -275,7 +275,7 @@ jobs:
             --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
             --min=1 --max=10 --cpu=1 --memory=512Mi --concurrency=80 --scaling-concurrency-target=0.80 --cpu-boost \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
-            --update-env-vars='^~^ENVIRONMENT=production~DEBUG=false~GCP_PROJECT_ID=zap-platform-prod~GCP_LOCATION=us-central1~EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute~TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app~TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com~DEFAULT_ENVIRONMENT=production~QA_DATABASE_NAME=zap_platform_lower~QA_QUEUE_NAME=zap-submissions-lower~PRODUCTION_DATABASE_NAME=zap_platform_prod~PRODUCTION_QUEUE_NAME=zap-submissions~CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app","https://www.codezap-arena.vercel.app","https://run.codezap.in","https://codezap.in","https://www.codezap.in"]~CORS_ORIGIN_REGEX=https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app' \
+            --update-env-vars='^~^ENVIRONMENT=production~DEBUG=false~GCP_PROJECT_ID=zap-platform-prod~GCP_LOCATION=us-central1~EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute~TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app~TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com~DEFAULT_ENVIRONMENT=production~QA_DATABASE_NAME=zap_platform_lower~QA_QUEUE_NAME=zap-submissions~PRODUCTION_DATABASE_NAME=zap_platform_prod~PRODUCTION_QUEUE_NAME=zap-submissions~CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app","https://www.codezap-arena.vercel.app","https://run.codezap.in","https://codezap.in","https://www.codezap.in"]~CORS_ORIGIN_REGEX=https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app' \
             --quiet &
           PID_API=$!
 
@@ -301,7 +301,7 @@ jobs:
           python -c 'import json; d=json.load(open("/tmp/health.json")); assert d["status"] == "healthy", d'
           PREFLIGHT_STATUS="$(curl --silent --output /tmp/cors-preflight.txt --write-out '%{http_code}' -X OPTIONS "$API_URL/api/v1/submissions" -H 'Origin: https://codezap-arena.vercel.app' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,x-zap-env')"
           test "$PREFLIGHT_STATUS" = "200" || { cat /tmp/cors-preflight.txt; exit 1; }
-          for queue in zap-submissions zap-submissions-lower; do
+          for queue in zap-submissions; do
             echo "Checking Cloud Tasks queue: $queue"
             gcloud tasks queues describe "$queue" --project="$PROJECT_ID" --location="$REGION" --format='value(name)' &
           done
