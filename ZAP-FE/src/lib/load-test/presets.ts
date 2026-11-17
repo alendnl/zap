@@ -1,4 +1,4 @@
-import { UnifiedLoadTestConfig } from "./types";
+import { UnifiedLoadTestConfig, DEFAULT_SPIKE_CONFIG } from "./types";
 
 export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
   {
@@ -25,6 +25,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       pollIntervalMs: 1000,
       maxPollAttempts: 10,
     },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG },
   },
   {
     name: "API Stress Test (50 Users Spike)",
@@ -56,6 +57,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       pollIntervalMs: 1000,
       maxPollAttempts: 10,
     },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG },
   },
   {
     name: "API Gradual Ramp-Up (100 Users)",
@@ -81,6 +83,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       pollIntervalMs: 1000,
       maxPollAttempts: 10,
     },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG },
   },
   {
     name: "Executor C++ & Java Heavy Benchmark",
@@ -106,6 +109,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       pollIntervalMs: 1000,
       maxPollAttempts: 15,
     },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG, language: "cpp", complexity: "heavy" },
   },
   {
     name: "Executor Multi-Language Burst (All 5)",
@@ -131,6 +135,7 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       pollIntervalMs: 1000,
       maxPollAttempts: 15,
     },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG, submissionsPerInterval: 4, intervalSeconds: 0.5 },
   },
   {
     name: "Executor Full Async Submission Lifecycle",
@@ -155,6 +160,75 @@ export const DEFAULT_LOAD_TEST_PRESETS: UnifiedLoadTestConfig[] = [
       thinkTimeMs: 500,
       pollIntervalMs: 1500,
       maxPollAttempts: 20,
+    },
+    spikeConfig: { ...DEFAULT_SPIKE_CONFIG },
+  },
+  {
+    name: "Executor Sustained Pulse (2 Subs / 1.0s)",
+    description: "Sustained execution pulse dispatching 2 submissions every 1.0s to zap-executor until 100 requests complete.",
+    targetService: "executor_spike",
+    apiConfig: {
+      endpoints: ["/api/v1/questions?summary=true"],
+      users: 1,
+      durationSeconds: 30,
+      rampUpStyle: "instant",
+      spawnRate: 1,
+      thinkTimeMs: 100,
+    },
+    executorConfig: {
+      mode: "full_submission",
+      users: 2,
+      submissionsPerUser: 50,
+      rampUpStyle: "instant",
+      spawnRate: 2,
+      languages: ["python"],
+      complexity: "light",
+      thinkTimeMs: 1000,
+      pollIntervalMs: 1000,
+      maxPollAttempts: 15,
+    },
+    spikeConfig: {
+      submissionsPerInterval: 2,
+      intervalSeconds: 1.0,
+      stopMode: "requests",
+      totalRequests: 100,
+      durationSeconds: 60,
+      language: "python",
+      complexity: "light",
+    },
+  },
+  {
+    name: "Executor High-Frequency Burst (4 Subs / 0.5s)",
+    description: "High-frequency burst sending 4 C++ submissions every 0.5s for 30s directly stressing zap-executor autoscaling.",
+    targetService: "executor_spike",
+    apiConfig: {
+      endpoints: ["/api/v1/questions?summary=true"],
+      users: 1,
+      durationSeconds: 30,
+      rampUpStyle: "instant",
+      spawnRate: 1,
+      thinkTimeMs: 100,
+    },
+    executorConfig: {
+      mode: "full_submission",
+      users: 4,
+      submissionsPerUser: 50,
+      rampUpStyle: "instant",
+      spawnRate: 4,
+      languages: ["cpp"],
+      complexity: "medium",
+      thinkTimeMs: 500,
+      pollIntervalMs: 1000,
+      maxPollAttempts: 15,
+    },
+    spikeConfig: {
+      submissionsPerInterval: 4,
+      intervalSeconds: 0.5,
+      stopMode: "duration",
+      totalRequests: 250,
+      durationSeconds: 30,
+      language: "cpp",
+      complexity: "medium",
     },
   },
 ];

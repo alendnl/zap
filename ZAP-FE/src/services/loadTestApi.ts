@@ -11,7 +11,7 @@ export interface SavedLoadTestConfig {
   id: string;
   name: string;
   description?: string;
-  targetService: "api" | "executor";
+  targetService: "api" | "executor" | "executor_spike";
   config: UnifiedLoadTestConfig;
   createdBy?: string;
   createdAt: string;
@@ -74,7 +74,7 @@ export const loadTestApi = {
 
   createConfig: async (
     adminEmail: string,
-    payload: { name: string; description?: string; targetService: "api" | "executor"; config: UnifiedLoadTestConfig }
+    payload: { name: string; description?: string; targetService: "api" | "executor" | "executor_spike"; config: UnifiedLoadTestConfig }
   ): Promise<SavedLoadTestConfig> => {
     return loadTestFetch<SavedLoadTestConfig>("/api/v1/admin/load-test/configs", adminEmail, {
       method: "POST",

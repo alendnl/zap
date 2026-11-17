@@ -43,6 +43,9 @@ import {
   WorkloadComplexity,
   RampUpStyle,
   ExecutorMode,
+  SpikeStopMode,
+  ExecutorSpikeConfig,
+  DEFAULT_SPIKE_CONFIG,
   LiveMetrics,
   LoadTestRunReport,
   LogEntry,
@@ -386,6 +389,10 @@ export default function AdminLoadTestingPage() {
   const totalEstimatedRequests =
     config.targetService === "api"
       ? config.apiConfig.users * Math.max(1, Math.floor(config.apiConfig.durationSeconds / Math.max(0.2, (config.apiConfig.thinkTimeMs + 100) / 1000)))
+      : config.targetService === "executor_spike"
+      ? (config.spikeConfig?.stopMode === "requests"
+        ? (config.spikeConfig?.totalRequests ?? 100)
+        : Math.round(((config.spikeConfig?.durationSeconds ?? 30) / Math.max(config.spikeConfig?.intervalSeconds ?? 1, 0.1)) * (config.spikeConfig?.submissionsPerInterval ?? 2)))
       : config.executorConfig.users * config.executorConfig.submissionsPerUser;
 
   return (
@@ -529,6 +536,7 @@ export default function AdminLoadTestingPage() {
                 {DEFAULT_LOAD_TEST_PRESETS.map((preset, idx) => {
                   const isSelected = selectedPresetIndex === idx;
                   const isApi = preset.targetService === "api";
+                  const isSpike = preset.targetService === "executor_spike";
                   return (
                     <button
                       key={preset.name}
@@ -549,10 +557,12 @@ export default function AdminLoadTestingPage() {
                             className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
                               isApi
                                 ? "bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20"
+                                : isSpike
+                                ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/20"
                                 : "bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20"
                             }`}
                           >
-                            {preset.targetService.toUpperCase()}
+                            {isSpike ? "SPIKE PULSE" : preset.targetService.toUpperCase()}
                           </span>
                         </div>
                         <p className="text-[11px] text-[#64748b] dark:text-slate-400 line-clamp-2">
@@ -562,13 +572,17 @@ export default function AdminLoadTestingPage() {
 
                       <div className="flex items-center gap-3 text-[10px] font-mono text-[#64748b] dark:text-slate-400 border-t border-[#e2e8f0] dark:border-[#233149] pt-2">
                         <span>
-                          👥 {isApi ? preset.apiConfig.users : preset.executorConfig.users} VUs
+                          {isSpike
+                            ? `⚡ ${preset.spikeConfig?.submissionsPerInterval || 2} subs / ${preset.spikeConfig?.intervalSeconds ?? 1.0}s`
+                            : `👥 ${isApi ? preset.apiConfig.users : preset.executorConfig.users} VUs`}
                         </span>
                         <span>
-                          ⚡ {isApi ? `${preset.apiConfig.durationSeconds}s` : `${preset.executorConfig.submissionsPerUser} subs/user`}
+                          {isSpike
+                            ? `⏱️ ${preset.spikeConfig?.stopMode === "duration" ? `${preset.spikeConfig?.durationSeconds}s` : `${preset.spikeConfig?.totalRequests} reqs`}`
+                            : `⚡ ${isApi ? `${preset.apiConfig.durationSeconds}s` : `${preset.executorConfig.submissionsPerUser} subs/user`}`}
                         </span>
                         <span>
-                          📈 {isApi ? preset.apiConfig.rampUpStyle : preset.executorConfig.rampUpStyle}
+                          📈 {isSpike ? "PULSE SPIKE" : isApi ? preset.apiConfig.rampUpStyle : preset.executorConfig.rampUpStyle}
                         </span>
                       </div>
                     </button>
@@ -590,20 +604,20 @@ export default function AdminLoadTestingPage() {
                   </p>
                 </div>
 
-                <div className="inline-flex p-1 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048]">
+                <div className="inline-flex p-1 rounded-xl bg-[#f1f5f9] dark:bg-[#161f30] border border-[#e2e8f0] dark:border-[#223048] flex-wrap gap-1">
                   <button
                     type="button"
                     onClick={() => {
                       setConfig((prev) => ({ ...prev, targetService: "api" }));
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       config.targetService === "api"
                         ? "bg-blue-600 text-white shadow-sm"
                         : "text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
                     }`}
                   >
                     <Globe className="w-3.5 h-3.5" />
-                    <span>ZAP API (REST Endpoints)</span>
+                    <span>ZAP API (REST)</span>
                   </button>
 
                   <button
@@ -615,14 +629,33 @@ export default function AdminLoadTestingPage() {
                         executorConfig: { ...prev.executorConfig, mode: "full_submission" },
                       }));
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       config.targetService === "executor"
                         ? "bg-amber-600 text-white shadow-sm"
                         : "text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
                     }`}
                   >
                     <Cpu className="w-3.5 h-3.5" />
-                    <span>ZAP Executor (Sandboxed Compiler)</span>
+                    <span>ZAP Executor (VUs)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfig((prev) => ({
+                        ...prev,
+                        targetService: "executor_spike",
+                        spikeConfig: prev.spikeConfig || { ...DEFAULT_SPIKE_CONFIG },
+                      }));
+                    }}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      config.targetService === "executor_spike"
+                        ? "bg-rose-600 text-white shadow-sm"
+                        : "text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>ZAP Executor Spike (Pulse / Sustained)</span>
                   </button>
                 </div>
               </div>
@@ -632,6 +665,8 @@ export default function AdminLoadTestingPage() {
                 className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
                   config.targetService === "api"
                     ? "bg-blue-500/10 border-blue-500/25 text-blue-800 dark:text-blue-300"
+                    : config.targetService === "executor_spike"
+                    ? "bg-rose-500/10 border-rose-500/25 text-rose-800 dark:text-rose-300"
                     : "bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-300"
                 }`}
               >
@@ -643,11 +678,17 @@ export default function AdminLoadTestingPage() {
                       contests, submissions feed, and synthetic user registration). Benchmarks database read/write
                       concurrency and network throughput.
                     </span>
+                  ) : config.targetService === "executor_spike" ? (
+                    <span>
+                      <strong>ZAP Executor Spike Mode:</strong> Long-running sustained pulse or instance spike.
+                      Dispatches batches of submissions at regular time intervals without virtual-user concepts, directly
+                      stressing Cloud Tasks and <code className="font-mono">zap-executor</code> autoscaling (1 to 10 instances).
+                    </span>
                   ) : (
                     <span>
-                      <strong>ZAP Executor Mode:</strong> Stresses the isolated compiler sandbox container. Benchmarks
-                      real code compilation (g++, javac, gcc) and runtime execution across C++, Java, Python, C, and
-                      JavaScript with strict CPU, memory, and timeout caps.
+                      <strong>ZAP Executor Mode:</strong> Stresses the isolated compiler sandbox container with virtual users.
+                      Benchmarks real code compilation (g++, javac, gcc) and runtime execution across C++, Java, Python, C,
+                      and JavaScript.
                     </span>
                   )}
                 </div>
@@ -677,36 +718,47 @@ export default function AdminLoadTestingPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1">
-                        Ramp-Up Profile
-                      </label>
-                      <select
-                        value={
-                          config.targetService === "api"
-                            ? config.apiConfig.rampUpStyle
-                            : config.executorConfig.rampUpStyle
-                        }
-                        onChange={(e) => {
-                          const val = e.target.value as RampUpStyle;
-                          if (config.targetService === "api") {
-                            setConfig((prev) => ({
-                              ...prev,
-                              apiConfig: { ...prev.apiConfig, rampUpStyle: val },
-                            }));
-                          } else {
-                            setConfig((prev) => ({
-                              ...prev,
-                              executorConfig: { ...prev.executorConfig, rampUpStyle: val },
-                            }));
+                    {config.targetService !== "executor_spike" ? (
+                      <div>
+                        <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1">
+                          Ramp-Up Profile
+                        </label>
+                        <select
+                          value={
+                            config.targetService === "api"
+                              ? config.apiConfig.rampUpStyle
+                              : config.executorConfig.rampUpStyle
                           }
-                        }}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-[#0f172a] dark:text-white text-xs focus:outline-hidden focus:border-blue-500 shadow-xs"
-                      >
-                        <option value="instant">Instant Spike (All VUs start immediately)</option>
-                        <option value="gradual">Gradual Linear Ramp-Up (Slow to high)</option>
-                      </select>
-                    </div>
+                          onChange={(e) => {
+                            const val = e.target.value as RampUpStyle;
+                            if (config.targetService === "api") {
+                              setConfig((prev) => ({
+                                ...prev,
+                                apiConfig: { ...prev.apiConfig, rampUpStyle: val },
+                              }));
+                            } else {
+                              setConfig((prev) => ({
+                                ...prev,
+                                executorConfig: { ...prev.executorConfig, rampUpStyle: val },
+                              }));
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-[#0f172a] dark:text-white text-xs focus:outline-hidden focus:border-blue-500 shadow-xs"
+                        >
+                          <option value="instant">Instant Spike (All VUs start immediately)</option>
+                          <option value="gradual">Gradual Linear Ramp-Up (Slow to high)</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1">
+                          Spike Dispatch Strategy
+                        </label>
+                        <div className="px-3 py-2 rounded-xl bg-[#f8fafc] dark:bg-[#161f30] border border-[#cbd5e1] dark:border-[#223048] text-rose-500 font-mono text-xs font-bold">
+                          Fixed Interval Pulse (Direct Cloud Tasks)
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Sliders */}
@@ -802,6 +854,195 @@ export default function AdminLoadTestingPage() {
                           }
                           className="w-full accent-blue-500 cursor-pointer"
                         />
+                      </div>
+                    </div>
+                  ) : config.targetService === "executor_spike" ? (
+                    <div className="space-y-5 pt-2">
+                      {/* Submissions per Interval */}
+                      <div>
+                        <div className="flex justify-between items-center text-xs mb-1">
+                          <span className="text-[#334155] dark:text-slate-300 font-medium">
+                            Submissions per Interval (Batch Size):
+                          </span>
+                          <span className="font-mono font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                            {config.spikeConfig?.submissionsPerInterval || 2} submissions / burst
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={20}
+                          step={1}
+                          value={config.spikeConfig?.submissionsPerInterval || 2}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              spikeConfig: {
+                                ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                submissionsPerInterval: Number(e.target.value),
+                              },
+                            }))
+                          }
+                          className="w-full accent-rose-500 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
+                          <span>1 sub (smooth)</span>
+                          <span>5 subs</span>
+                          <span>10 subs</span>
+                          <span>20 subs (max burst)</span>
+                        </div>
+                      </div>
+
+                      {/* Time Interval between Submissions */}
+                      <div>
+                        <div className="flex justify-between items-center text-xs mb-1">
+                          <span className="text-[#334155] dark:text-slate-300 font-medium">
+                            Time Interval Between Submissions:
+                          </span>
+                          <span className="font-mono font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                            {config.spikeConfig?.intervalSeconds ?? 1.0}s delay
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={5}
+                          step={0.1}
+                          value={config.spikeConfig?.intervalSeconds ?? 1.0}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              spikeConfig: {
+                                ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                intervalSeconds: Number(e.target.value),
+                              },
+                            }))
+                          }
+                          className="w-full accent-rose-500 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
+                          <span>0s (back-to-back)</span>
+                          <span>1.0s</span>
+                          <span>2.5s</span>
+                          <span>5.0s</span>
+                        </div>
+                      </div>
+
+                      {/* Stop Condition Selection */}
+                      <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#161f30] border border-slate-200 dark:border-[#223048] space-y-3">
+                        <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300">
+                          Stop Condition (Select One)
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                spikeConfig: {
+                                  ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                  stopMode: "requests",
+                                },
+                              }))
+                            }
+                            className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              config.spikeConfig?.stopMode === "requests"
+                                ? "bg-rose-500 text-white border-rose-400 shadow-xs"
+                                : "bg-white dark:bg-[#121824] border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-rose-400"
+                            }`}
+                          >
+                            <span>Total Submissions</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                spikeConfig: {
+                                  ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                  stopMode: "duration",
+                                },
+                              }))
+                            }
+                            className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              config.spikeConfig?.stopMode === "duration"
+                                ? "bg-rose-500 text-white border-rose-400 shadow-xs"
+                                : "bg-white dark:bg-[#121824] border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-rose-400"
+                            }`}
+                          >
+                            <span>Total Test Duration</span>
+                          </button>
+                        </div>
+
+                        {/* Slider based on stopMode */}
+                        {config.spikeConfig?.stopMode === "duration" ? (
+                          <div>
+                            <div className="flex justify-between items-center text-xs mb-1">
+                              <span className="text-slate-600 dark:text-slate-400">Total Duration Limit:</span>
+                              <span className="font-mono font-bold text-rose-500">
+                                {config.spikeConfig?.durationSeconds || 30} seconds
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={5}
+                              max={600}
+                              step={5}
+                              value={config.spikeConfig?.durationSeconds || 30}
+                              onChange={(e) =>
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  spikeConfig: {
+                                    ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                    durationSeconds: Number(e.target.value),
+                                  },
+                                }))
+                              }
+                              className="w-full accent-rose-500 cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
+                              <span>5s</span>
+                              <span>30s</span>
+                              <span>60s</span>
+                              <span>300s (5m)</span>
+                              <span>600s (10m)</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex justify-between items-center text-xs mb-1">
+                              <span className="text-slate-600 dark:text-slate-400">Total Requests Limit:</span>
+                              <span className="font-mono font-bold text-rose-500">
+                                {config.spikeConfig?.totalRequests || 100} submissions
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={10}
+                              max={2000}
+                              step={10}
+                              value={config.spikeConfig?.totalRequests || 100}
+                              onChange={(e) =>
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  spikeConfig: {
+                                    ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                    totalRequests: Number(e.target.value),
+                                  },
+                                }))
+                              }
+                              className="w-full accent-rose-500 cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
+                              <span>10</span>
+                              <span>100</span>
+                              <span>500</span>
+                              <span>1,000</span>
+                              <span>2,000 reqs</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -948,6 +1189,90 @@ export default function AdminLoadTestingPage() {
                           </label>
                         );
                       })}
+                    </div>
+                  </div>
+                ) : config.targetService === "executor_spike" ? (
+                  /* Spike Specific Configuration */
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs space-y-4">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400">
+                      2. Spike Submission Target & Language
+                    </h4>
+                    <p className="text-xs text-[#64748b] dark:text-slate-400">
+                      Select one programming language for this sustained pulse test. Submissions execute in isolated sandbox containers on <code className="text-rose-400 font-mono">zap-executor</code> via Cloud Tasks queue <code className="text-rose-400 font-mono">zap-submissions</code> with QA DB routing.
+                    </p>
+
+                    {/* Programming Languages - Single Select */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-2">
+                        Programming Language (Single Select)
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                        {AVAILABLE_LANGUAGES.map((lang) => {
+                          const isSelected = (config.spikeConfig?.language || "python") === lang.id;
+                          return (
+                            <button
+                              key={lang.id}
+                              type="button"
+                              onClick={() =>
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  spikeConfig: {
+                                    ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                    language: lang.id as SupportedLanguage,
+                                  },
+                                }))
+                              }
+                              className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-rose-50 dark:bg-rose-600/15 border-rose-500 text-[#0f172a] dark:text-white shadow-xs ring-1 ring-rose-500/50"
+                                  : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:border-rose-300 dark:hover:border-slate-600"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2.5 h-2.5 rounded-full ${isSelected ? "bg-rose-500" : "bg-slate-500"}`} />
+                                <span className="font-bold text-xs">{lang.label}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#e2e8f0] dark:bg-slate-800 text-[#475569] dark:text-slate-400">
+                                {lang.badge}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Workload Complexity */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] dark:text-slate-300 mb-1.5">
+                        Code Workload Complexity
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(["light", "medium", "heavy"] as WorkloadComplexity[]).map((c) => {
+                          const isSel = (config.spikeConfig?.complexity || "light") === c;
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() =>
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  spikeConfig: {
+                                    ...(prev.spikeConfig || DEFAULT_SPIKE_CONFIG),
+                                    complexity: c,
+                                  },
+                                }))
+                              }
+                              className={`py-2 px-3 rounded-xl border text-xs font-bold capitalize transition-all cursor-pointer ${
+                                isSel
+                                  ? "bg-rose-500 text-white border-rose-400 shadow-sm"
+                                  : "bg-[#f8fafc] dark:bg-[#161f30] border-[#e2e8f0] dark:border-[#223048] text-[#64748b] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-white"
+                              }`}
+                            >
+                              {c}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1109,17 +1434,22 @@ export default function AdminLoadTestingPage() {
                     <div className="flex justify-between items-center pt-2">
                       <span className="text-[#64748b] dark:text-slate-400">Target Service:</span>
                       <span className="font-bold font-mono text-[#0f172a] dark:text-white">
-                        {config.targetService.toUpperCase()}
+                        {config.targetService === "executor_spike"
+                          ? "EXECUTOR SPIKE (PULSE)"
+                          : config.targetService.toUpperCase()}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-[#64748b] dark:text-slate-400">Simulated VUs:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">
+                        {config.targetService === "executor_spike" ? "Dispatch Burst:" : "Simulated VUs:"}
+                      </span>
                       <span className="font-bold font-mono text-blue-400">
                         {config.targetService === "api"
-                          ? config.apiConfig.users
-                          : config.executorConfig.users}{" "}
-                        users
+                          ? `${config.apiConfig.users} users`
+                          : config.targetService === "executor_spike"
+                          ? `${config.spikeConfig?.submissionsPerInterval || 2} subs / ${config.spikeConfig?.intervalSeconds ?? 1.0}s`
+                          : `${config.executorConfig.users} users`}
                       </span>
                     </div>
 
@@ -1131,13 +1461,28 @@ export default function AdminLoadTestingPage() {
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-[#64748b] dark:text-slate-400">Ramp-Up Profile:</span>
+                      <span className="text-[#64748b] dark:text-slate-400">
+                        {config.targetService === "executor_spike" ? "Stop Condition:" : "Ramp-Up Profile:"}
+                      </span>
                       <span className="font-bold font-mono text-purple-400 uppercase">
                         {config.targetService === "api"
                           ? config.apiConfig.rampUpStyle
+                          : config.targetService === "executor_spike"
+                          ? (config.spikeConfig?.stopMode === "duration"
+                              ? `${config.spikeConfig?.durationSeconds || 30}s Duration`
+                              : `${config.spikeConfig?.totalRequests || 100} Submissions`)
                           : config.executorConfig.rampUpStyle}
                       </span>
                     </div>
+
+                    {config.targetService === "executor_spike" && (
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-[#64748b] dark:text-slate-400">Target Language:</span>
+                        <span className="font-bold font-mono text-rose-400 uppercase">
+                          {config.spikeConfig?.language || "python"}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center pt-2">
                       <span className="text-[#64748b] dark:text-slate-400">Target Database:</span>
@@ -1148,15 +1493,25 @@ export default function AdminLoadTestingPage() {
                   </div>
 
                   <div className="pt-2 space-y-2.5">
-                    <button
-                      type="button"
-                      disabled={isTestActive}
-                      onClick={handleStartTest}
-                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Play className="w-4 h-4 fill-white" />
-                      <span>Start In-Browser Load Test</span>
-                    </button>
+                    {isTestActive ? (
+                      <button
+                        type="button"
+                        onClick={handleAbort}
+                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition-all cursor-pointer ring-2 ring-rose-400/50 animate-pulse"
+                      >
+                        <Square className="w-4 h-4 fill-white" />
+                        <span>FORCE STOP CURRENT TEST</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleStartTest}
+                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer"
+                      >
+                        <Play className="w-4 h-4 fill-white" />
+                        <span>Start In-Browser Load Test</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -1228,6 +1583,18 @@ export default function AdminLoadTestingPage() {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {(liveMetrics?.status === "RUNNING" || liveMetrics?.status === "PAUSED" || isTestActive) && (
+                  <button
+                    type="button"
+                    onClick={handleAbort}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-600/30 border border-rose-400 transition-all cursor-pointer ring-2 ring-rose-400/50 hover:scale-[1.02] active:scale-[0.98]"
+                    title="Immediately abort the active load test run"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-white" />
+                    <span>HOT STOP / FORCE STOP</span>
+                  </button>
+                )}
+
                 {liveMetrics?.status === "RUNNING" && (
                   <button
                     type="button"
@@ -1250,17 +1617,6 @@ export default function AdminLoadTestingPage() {
                   </button>
                 )}
 
-                {(liveMetrics?.status === "RUNNING" || liveMetrics?.status === "PAUSED") && (
-                  <button
-                    type="button"
-                    onClick={handleAbort}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold cursor-pointer"
-                  >
-                    <Square className="w-3.5 h-3.5" />
-                    <span>Abort Run</span>
-                  </button>
-                )}
-
                 {!isTestActive && (
                   <button
                     type="button"
@@ -1278,22 +1634,31 @@ export default function AdminLoadTestingPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-2xl bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] shadow-xs">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748b] dark:text-slate-400 block mb-1">
-                  Active Virtual Users
+                  {config.targetService === "executor_spike" ? "Active In-Flight Pulse" : "Active Virtual Users"}
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-extrabold font-mono text-[#0f172a] dark:text-white">
                     {liveMetrics?.activeVirtualUsers || 0}
                   </span>
                   <span className="text-xs text-[#64748b] dark:text-slate-400 font-mono">
-                    / {liveMetrics?.totalVirtualUsers || 0} VUs
+                    {config.targetService === "executor_spike"
+                      ? `/ ${config.spikeConfig?.submissionsPerInterval || 2} batch`
+                      : `/ ${liveMetrics?.totalVirtualUsers || 0} VUs`}
                   </span>
                 </div>
                 <div className="w-full bg-[#e2e8f0] dark:bg-[#1e293b] h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
-                    className="bg-blue-500 h-full rounded-full transition-all duration-300"
+                    className={`${config.targetService === "executor_spike" ? "bg-rose-500" : "bg-blue-500"} h-full rounded-full transition-all duration-300`}
                     style={{
                       width: `${
-                        liveMetrics?.totalVirtualUsers
+                        config.targetService === "executor_spike"
+                          ? Math.min(
+                              100,
+                              ((liveMetrics?.activeVirtualUsers || 0) /
+                                (config.spikeConfig?.submissionsPerInterval || 1)) *
+                                100
+                            )
+                          : liveMetrics?.totalVirtualUsers
                           ? ((liveMetrics.activeVirtualUsers || 0) / liveMetrics.totalVirtualUsers) * 100
                           : 0
                       }%`,
@@ -1767,10 +2132,12 @@ export default function AdminLoadTestingPage() {
                             className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
                               cfg.targetService === "api"
                                 ? "bg-cyan-500/20 text-cyan-300"
+                                : cfg.targetService === "executor_spike"
+                                ? "bg-rose-500/20 text-rose-300"
                                 : "bg-amber-500/20 text-amber-300"
                             }`}
                           >
-                            {cfg.targetService}
+                            {cfg.targetService === "executor_spike" ? "SPIKE" : cfg.targetService}
                           </span>
                         </div>
                         <p className="text-xs text-[#64748b] dark:text-slate-400">{cfg.description}</p>
@@ -1843,10 +2210,12 @@ export default function AdminLoadTestingPage() {
                               className={`px-1.5 py-0.5 rounded text-[9px] uppercase ${
                                 run.targetService === "api"
                                   ? "bg-cyan-500/20 text-cyan-300"
+                                  : run.targetService === "executor_spike"
+                                  ? "bg-rose-500/20 text-rose-300"
                                   : "bg-amber-500/20 text-amber-300"
                               }`}
                             >
-                              {run.targetService}
+                              {run.targetService === "executor_spike" ? "SPIKE" : run.targetService}
                             </span>
                           </td>
                           <td className="py-3 text-[#64748b] dark:text-slate-400">

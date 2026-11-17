@@ -8,6 +8,7 @@ import {
   EndpointMetricDetail,
   LanguageMetricDetail,
   SupportedLanguage,
+  DEFAULT_SPIKE_CONFIG,
 } from "./types";
 import { SAMPLE_CODE_SNIPPETS } from "./sampleCodes";
 
@@ -122,6 +123,8 @@ export class LoadTestRunner {
     try {
       if (this.config.targetService === "api") {
         await this.runApiTest();
+      } else if (this.config.targetService === "executor_spike") {
+        await this.runSpikeTest();
       } else {
         await this.runExecutorTest();
       }
@@ -842,7 +845,280 @@ export class LoadTestRunner {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // RUNNER LOGIC: EXECUTOR SPIKE (SUSTAINED PULSE BENCHMARK)
+  // ---------------------------------------------------------------------------
+  private async runSpikeTest(): Promise<void> {
+    const spikeConfig = this.config.spikeConfig || DEFAULT_SPIKE_CONFIG;
+    const {
+      submissionsPerInterval = 2,
+      intervalSeconds = 1.0,
+      stopMode = "requests",
+      totalRequests = 100,
+      durationSeconds = 30,
+      language = "python",
+      complexity = "light",
+    } = spikeConfig;
+
+    const startTime = Date.now();
+    const durationMs = (durationSeconds || 30) * 1000;
+    const targetRequests = totalRequests || 100;
+    let sentRequests = 0;
+    let batchIndex = 0;
+
+    this.addLog(
+      1,
+      "SPIKE",
+      `INIT SPIKE: ${submissionsPerInterval} reqs / ${intervalSeconds}s | Stop: ${stopMode === "requests" ? targetRequests + " reqs" : durationSeconds + "s"} | Lang: ${language.toUpperCase()}`,
+      200,
+      0,
+      "Direct zap-executor sustained pulse initialized.",
+      false
+    );
+
+    // 1. One-time authentication to get a valid synthetic user/token in QA database
+    const authHex = `spk_${Math.random().toString(16).substring(2, 7)}`;
+    const email = `spike_runner_${authHex}@codezap.test`;
+    let token = "";
+    let userId = "";
+
+    try {
+      const headers = new Headers();
+      headers.set("Content-Type", "application/json");
+      headers.set("X-ZAP-ENV", "qa");
+
+      const authRes = await fetch(`${API_BASE}/api/v1/auth/signup`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: "Spike Runner",
+          studentId: `SPK-${authHex}`,
+          collegeName: "Spike Test Institute",
+          email,
+          password: "Password123!",
+        }),
+        signal: this.abortController?.signal,
+      });
+
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        token = authData.token;
+        userId = authData.student?.id;
+        this.addLog(1, "AUTH", "POST /api/v1/auth/signup", authRes.status, 0, `Spike session authenticated: ${email}`, false);
+      }
+    } catch (authErr: any) {
+      if (authErr.name === "AbortError") return;
+    }
+
+    const snippet =
+      SAMPLE_CODE_SNIPPETS[language]?.[complexity as "light" | "medium" | "heavy"] ||
+      SAMPLE_CODE_SNIPPETS.python.light;
+
+    this.activeVUsCount = submissionsPerInterval;
+    this.emitMetrics();
+
+    const activeBackgroundTasks: Promise<void>[] = [];
+
+    // 2. Pulse loop
+    while (!this.abortController?.signal.aborted) {
+      await this.checkPause();
+      if (this.abortController?.signal.aborted) break;
+
+      const elapsed = Date.now() - startTime;
+      if (stopMode === "duration" && elapsed >= durationMs) {
+        this.addLog(1, "SYSTEM", "INFO", 200, 0, `Duration limit reached (${durationSeconds}s)`);
+        break;
+      }
+      if (stopMode === "requests" && sentRequests >= targetRequests) {
+        this.addLog(1, "SYSTEM", "INFO", 200, 0, `Target request count reached (${targetRequests} submissions)`);
+        break;
+      }
+
+      batchIndex++;
+      let currentBatchSize = submissionsPerInterval;
+      if (stopMode === "requests") {
+        currentBatchSize = Math.min(submissionsPerInterval, targetRequests - sentRequests);
+      }
+
+      if (currentBatchSize <= 0) break;
+
+      // Dispatch this pulse batch concurrently
+      const batchPromises = [];
+      for (let s = 1; s <= currentBatchSize; s++) {
+        const subIndex = sentRequests + s;
+        const subUserId = `${userId || "spike"}_${subIndex}_${Math.random().toString(36).substring(2, 6)}`;
+        batchPromises.push(
+          this.sendSpikeSubmission(subIndex, language, snippet.sourceCode, subUserId, token, activeBackgroundTasks)
+        );
+      }
+
+      sentRequests += currentBatchSize;
+      this.emitMetrics();
+
+      await Promise.all(batchPromises);
+
+      if (this.abortController?.signal.aborted) break;
+
+      const nextElapsed = Date.now() - startTime;
+      if (stopMode === "duration" && nextElapsed >= durationMs) break;
+      if (stopMode === "requests" && sentRequests >= targetRequests) break;
+
+      if (intervalSeconds > 0) {
+        await this.sleep(intervalSeconds * 1000);
+      }
+    }
+
+    // Grace period for active background polls
+    if (activeBackgroundTasks.length > 0 && !this.abortController?.signal.aborted) {
+      this.addLog(1, "SYSTEM", "INFO", 200, 0, `Awaiting ${activeBackgroundTasks.length} pending executions to finalize...`);
+      await Promise.race([
+        Promise.all(activeBackgroundTasks),
+        this.sleep(8000),
+      ]);
+    }
+
+    this.activeVUsCount = 0;
+    this.emitMetrics();
+  }
+
+  private async sendSpikeSubmission(
+    reqIndex: number,
+    language: SupportedLanguage,
+    sourceCode: string,
+    subUserId: string,
+    token: string,
+    activeTasks: Promise<void>[]
+  ): Promise<void> {
+    const t0 = performance.now();
+    let status = 0;
+    let isError = false;
+
+    try {
+      const headers = new Headers();
+      headers.set("Content-Type", "application/json");
+      headers.set("X-ZAP-ENV", "qa");
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+
+      const res = await fetch(`${API_BASE}/api/v1/submissions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          questionId: "q-49c9f560",
+          language,
+          mode: "SUBMIT",
+          sourceCode,
+          userId: subUserId,
+        }),
+        signal: this.abortController?.signal,
+      });
+
+      status = res.status;
+      isError = !res.ok;
+      const duration = Math.round(performance.now() - t0);
+      this.recordRequestMetric("POST /api/v1/submissions", status, duration, isError, language);
+
+      if (res.ok) {
+        const data = await res.json();
+        const submissionId = data.submissionId;
+        this.addLog(
+          reqIndex,
+          "SPIKE",
+          `POST /api/v1/submissions (${language.toUpperCase()})`,
+          status,
+          duration,
+          `Enqueued: ${submissionId} [#${reqIndex}]`,
+          false
+        );
+
+        const pollTask = this.pollSpikeSubmission(submissionId, token, reqIndex, language);
+        activeTasks.push(pollTask);
+      } else {
+        this.addLog(
+          reqIndex,
+          "SPIKE",
+          `POST /api/v1/submissions (${language.toUpperCase()})`,
+          status,
+          duration,
+          `Enqueue error: ${status}`,
+          true
+        );
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") return;
+      const duration = Math.round(performance.now() - t0);
+      this.recordRequestMetric("POST /api/v1/submissions", 599, duration, true, language);
+      this.addLog(
+        reqIndex,
+        "SPIKE",
+        `POST /api/v1/submissions (${language.toUpperCase()})`,
+        599,
+        duration,
+        err.message || "Network Error",
+        true
+      );
+    }
+  }
+
+  private async pollSpikeSubmission(
+    submissionId: string,
+    token: string,
+    reqIndex: number,
+    language: SupportedLanguage
+  ): Promise<void> {
+    const tStart = performance.now();
+    for (let attempt = 1; attempt <= 25; attempt++) {
+      if (this.abortController?.signal.aborted) break;
+      await this.sleep(1000);
+      if (this.abortController?.signal.aborted) break;
+
+      try {
+        const headers = new Headers();
+        headers.set("X-ZAP-ENV", "qa");
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+
+        const pollRes = await fetch(`${API_BASE}/api/v1/submissions/${submissionId}`, {
+          headers,
+          signal: this.abortController?.signal,
+        });
+
+        if (pollRes.ok) {
+          const pollData = await pollRes.json();
+          if (pollData.status === "COMPLETED" || pollData.status === "FAILED") {
+            const execDuration = Math.round(performance.now() - tStart);
+            this.recordRequestMetric("GET /api/v1/submissions/{id}", pollRes.status, execDuration, pollData.status === "FAILED", language);
+            this.addLog(
+              reqIndex,
+              "EXECUTOR",
+              `SUBMISSION COMPLETE: ${pollData.verdict || pollData.status}`,
+              pollRes.status,
+              execDuration,
+              `ID: ${submissionId} | Lang: ${language} | Time: ${pollData.executionTimeMs ?? 0}ms`,
+              pollData.status === "FAILED"
+            );
+            break;
+          }
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") break;
+      }
+    }
+  }
+
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => {
+      if (this.abortController?.signal.aborted) {
+        return resolve();
+      }
+      let timer: any;
+      const onAbort = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      timer = setTimeout(() => {
+        this.abortController?.signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      this.abortController?.signal.addEventListener("abort", onAbort, { once: true });
+    });
   }
 }

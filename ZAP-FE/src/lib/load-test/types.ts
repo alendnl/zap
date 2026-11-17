@@ -1,4 +1,4 @@
-export type TargetService = "api" | "executor";
+export type TargetService = "api" | "executor" | "executor_spike";
 
 export type RampUpStyle = "instant" | "gradual";
 
@@ -7,6 +7,8 @@ export type ExecutorMode = "compiler_run" | "full_submission";
 export type SupportedLanguage = "cpp" | "java" | "python" | "c" | "javascript";
 
 export type WorkloadComplexity = "light" | "medium" | "heavy";
+
+export type SpikeStopMode = "requests" | "duration";
 
 export interface ApiTestConfig {
   endpoints: string[];
@@ -30,12 +32,33 @@ export interface ExecutorTestConfig {
   maxPollAttempts: number;
 }
 
+export interface ExecutorSpikeConfig {
+  submissionsPerInterval: number; // e.g. 1 to 20
+  intervalSeconds: number; // e.g. 0 to 5 seconds
+  stopMode: SpikeStopMode; // "requests" | "duration"
+  totalRequests: number; // e.g. 10 to 5000 (when stopMode === "requests")
+  durationSeconds: number; // e.g. 5 to 600 (when stopMode === "duration")
+  language: SupportedLanguage; // single language selected
+  complexity: WorkloadComplexity;
+}
+
+export const DEFAULT_SPIKE_CONFIG: ExecutorSpikeConfig = {
+  submissionsPerInterval: 2,
+  intervalSeconds: 1,
+  stopMode: "requests",
+  totalRequests: 100,
+  durationSeconds: 30,
+  language: "python",
+  complexity: "light",
+};
+
 export interface UnifiedLoadTestConfig {
   name: string;
   description?: string;
   targetService: TargetService;
   apiConfig: ApiTestConfig;
   executorConfig: ExecutorTestConfig;
+  spikeConfig?: ExecutorSpikeConfig;
 }
 
 export interface LogEntry {
