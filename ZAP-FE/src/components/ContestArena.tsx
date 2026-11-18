@@ -178,14 +178,50 @@ export function ContestArena({
     };
   }, [mcqAnswers, reviewedQuestionIds, codingState, proctoring, timeSpent]);
 
-  // Instant Local Cache helper (localStorage) for disaster recovery without network debounce overhead
+  // Periodic 30s Sync to Backend (MongoDB)
+  const syncToBackend = useCallback(
+    async (overrideState?: {
+      mcqAnswers?: Record<string, string>;
+      reviewedQuestionIds?: Set<string>;
+      codingState?: Record<string, CodingProblemState>;
+      proctoring?: ProctoringTelemetry;
+      timeSpent?: number;
+    }) => {
+      if (submissionResult || !hasEnteredFullscreen) return;
+      const current = {
+        mcqAnswers: overrideState?.mcqAnswers ?? latestStateRef.current.mcqAnswers,
+        reviewedQuestionIds: overrideState?.reviewedQuestionIds ?? latestStateRef.current.reviewedQuestionIds,
+        codingState: overrideState?.codingState ?? latestStateRef.current.codingState,
+        proctoring: overrideState?.proctoring ?? latestStateRef.current.proctoring,
+        timeSpent: overrideState?.timeSpent ?? latestStateRef.current.timeSpent,
+      };
+      try {
+        await contestApi.sync(contest.id || contest.slug, {
+          studentId,
+          studentEmail,
+          studentName,
+          mcqAnswers: current.mcqAnswers,
+          reviewedQuestionIds: Array.from(current.reviewedQuestionIds),
+          codingState: current.codingState,
+          proctoring: current.proctoring,
+          timeSpentSeconds: current.timeSpent,
+        });
+      } catch (err) {
+        console.warn("Real-time contest sync error:", err);
+      }
+    },
+    [contest.id, contest.slug, studentId, studentEmail, studentName, submissionResult, hasEnteredFullscreen]
+  );
+
+  // Local Cache helper (localStorage) with optional immediate backend sync (for MCQ selection & violations)
   const triggerLiveSync = useCallback(
     (
       newMcqAnswers?: Record<string, string>,
       newReviewed?: Set<string>,
       newCodingState?: Record<string, CodingProblemState>,
       newProctoring?: ProctoringTelemetry,
-      currentTimeSpent?: number
+      currentTimeSpent?: number,
+      immediateSync: boolean = false
     ) => {
       const answersToSave = newMcqAnswers ?? latestStateRef.current.mcqAnswers;
       const reviewedToSave = Array.from(newReviewed ?? latestStateRef.current.reviewedQuestionIds);
@@ -202,7 +238,7 @@ export function ContestArena({
         timeSpent: timeToSave,
       };
 
-      // Immediately cache in localStorage for disaster recovery
+      // 1. Immediately cache in localStorage for disaster recovery
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem(
@@ -217,31 +253,22 @@ export function ContestArena({
           );
         } catch {}
       }
+
+      // 2. Immediate backend sync for MCQ selections, review toggles, and proctoring violations
+      if (immediateSync) {
+        void syncToBackend({
+          mcqAnswers: answersToSave,
+          reviewedQuestionIds: newReviewed ?? latestStateRef.current.reviewedQuestionIds,
+          codingState: codingToSave,
+          proctoring: proctoringToSave,
+          timeSpent: timeToSave,
+        });
+      }
     },
-    [storageKey]
+    [storageKey, syncToBackend]
   );
 
-  // Periodic 30s Sync to Backend (MongoDB)
-  const syncToBackend = useCallback(async () => {
-    if (submissionResult || !hasEnteredFullscreen) return;
-    const current = latestStateRef.current;
-    try {
-      await contestApi.sync(contest.id || contest.slug, {
-        studentId,
-        studentEmail,
-        studentName,
-        mcqAnswers: current.mcqAnswers,
-        reviewedQuestionIds: Array.from(current.reviewedQuestionIds),
-        codingState: current.codingState,
-        proctoring: current.proctoring,
-        timeSpentSeconds: current.timeSpent,
-      });
-    } catch (err) {
-      console.warn("Real-time 30s contest sync error:", err);
-    }
-  }, [contest.id, contest.slug, studentId, studentEmail, studentName, submissionResult, hasEnteredFullscreen]);
-
-  // 30-Second Interval Sync to MongoDB (replaces the 800ms keystroke debounce)
+  // 30-Second Interval Sync to MongoDB (applicable only for coding questions & periodic background sync)
   useEffect(() => {
     if (submissionResult || !hasEnteredFullscreen) return;
     const interval = setInterval(() => {
@@ -290,7 +317,7 @@ export function ContestArena({
               },
             ],
           };
-          triggerLiveSync(undefined, undefined, undefined, next);
+          triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
           return next;
         });
       }
@@ -351,7 +378,7 @@ export function ContestArena({
             },
           ],
         };
-        triggerLiveSync(undefined, undefined, undefined, next);
+        triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
         return next;
       });
 
@@ -397,7 +424,7 @@ export function ContestArena({
             },
           ],
         };
-        triggerLiveSync(undefined, undefined, undefined, next);
+        triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
         return next;
       });
     };
@@ -444,18 +471,18 @@ export function ContestArena({
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // MCQ Handlers
+  // MCQ Handlers - immediately saved and synchronized to the database upon selection
   const handleSelectOption = (questionId: string, optionId: string) => {
     const nextAnswers = { ...mcqAnswers, [questionId]: optionId };
     setMcqAnswers(nextAnswers);
-    triggerLiveSync(nextAnswers);
+    triggerLiveSync(nextAnswers, undefined, undefined, undefined, undefined, true);
   };
 
   const handleClearOption = (questionId: string) => {
     const nextAnswers = { ...mcqAnswers };
     delete nextAnswers[questionId];
     setMcqAnswers(nextAnswers);
-    triggerLiveSync(nextAnswers);
+    triggerLiveSync(nextAnswers, undefined, undefined, undefined, undefined, true);
   };
 
   const handleToggleReview = (questionId: string) => {
@@ -466,7 +493,7 @@ export function ContestArena({
       nextReviewed.add(questionId);
     }
     setReviewedQuestionIds(nextReviewed);
-    triggerLiveSync(undefined, nextReviewed);
+    triggerLiveSync(undefined, nextReviewed, undefined, undefined, undefined, true);
   };
 
   // Coding Handlers
@@ -541,7 +568,8 @@ export function ContestArena({
             passPercentage: bestPct,
           },
         };
-        triggerLiveSync(undefined, undefined, next);
+        // Coding submission verdict immediately synced to DB
+        triggerLiveSync(undefined, undefined, next, undefined, undefined, true);
         return next;
       });
     },
