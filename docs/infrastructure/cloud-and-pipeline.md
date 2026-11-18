@@ -20,7 +20,7 @@ flowchart LR
     end
 
     subgraph CR["GCP Cloud Run (us-central1)"]
-        API["zap-api<br/>(Public, concurrency 80, CPU 1, 512Mi)"]
+        API["zap-api<br/>(Public, concurrency 40, CPU 1, 512Mi)"]
         EXEC["zap-executor<br/>(Private, concurrency 4, CPU 2, 2Gi)"]
     end
 
@@ -63,7 +63,7 @@ flowchart LR
 - **`zap-api`**:
   - URL: `https://zap-api-394729648143.us-central1.run.app`
   - Access: Public (`--allow-unauthenticated`).
-  - Sizing: CPU 1, Memory 512Mi, Concurrency 80, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `1 → 10`.
+  - Sizing: CPU 1, Memory 512Mi, Concurrency 40, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `1 → 10`.
 - **`zap-executor`**:
   - URL: `https://zap-executor-394729648143.us-central1.run.app`
   - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
