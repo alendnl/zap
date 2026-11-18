@@ -158,9 +158,27 @@ export function ContestArena({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<"ALL" | "CORRECT" | "INCORRECT">("ALL");
 
-  // Debounced Sync helper to MongoDB
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref tracking latest state for 30s interval sync to avoid stale closures
+  const latestStateRef = useRef({
+    mcqAnswers,
+    reviewedQuestionIds,
+    codingState,
+    proctoring,
+    timeSpent,
+  });
 
+  // Keep latestStateRef in sync with React state
+  useEffect(() => {
+    latestStateRef.current = {
+      mcqAnswers,
+      reviewedQuestionIds,
+      codingState,
+      proctoring,
+      timeSpent,
+    };
+  }, [mcqAnswers, reviewedQuestionIds, codingState, proctoring, timeSpent]);
+
+  // Instant Local Cache helper (localStorage) for disaster recovery without network debounce overhead
   const triggerLiveSync = useCallback(
     (
       newMcqAnswers?: Record<string, string>,
@@ -169,13 +187,22 @@ export function ContestArena({
       newProctoring?: ProctoringTelemetry,
       currentTimeSpent?: number
     ) => {
-      const answersToSave = newMcqAnswers ?? mcqAnswers;
-      const reviewedToSave = Array.from(newReviewed ?? reviewedQuestionIds);
-      const codingToSave = newCodingState ?? codingState;
-      const proctoringToSave = newProctoring ?? proctoring;
-      const timeToSave = currentTimeSpent ?? timeSpent;
+      const answersToSave = newMcqAnswers ?? latestStateRef.current.mcqAnswers;
+      const reviewedToSave = Array.from(newReviewed ?? latestStateRef.current.reviewedQuestionIds);
+      const codingToSave = newCodingState ?? latestStateRef.current.codingState;
+      const proctoringToSave = newProctoring ?? latestStateRef.current.proctoring;
+      const timeToSave = currentTimeSpent ?? latestStateRef.current.timeSpent;
 
-      // 1. Immediately cache in localStorage for disaster recovery
+      // Update ref immediately so interval sync has latest data right away
+      latestStateRef.current = {
+        mcqAnswers: answersToSave,
+        reviewedQuestionIds: newReviewed ?? latestStateRef.current.reviewedQuestionIds,
+        codingState: codingToSave,
+        proctoring: proctoringToSave,
+        timeSpent: timeToSave,
+      };
+
+      // Immediately cache in localStorage for disaster recovery
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem(
@@ -190,37 +217,38 @@ export function ContestArena({
           );
         } catch {}
       }
-
-      // 2. Debounce sync to MongoDB
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-      syncTimeoutRef.current = setTimeout(async () => {
-        try {
-          await contestApi.sync(contest.id || contest.slug, {
-            studentId,
-            studentEmail,
-            studentName,
-            mcqAnswers: answersToSave,
-            reviewedQuestionIds: reviewedToSave,
-            codingState: codingToSave,
-            proctoring: proctoringToSave,
-            timeSpentSeconds: timeToSave,
-          });
-        } catch (err) {
-          console.warn("Real-time contest sync error:", err);
-        }
-      }, 800);
     },
-    [contest.id, contest.slug, studentId, studentEmail, studentName, mcqAnswers, reviewedQuestionIds, codingState, proctoring, timeSpent, storageKey]
+    [storageKey]
   );
 
-  // Background Heartbeat Sync (every 15s)
+  // Periodic 30s Sync to Backend (MongoDB)
+  const syncToBackend = useCallback(async () => {
+    if (submissionResult || !hasEnteredFullscreen) return;
+    const current = latestStateRef.current;
+    try {
+      await contestApi.sync(contest.id || contest.slug, {
+        studentId,
+        studentEmail,
+        studentName,
+        mcqAnswers: current.mcqAnswers,
+        reviewedQuestionIds: Array.from(current.reviewedQuestionIds),
+        codingState: current.codingState,
+        proctoring: current.proctoring,
+        timeSpentSeconds: current.timeSpent,
+      });
+    } catch (err) {
+      console.warn("Real-time 30s contest sync error:", err);
+    }
+  }, [contest.id, contest.slug, studentId, studentEmail, studentName, submissionResult, hasEnteredFullscreen]);
+
+  // 30-Second Interval Sync to MongoDB (replaces the 800ms keystroke debounce)
   useEffect(() => {
     if (submissionResult || !hasEnteredFullscreen) return;
-    const heartbeat = setInterval(() => {
-      triggerLiveSync();
-    }, 15000);
-    return () => clearInterval(heartbeat);
-  }, [submissionResult, hasEnteredFullscreen, triggerLiveSync]);
+    const interval = setInterval(() => {
+      void syncToBackend();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [submissionResult, hasEnteredFullscreen, syncToBackend]);
 
   // Timer countdown hook
   useEffect(() => {
