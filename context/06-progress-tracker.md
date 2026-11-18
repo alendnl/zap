@@ -80,4 +80,14 @@
 - **Decision**: Implement the `cloud-ops` agent skill with a dedicated, safe CLI tool (`zap-ops`) providing unified diagnostic health checks, read-only defaults, production write guardrails, one-way sync to QA, and log inspection.
 - **Consequences**: Instant operational visibility and safe developer troubleshooting across cloud infrastructure with zero accidental production blast radius.
 
+### ADR-007: Independent Percentage Scoring for Contest MCQs and Coding Problems
+- **Status**: Accepted
+- **Context**: In previous versions, coding problems were awarded flat placeholder points (e.g. 10 pts each) without verifying test case pass rates, and MCQ denominators only counted attempted questions, artificially skewing student scores. Combining raw points into a single composite total also obscured candidate strengths.
+- **Decision**:
+  1. Evaluate contest MCQs against the full question count (`unattempted = 0%`, `incorrect = 0%`, `correct = proportional %`), producing a clean, separate MCQ section percentage mark.
+  2. Evaluate each coding problem independently in percentage based on test cases passed `(passed / total) * 100` (`unattempted = 0%`, `0 tests passed / error = 0%`, `partial tests passed = proportional %`, `all tests passed = 100%`).
+  3. Keep MCQ and individual coding problem percentages distinct and un-cumulated on scorecards and analytics drilldowns for transparent candidate evaluation.
+- **Consequences**: Accurate, fair assessment reporting with zero phantom marks.
+
+
 

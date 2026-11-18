@@ -1161,13 +1161,13 @@ function ContestAnalyticsContent() {
                     <div className="p-3.5 rounded-2xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b]">
                       <span className="text-[10px] text-[#64748b] uppercase font-mono">MCQ Score</span>
                       <div className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
-                        {inspectingStudent.mcqScore} pts ({inspectingStudent.mcqCorrectCount} corr)
+                        {inspectingStudent.mcqScore}% ({inspectingStudent.mcqCorrectCount} / {inspectingStudent.mcqTotalCount || 25} corr)
                       </div>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b]">
-                      <span className="text-[10px] text-[#64748b] uppercase font-mono">Coding Score</span>
+                      <span className="text-[10px] text-[#64748b] uppercase font-mono">Coding Score (Avg)</span>
                       <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-                        {inspectingStudent.codingScore} pts ({inspectingStudent.codingProblemsAttempted} att)
+                        {inspectingStudent.codingScore}% ({inspectingStudent.codingProblemsAttempted} att)
                       </div>
                     </div>
                   </div>
@@ -1329,7 +1329,7 @@ function ContestAnalyticsContent() {
                                       : "bg-blue-500/15 text-blue-500"
                                   }`}
                                 >
-                                  {p.status} ({p.score} pts)
+                                  {p.status} ({p.score}%)
                                 </span>
                                 <button
                                   type="button"

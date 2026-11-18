@@ -126,6 +126,9 @@ class CodingProblemState(BaseModel):
     status: str = "UNATTEMPTED"  # "UNATTEMPTED", "ATTEMPTED", "SUBMITTED", "ACCEPTED"
     bestVerdict: Optional[str] = None
     lastSubmissionId: Optional[str] = None
+    passedTestCases: int = 0
+    totalTestCases: int = 0
+    passPercentage: float = 0.0
 
 
 class ContestStartResponse(BaseModel):
@@ -185,7 +188,10 @@ class CodingReviewItem(BaseModel):
     difficulty: str
     submissionId: Optional[str] = None
     status: str
-    score: int
+    score: float = 0.0
+    passedTestCases: int = 0
+    totalTestCases: int = 0
+    percentage: float = 0.0
 
 
 class ContestSubmitResponse(BaseModel):
@@ -193,18 +199,19 @@ class ContestSubmitResponse(BaseModel):
     contestId: str
     studentId: str
     studentEmail: str
-    totalScore: int
-    maxTotalScore: int
-    mcqScore: int
-    maxMcqScore: int
-    mcqCorrectCount: int
-    mcqTotalCount: int
-    codingScore: int
-    maxCodingScore: int
-    codingProblemsAttempted: int
-    codingTotalCount: int
-    percentage: float
-    timeSpentSeconds: int
+    totalScore: float = 0.0
+    maxTotalScore: float = 100.0
+    mcqScore: float = 0.0
+    maxMcqScore: float = 100.0
+    mcqCorrectCount: int = 0
+    mcqTotalCount: int = 0
+    mcqPercentage: float = 0.0
+    codingScore: float = 0.0
+    maxCodingScore: float = 100.0
+    codingProblemsAttempted: int = 0
+    codingTotalCount: int = 0
+    percentage: float = 0.0
+    timeSpentSeconds: int = 0
     submittedAt: str
     mcqBreakdown: List[MCQReviewItem]
     codingBreakdown: List[CodingReviewItem]
@@ -257,8 +264,8 @@ class ContestAnalyticsResponse(BaseModel):
     completionRate: float
     averageScore: float
     medianScore: float
-    highestScore: int
-    lowestScore: int
+    highestScore: float = 0.0
+    lowestScore: float = 0.0
     averagePercentage: float
     averageTimeSpentSeconds: int
     scoreDistribution: List[ScoreBucket]

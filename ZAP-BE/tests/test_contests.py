@@ -158,11 +158,126 @@ def test_submit_contest_calculates_score():
     assert "submissionId" in result
     assert result["studentId"] == "student-123"
     assert result["codingProblemsAttempted"] == 1
-    assert result["codingScore"] == 10
-    assert len(result["mcqBreakdown"]) == 5
+    assert result["codingTotalCount"] == 3
+    assert len(result["codingBreakdown"]) == 3
+    assert result["mcqTotalCount"] == 25
+    assert len(result["mcqBreakdown"]) == 25
     # Verification that answers are revealed post-submission
     assert "correctOptionId" in result["mcqBreakdown"][0]
     assert "isCorrect" in result["mcqBreakdown"][0]
+
+
+def test_contest_percentage_scoring_unattempted_and_partial():
+    student_id = "student-pct-test"
+    student_email = "pct@college.edu"
+
+    # Start contest session
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    mcqs = start_res.json()["mcqQuestions"]
+    codings = start_res.json()["codingQuestions"]
+    assert len(mcqs) == 25
+    assert len(codings) == 3
+
+    # We will answer 13 MCQs correctly, leave 12 unattempted
+    from app.db.mongodb import get_database
+    db = get_database()
+    mcq_coll = db["mcq_questions"]
+    mcq_answers = {}
+    for q in mcqs[:13]:
+        doc = mcq_coll.find_one({"_id": q["id"]}) or mcq_coll.find_one({"id": q["id"]})
+        if doc and doc.get("options"):
+            correct_opt = next((opt["id"] for opt in doc["options"] if opt.get("isCorrect")), None)
+            if correct_opt:
+                mcq_answers[q["id"]] = correct_opt
+
+    # Coding questions:
+    # Q1: 5/5 passed (100%)
+    # Q2: 2/4 passed (50%)
+    # Q3: not attempted (0%)
+    coding_state = {
+        codings[0]["id"]: {
+            "code": {"python": "def solution(): return 1"},
+            "lastLanguage": "python",
+            "status": "ACCEPTED",
+            "bestVerdict": "ACCEPTED",
+            "passedTestCases": 5,
+            "totalTestCases": 5,
+            "passPercentage": 100.0,
+        },
+        codings[1]["id"]: {
+            "code": {"python": "def solution(): return 0"},
+            "lastLanguage": "python",
+            "status": "SUBMITTED",
+            "bestVerdict": "WRONG_ANSWER",
+            "passedTestCases": 2,
+            "totalTestCases": 4,
+            "passPercentage": 50.0,
+        },
+        codings[2]["id"]: {
+            "code": {},
+            "lastLanguage": "python",
+            "status": "UNATTEMPTED",
+            "bestVerdict": None,
+            "passedTestCases": 0,
+            "totalTestCases": 0,
+            "passPercentage": 0.0,
+        }
+    }
+
+    submit_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "mcqAnswers": mcq_answers,
+        "codingSubmissions": {},
+        "codingState": coding_state,
+        "timeSpentSeconds": 1500,
+    }
+
+    sub_res = client.post("/api/v1/contests/zap-grand-assessment-1/submit", json=submit_payload)
+    assert sub_res.status_code == 200
+    res = sub_res.json()
+
+    # 1. MCQ evaluation: 13 / 25 = 52.0%
+    assert res["mcqTotalCount"] == 25
+    assert res["mcqCorrectCount"] == 13
+    assert res["mcqPercentage"] == 52.0
+    assert res["mcqScore"] == 52.0
+    assert len(res["mcqBreakdown"]) == 25
+
+    # Check unattempted MCQs:
+    unattempted_mcqs = [item for item in res["mcqBreakdown"] if item["selectedOptionId"] is None]
+    assert len(unattempted_mcqs) == 12
+    for item in unattempted_mcqs:
+        assert item["isCorrect"] is False
+        assert item["pointsAwarded"] == 0
+
+    # 2. Coding evaluation:
+    assert res["codingTotalCount"] == 3
+    assert res["codingProblemsAttempted"] == 2
+    assert len(res["codingBreakdown"]) == 3
+
+    # Q1: 100%
+    q1_breakdown = next(item for item in res["codingBreakdown"] if item["questionId"] == codings[0]["id"])
+    assert q1_breakdown["score"] == 100.0
+    assert q1_breakdown["status"] == "ACCEPTED"
+    assert q1_breakdown["passedTestCases"] == 5
+    assert q1_breakdown["totalTestCases"] == 5
+
+    # Q2: 50%
+    q2_breakdown = next(item for item in res["codingBreakdown"] if item["questionId"] == codings[1]["id"])
+    assert q2_breakdown["score"] == 50.0
+    assert q2_breakdown["status"] == "PARTIAL"
+    assert q2_breakdown["passedTestCases"] == 2
+    assert q2_breakdown["totalTestCases"] == 4
+
+    # Q3: 0%
+    q3_breakdown = next(item for item in res["codingBreakdown"] if item["questionId"] == codings[2]["id"])
+    assert q3_breakdown["score"] == 0.0
+    assert q3_breakdown["status"] == "UNATTEMPTED"
+    assert q3_breakdown["passedTestCases"] == 0
 
 
 def test_contest_session_sync_and_resume():

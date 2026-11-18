@@ -489,13 +489,28 @@ export function ContestArena({
           status: "ATTEMPTED",
         };
         const isAccepted = sub.verdict === "ACCEPTED";
+        const total = sub.tests?.total || 0;
+        const passed = sub.tests?.passed || 0;
+        const currentPct = total > 0 ? Math.round((passed / total) * 1000) / 10 : (isAccepted ? 100 : 0);
+
+        const prevPct = existing.passPercentage ?? 0;
+        const isBetter = currentPct >= prevPct;
+        const bestPct = Math.max(prevPct, currentPct);
+        const bestPassed = isBetter ? passed : (existing.passedTestCases ?? passed);
+        const bestTotal = isBetter ? total : (existing.totalTestCases ?? total);
+        const bestVerdict = isAccepted ? "ACCEPTED" : (existing.bestVerdict === "ACCEPTED" ? "ACCEPTED" : sub.verdict);
+        const bestSubId = isBetter ? sub.id : (existing.lastSubmissionId || sub.id);
+
         const next: Record<string, CodingProblemState> = {
           ...prev,
           [currentQ.id]: {
             ...existing,
-            lastSubmissionId: sub.id,
-            bestVerdict: sub.verdict,
-            status: isAccepted ? "ACCEPTED" : "SUBMITTED",
+            lastSubmissionId: bestSubId,
+            bestVerdict: bestVerdict,
+            status: isAccepted || existing.status === "ACCEPTED" ? "ACCEPTED" : "SUBMITTED",
+            passedTestCases: bestPassed,
+            totalTestCases: bestTotal,
+            passPercentage: bestPct,
           },
         };
         triggerLiveSync(undefined, undefined, next);
@@ -640,22 +655,39 @@ export function ContestArena({
                 </p>
               </div>
 
-              {/* Total Score Badge */}
-              <div className="flex flex-col items-center sm:items-end bg-white dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-xl shadow-xs min-w-[160px]">
-                <span className="text-xs uppercase font-mono text-[#64748b] dark:text-[#94a3b8] font-semibold">
-                  Total Score
-                </span>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-extrabold font-mono text-blue-600 dark:text-blue-400">
-                    {submissionResult.totalScore}
-                  </span>
-                  <span className="text-sm font-mono text-[#64748b] dark:text-[#94a3b8]">
-                    / {submissionResult.maxTotalScore}
-                  </span>
-                </div>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {submissionResult.percentage}% Score
-                </span>
+              {/* Separate Percentage Marks Header Badges */}
+              <div className="flex flex-wrap items-center gap-3">
+                {submissionResult.mcqTotalCount > 0 && (
+                  <div className="flex flex-col items-center sm:items-end bg-white dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-xl shadow-xs min-w-[140px]">
+                    <span className="text-[10px] uppercase font-mono text-[#64748b] dark:text-[#94a3b8] font-bold">
+                      MCQ Score
+                    </span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-3xl font-extrabold font-mono text-blue-600 dark:text-blue-400">
+                        {submissionResult.mcqPercentage ?? submissionResult.mcqScore}%
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] mt-0.5">
+                      {submissionResult.mcqCorrectCount} / {submissionResult.mcqTotalCount} Correct
+                    </span>
+                  </div>
+                )}
+
+                {submissionResult.codingTotalCount > 0 && (
+                  <div className="flex flex-col items-center sm:items-end bg-white dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-xl shadow-xs min-w-[140px]">
+                    <span className="text-[10px] uppercase font-mono text-[#64748b] dark:text-[#94a3b8] font-bold">
+                      Coding Score (Avg)
+                    </span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-3xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400">
+                        {submissionResult.codingScore}%
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] mt-0.5">
+                      {submissionResult.codingProblemsAttempted} / {submissionResult.codingTotalCount} Attempted
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -668,9 +700,9 @@ export function ContestArena({
                 </div>
               </div>
               <div className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-3.5 rounded-xl">
-                <span className="text-[11px] text-[#64748b] dark:text-[#94a3b8] font-medium">MCQ Points</span>
-                <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-                  {submissionResult.mcqScore} <span className="text-xs text-[#64748b] dark:text-[#94a3b8]">/ {submissionResult.maxMcqScore}</span>
+                <span className="text-[11px] text-[#64748b] dark:text-[#94a3b8] font-medium">MCQ Percentage</span>
+                <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
+                  {submissionResult.mcqPercentage ?? submissionResult.mcqScore}%
                 </div>
               </div>
               <div className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-3.5 rounded-xl">
@@ -819,10 +851,12 @@ export function ContestArena({
                           className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md ${
                             item.isCorrect
                               ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                              : !item.selectedOptionId
+                              ? "text-amber-600 dark:text-amber-400 bg-amber-500/10"
                               : "text-rose-600 dark:text-rose-400 bg-rose-500/10"
                           }`}
                         >
-                          {item.pointsAwarded} pts
+                          {item.isCorrect ? "+1 pt (100%)" : !item.selectedOptionId ? "Unattempted (0%)" : "Incorrect (0%)"}
                         </span>
                       </div>
                     </div>
@@ -830,6 +864,12 @@ export function ContestArena({
                     <p className="text-xs sm:text-sm text-[#334155] dark:text-[#cbd5e1] mb-4 whitespace-pre-wrap leading-relaxed">
                       {item.statement}
                     </p>
+
+                    {!item.selectedOptionId && (
+                      <div className="mb-3 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                        You did not attempt this question. 0 marks were awarded.
+                      </div>
+                    )}
 
                     {/* Options Breakdown */}
                     <div className="grid grid-cols-1 gap-2 mb-4">
@@ -892,33 +932,83 @@ export function ContestArena({
           {/* Section 2: Coding Challenges Review */}
           {submissionResult.codingBreakdown.length > 0 && (
             <div className="space-y-4 pt-4">
-              <h2 className="text-lg font-bold text-[#0f172a] dark:text-white pb-2 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-                Section 2: Coding Challenges Review
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-[#0f172a] dark:text-white pb-1 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+                  Section 2: Coding Challenges Review
+                </h2>
+                <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mt-1">
+                  Each coding question is independently evaluated in percentage based on test cases passed.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {submissionResult.codingBreakdown.map((codeItem) => (
-                  <div
-                    key={codeItem.questionId}
-                    className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-4 rounded-xl shadow-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-bold text-xs text-[#0f172a] dark:text-white truncate">
-                        {codeItem.title}
-                      </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">
-                        {codeItem.difficulty}
-                      </span>
+                {submissionResult.codingBreakdown.map((codeItem, idx) => {
+                  const isAccepted = codeItem.status === "ACCEPTED" || codeItem.score === 100;
+                  const isPartial = codeItem.status === "PARTIAL" || (codeItem.score > 0 && codeItem.score < 100);
+                  const isUnattempted = codeItem.status === "UNATTEMPTED";
+
+                  return (
+                    <div
+                      key={codeItem.questionId}
+                      className={`bg-white dark:bg-[#121824] border rounded-2xl p-5 shadow-xs transition-all ${
+                        isAccepted
+                          ? "border-emerald-500/25 bg-emerald-500/[0.02]"
+                          : isPartial
+                          ? "border-amber-500/25 bg-amber-500/[0.02]"
+                          : isUnattempted
+                          ? "border-[#e2e8f0] dark:border-[#1e293b]"
+                          : "border-rose-500/25 bg-rose-500/[0.02]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="font-bold text-xs text-[#0f172a] dark:text-white truncate" title={codeItem.title}>
+                          P{idx + 1}. {codeItem.title}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                          {codeItem.difficulty}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 py-3 border-y border-[#e2e8f0] dark:border-[#1e293b] flex items-baseline justify-between">
+                        <span className="text-xs text-[#64748b] dark:text-[#94a3b8] font-medium">
+                          Question Score
+                        </span>
+                        <span
+                          className={`text-2xl font-mono font-extrabold ${
+                            isAccepted
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : isPartial
+                              ? "text-amber-600 dark:text-amber-400"
+                              : isUnattempted
+                              ? "text-[#64748b] dark:text-[#94a3b8]"
+                              : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {codeItem.score}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs mt-3">
+                        <span
+                          className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                            isAccepted
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : isPartial
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : isUnattempted
+                              ? "bg-slate-500/15 text-slate-600 dark:text-slate-400"
+                              : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {isUnattempted ? "UNATTEMPTED" : isAccepted ? "ACCEPTED" : isPartial ? "PARTIAL" : (codeItem.status || "FAILED")}
+                        </span>
+                        <span className="font-mono text-[11px] text-[#64748b] dark:text-[#94a3b8]">
+                          {codeItem.passedTestCases ?? 0} / {codeItem.totalTestCases ?? 0} tests
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-[#64748b] dark:text-[#94a3b8] mt-3 pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b]">
-                      <span className="font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        {codeItem.status}
-                      </span>
-                      <span className="font-mono font-bold text-[#0f172a] dark:text-white">
-                        {codeItem.score} pts
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

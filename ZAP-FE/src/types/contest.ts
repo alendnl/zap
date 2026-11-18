@@ -138,6 +138,9 @@ export interface CodingProblemState {
   status: "UNATTEMPTED" | "ATTEMPTED" | "SUBMITTED" | "ACCEPTED" | string;
   bestVerdict?: string;
   lastSubmissionId?: string;
+  passedTestCases?: number;
+  totalTestCases?: number;
+  passPercentage?: number;
 }
 
 export interface ContestStartResponse {
@@ -205,6 +208,9 @@ export interface CodingReviewItem {
   submissionId?: string;
   status: string;
   score: number;
+  passedTestCases?: number;
+  totalTestCases?: number;
+  percentage?: number;
 }
 
 export interface ContestSubmitResponse {
@@ -218,6 +224,7 @@ export interface ContestSubmitResponse {
   maxMcqScore: number;
   mcqCorrectCount: number;
   mcqTotalCount: number;
+  mcqPercentage?: number;
   codingScore: number;
   maxCodingScore: number;
   codingProblemsAttempted: number;

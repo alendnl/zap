@@ -31,6 +31,7 @@ from app.contests.models import (
 )
 from app.mcq.service import MCQService
 from app.questions.service import QuestionService
+from app.submissions.service import SubmissionService
 
 
 def slugify(text: str) -> str:
@@ -721,88 +722,189 @@ class ContestService:
             clean.pop("_id", None)
             return ContestSubmitResponse(**clean)
 
+        # 1. Resolve complete set of MCQs for this contest session
+        contest_mcqs = []
+        if existing_doc and existing_doc.get("mcqQuestions"):
+            contest_mcqs = existing_doc.get("mcqQuestions", [])
+        elif contest.hasMcq and contest.mcqConfig and contest.mcqConfig.enabled:
+            contest_mcqs = self._resolve_mcq_questions(contest.mcqConfig)
+
+        # Fallback if still empty but answers provided
+        if not contest_mcqs and submit_data.mcqAnswers:
+            contest_mcqs = [{"id": qid} for qid in submit_data.mcqAnswers.keys()]
+
         mcq_service = MCQService(self.db)
         mcq_breakdown: List[MCQReviewItem] = []
-        mcq_score = 0
         mcq_correct_count = 0
-        max_mcq_score = 0
+        mcq_total_count = len(contest_mcqs)
+        if mcq_total_count == 0 and contest.hasMcq and contest.mcqConfig:
+            mcq_total_count = contest.mcqConfig.totalQuestions or 25
 
-        # Evaluate MCQs against true database records
-        for qid, selected_opt in submit_data.mcqAnswers.items():
-            q = mcq_service.get_question(qid)
-            if not q:
-                continue
+        for mq in contest_mcqs:
+            qid = mq.get("id") if isinstance(mq, dict) else getattr(mq, "id", str(mq))
+            q_db = mcq_service.get_question(qid)
 
-            max_mcq_score += q.points
-            correct_opt = next((opt for opt in q.options if opt.isCorrect), None)
+            title = q_db.title if q_db else mq.get("title", f"Question {qid}")
+            category = q_db.category if q_db else mq.get("category", "General")
+            difficulty = getattr(q_db.difficulty, "value", str(q_db.difficulty)) if q_db else mq.get("difficulty", "MEDIUM")
+            statement = q_db.statement if q_db else mq.get("statement", "")
+            explanation = q_db.explanation if q_db else mq.get("explanation")
+            options = [opt.model_dump() for opt in q_db.options] if q_db else mq.get("options", [])
+            points = q_db.points if q_db else mq.get("points", 1)
+
+            correct_opt = next((opt for opt in q_db.options if opt.isCorrect), None) if q_db else None
             correct_opt_id = correct_opt.id if correct_opt else ""
-            is_correct = (selected_opt == correct_opt_id)
 
-            pts = q.points if is_correct else 0
+            selected_opt = submit_data.mcqAnswers.get(qid)
+            is_attempted = bool(selected_opt)
+            is_correct = bool(is_attempted and correct_opt_id and selected_opt == correct_opt_id)
+
+            pts = points if is_correct else 0
             if is_correct:
-                mcq_score += pts
                 mcq_correct_count += 1
 
             mcq_breakdown.append(
                 MCQReviewItem(
-                    questionId=q.id,
-                    title=q.title,
-                    category=q.category,
-                    difficulty=getattr(q.difficulty, "value", str(q.difficulty)),
-                    statement=q.statement,
+                    questionId=qid,
+                    title=title,
+                    category=category,
+                    difficulty=difficulty,
+                    statement=statement,
                     selectedOptionId=selected_opt,
                     correctOptionId=correct_opt_id,
                     isCorrect=is_correct,
                     pointsAwarded=pts,
-                    explanation=q.explanation,
-                    options=[opt.model_dump() for opt in q.options],
+                    explanation=explanation,
+                    options=options,
                 )
             )
 
-        # Evaluate Coding Submissions
+        mcq_percentage = round((mcq_correct_count / max(1, mcq_total_count)) * 100, 1) if mcq_total_count > 0 else 0.0
+
+        # 2. Resolve complete set of Coding questions for this contest session
+        contest_coding = []
+        if existing_doc and existing_doc.get("codingQuestions"):
+            contest_coding = existing_doc.get("codingQuestions", [])
+        elif contest.hasCoding and contest.codingConfig and contest.codingConfig.enabled:
+            contest_coding = self._resolve_coding_questions(contest.codingConfig)
+
+        # Fallback if empty but submissions or state provided
+        if not contest_coding:
+            coding_keys = list((submit_data.codingSubmissions or {}).keys())
+            if submit_data.codingState:
+                for k in submit_data.codingState.keys():
+                    if k not in coding_keys:
+                        coding_keys.append(k)
+            contest_coding = [{"id": k} for k in coding_keys]
+
         coding_breakdown: List[CodingReviewItem] = []
-        coding_score = 0
         coding_attempted = 0
-        max_coding_score = (contest.codingConfig.totalQuestions * 10) if contest.hasCoding and contest.codingConfig else 30
+        total_coding_percentage = 0.0
+        coding_total_count = len(contest_coding)
+        if coding_total_count == 0 and contest.hasCoding and contest.codingConfig:
+            coding_total_count = contest.codingConfig.totalQuestions or 3
 
+        sub_service = SubmissionService(self.db)
         q_service = QuestionService(self.db)
-        coding_items_map = dict(submit_data.codingSubmissions or {})
-        if submit_data.codingState:
-            for qid, c_state in submit_data.codingState.items():
-                if qid not in coding_items_map:
-                    coding_items_map[qid] = getattr(c_state, "lastSubmissionId", None) or ""
 
-        if coding_items_map:
-            for qid, sub_id in coding_items_map.items():
-                q = q_service.get_question(qid)
-                title = q.title if q else qid
-                diff = getattr(q.difficulty, "value", str(q.difficulty)) if q else "MEDIUM"
+        for cq in contest_coding:
+            qid = cq.get("id") if isinstance(cq, dict) else getattr(cq, "id", str(cq))
+            q_db = q_service.get_question(qid)
+            title = q_db.title if q_db else cq.get("title", qid)
+            diff = getattr(q_db.difficulty, "value", str(q_db.difficulty)) if q_db else cq.get("difficulty", "MEDIUM")
 
-                verdict = None
-                if submit_data.codingState and qid in submit_data.codingState:
-                    c_state = submit_data.codingState[qid]
+            c_state = None
+            if submit_data.codingState and qid in submit_data.codingState:
+                c_state = submit_data.codingState[qid]
+
+            sub_id = None
+            if submit_data.codingSubmissions and qid in submit_data.codingSubmissions:
+                sub_id = submit_data.codingSubmissions[qid]
+            elif c_state and getattr(c_state, "lastSubmissionId", None):
+                sub_id = getattr(c_state, "lastSubmissionId")
+
+            passed_tests = 0
+            total_tests = 0
+            verdict = None
+
+            # Look up submission in database
+            if sub_id:
+                sub_doc = sub_service.get_submission(sub_id)
+                if sub_doc:
+                    if sub_doc.tests:
+                        total_tests = getattr(sub_doc.tests, "total", 0)
+                        passed_tests = getattr(sub_doc.tests, "passed", 0)
+                    verdict = getattr(sub_doc.verdict, "value", str(sub_doc.verdict)) if sub_doc.verdict else None
+
+            # Fallback to c_state telemetry
+            if c_state:
+                if total_tests == 0 and getattr(c_state, "totalTestCases", 0):
+                    total_tests = getattr(c_state, "totalTestCases", 0)
+                    passed_tests = getattr(c_state, "passedTestCases", 0)
+                if not verdict:
                     verdict = getattr(c_state, "bestVerdict", None) or getattr(c_state, "status", None)
 
+            # Determine whether question was attempted
+            is_attempted = bool(sub_id) or (c_state and getattr(c_state, "status", "UNATTEMPTED") not in ["UNATTEMPTED", ""])
+
+            if not is_attempted:
+                # Unattempted: 0% / 0 marks
+                score_pct = 0.0
+                status_label = "UNATTEMPTED"
+            else:
                 coding_attempted += 1
-                score = 10
-                coding_score += score
-                coding_breakdown.append(
-                    CodingReviewItem(
-                        questionId=qid,
-                        title=title,
-                        difficulty=diff,
-                        submissionId=sub_id if sub_id else None,
-                        status="ACCEPTED" if verdict == "ACCEPTED" else "SUBMITTED",
-                        score=score,
-                    )
+                if verdict == "ACCEPTED":
+                    score_pct = 100.0
+                    status_label = "ACCEPTED"
+                    if total_tests == 0:
+                        total_tests = 1
+                        passed_tests = 1
+                elif total_tests > 0:
+                    score_pct = round((passed_tests / total_tests) * 100, 1)
+                    if score_pct == 100.0:
+                        status_label = "ACCEPTED"
+                    elif score_pct > 0.0:
+                        status_label = "PARTIAL"
+                    else:
+                        status_label = verdict or "FAILED"
+                elif getattr(c_state, "passPercentage", None) is not None and getattr(c_state, "passPercentage", 0) > 0:
+                    score_pct = float(getattr(c_state, "passPercentage"))
+                    status_label = "ACCEPTED" if score_pct == 100.0 else "PARTIAL"
+                else:
+                    # Attempted with errors or 0 test cases passed
+                    score_pct = 0.0
+                    status_label = verdict or "FAILED"
+
+            total_coding_percentage += score_pct
+            coding_breakdown.append(
+                CodingReviewItem(
+                    questionId=qid,
+                    title=title,
+                    difficulty=diff,
+                    submissionId=sub_id if sub_id else None,
+                    status=status_label,
+                    score=score_pct,
+                    passedTestCases=passed_tests,
+                    totalTestCases=total_tests,
+                    percentage=score_pct,
                 )
+            )
 
-        total_score = mcq_score + coding_score
-        max_total = max_mcq_score + max_coding_score
-        if max_total == 0:
-            max_total = contest.totalPoints or 55
+        avg_coding_score = round(total_coding_percentage / max(1, coding_total_count), 1) if coding_total_count > 0 else 0.0
 
-        percentage = round((total_score / max(1, max_total)) * 100, 1)
+        # Calculate section percentages & overall percentage without raw-point mixing
+        has_mcq_section = contest.hasMcq and mcq_total_count > 0
+        has_coding_section = contest.hasCoding and coding_total_count > 0
+
+        if has_mcq_section and has_coding_section:
+            overall_percentage = round((mcq_percentage + avg_coding_score) / 2, 1)
+        elif has_mcq_section:
+            overall_percentage = mcq_percentage
+        elif has_coding_section:
+            overall_percentage = avg_coding_score
+        else:
+            overall_percentage = 0.0
+
         sub_id = (existing_doc.get("id") or str(existing_doc.get("_id"))) if existing_doc else f"csub-{uuid.uuid4().hex[:12]}"
         now = datetime.now(timezone.utc).isoformat()
 
@@ -811,17 +913,18 @@ class ContestService:
             contestId=contest.id,
             studentId=submit_data.studentId,
             studentEmail=submit_data.studentEmail,
-            totalScore=total_score,
-            maxTotalScore=max_total,
-            mcqScore=mcq_score,
-            maxMcqScore=max_mcq_score,
+            totalScore=overall_percentage,
+            maxTotalScore=100.0,
+            mcqScore=mcq_percentage,
+            maxMcqScore=100.0,
             mcqCorrectCount=mcq_correct_count,
-            mcqTotalCount=len(submit_data.mcqAnswers),
-            codingScore=coding_score,
-            maxCodingScore=max_coding_score,
+            mcqTotalCount=mcq_total_count,
+            mcqPercentage=mcq_percentage,
+            codingScore=avg_coding_score,
+            maxCodingScore=100.0,
             codingProblemsAttempted=coding_attempted,
-            codingTotalCount=contest.codingConfig.totalQuestions if contest.codingConfig else 3,
-            percentage=percentage,
+            codingTotalCount=coding_total_count,
+            percentage=overall_percentage,
             timeSpentSeconds=submit_data.timeSpentSeconds,
             submittedAt=now,
             mcqBreakdown=mcq_breakdown,
