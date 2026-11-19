@@ -163,14 +163,21 @@ function ContestAnalyticsContent() {
     setLoadingAnalytics(true);
     setErrorNotice(null);
     try {
-      const data = await contestApi.getAnalytics(selectedContestSlug);
+      const data = await contestApi.getAnalytics(
+        selectedContestSlug,
+        candidatePage,
+        CANDIDATES_PER_PAGE,
+        candidateSearch.trim() || undefined,
+        statusFilter !== "ALL" ? statusFilter : undefined,
+        sortBy
+      );
       setAnalytics(data);
     } catch (err: any) {
       setErrorNotice(err.message || "Failed to load contest analytics.");
     } finally {
       setLoadingAnalytics(false);
     }
-  }, [selectedContestSlug]);
+  }, [selectedContestSlug, candidatePage, candidateSearch, statusFilter, sortBy]);
 
   useEffect(() => {
     if (isAdmin && selectedContestSlug) {
@@ -243,72 +250,25 @@ function ContestAnalyticsContent() {
     }
   };
 
-  // Filtered & Sorted Candidate Submissions List
-  const filteredSubmissions = useMemo(() => {
-    if (!analytics?.submissions) return [];
-
-    let list = [...analytics.submissions];
-
-    // Search query
-    if (candidateSearch.trim()) {
-      const q = candidateSearch.toLowerCase().trim();
-      list = list.filter(
-        (s) =>
-          s.studentEmail?.toLowerCase().includes(q) ||
-          s.studentName?.toLowerCase().includes(q) ||
-          s.studentId?.toLowerCase().includes(q)
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== "ALL") {
-      list = list.filter((s) => s.status === statusFilter);
-    }
-
-    // Integrity filter
+  // DB-level paginated candidate submissions (10 per page retrieved directly from database)
+  const paginatedSubmissions = useMemo(() => {
+    const list = analytics?.submissions || [];
     if (integrityFilter === "CLEAN") {
-      list = list.filter((s) => {
+      return list.filter((s) => {
         const p = s.proctoring;
-        return !p || (p.tabSwitchCount === 0 && p.copyPasteAttempts === 0 && p.fullscreenExitCount === 0);
+        return !p || ((p.tabSwitchCount || 0) === 0 && (p.copyPasteAttempts || 0) === 0 && (p.fullscreenExitCount || 0) === 0);
       });
     } else if (integrityFilter === "FLAGGED") {
-      list = list.filter((s) => {
+      return list.filter((s) => {
         const p = s.proctoring;
-        return p && (p.tabSwitchCount > 0 || p.copyPasteAttempts > 0 || p.fullscreenExitCount > 0);
+        return p && ((p.tabSwitchCount || 0) > 0 || (p.copyPasteAttempts || 0) > 0 || (p.fullscreenExitCount || 0) > 0);
       });
     }
-
-    // Sorting
-    list.sort((a, b) => {
-      const aInfractions = (a.proctoring?.tabSwitchCount || 0) + (a.proctoring?.copyPasteAttempts || 0) + (a.proctoring?.fullscreenExitCount || 0);
-      const bInfractions = (b.proctoring?.tabSwitchCount || 0) + (b.proctoring?.copyPasteAttempts || 0) + (b.proctoring?.fullscreenExitCount || 0);
-
-      switch (sortBy) {
-        case "score_desc":
-          return b.totalScore - a.totalScore;
-        case "score_asc":
-          return a.totalScore - b.totalScore;
-        case "infractions_desc":
-          return bInfractions - aInfractions;
-        case "time_asc":
-          return (a.timeSpentSeconds || 999999) - (b.timeSpentSeconds || 999999);
-        case "rank_asc":
-        default:
-          if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-          return (a.timeSpentSeconds || 999999) - (b.timeSpentSeconds || 999999);
-      }
-    });
-
     return list;
-  }, [analytics?.submissions, candidateSearch, statusFilter, integrityFilter, sortBy]);
+  }, [analytics?.submissions, integrityFilter]);
 
-  // Paginated Candidate Submissions (10 per page)
-  const paginatedSubmissions = useMemo(() => {
-    const start = (candidatePage - 1) * CANDIDATES_PER_PAGE;
-    return filteredSubmissions.slice(start, start + CANDIDATES_PER_PAGE);
-  }, [filteredSubmissions, candidatePage]);
-
-  const totalCandidatePages = Math.max(1, Math.ceil(filteredSubmissions.length / CANDIDATES_PER_PAGE));
+  const totalCandidatesCount = analytics?.totalSubmissions ?? analytics?.totalCandidates ?? 0;
+  const totalCandidatePages = analytics?.totalPages ?? Math.max(1, Math.ceil(totalCandidatesCount / CANDIDATES_PER_PAGE));
 
   // Paginated MCQ Question Performance (10 per page)
   const mcqQuestionsList = analytics?.mcqStats?.questions || [];
@@ -944,7 +904,7 @@ function ContestAnalyticsContent() {
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                   <h3 className="font-bold text-base text-[#0f172a] dark:text-white">
-                    Candidate Submissions & Individual Analysis ({filteredSubmissions.length})
+                    Candidate Submissions & Individual Analysis ({totalCandidatesCount})
                   </h3>
                 </div>
 
@@ -1011,7 +971,7 @@ function ContestAnalyticsContent() {
 
               {/* Submissions Table */}
               <div className="overflow-x-auto">
-                {filteredSubmissions.length === 0 ? (
+                {paginatedSubmissions.length === 0 ? (
                   <div className="py-12 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
                     No candidates matching current filter criteria.
                   </div>
@@ -1161,19 +1121,19 @@ function ContestAnalyticsContent() {
                 )}
 
                 {/* Candidate Submissions Pagination (10 per page) */}
-                {filteredSubmissions.length > 0 && (
+                {totalCandidatesCount > 0 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b] text-xs text-[#64748b] dark:text-[#94a3b8]">
                     <div>
                       Showing{" "}
                       <strong className="text-[#0f172a] dark:text-white">
-                        {Math.min(filteredSubmissions.length, (candidatePage - 1) * CANDIDATES_PER_PAGE + 1)}
+                        {Math.min(totalCandidatesCount, (candidatePage - 1) * CANDIDATES_PER_PAGE + 1)}
                       </strong>{" "}
                       to{" "}
                       <strong className="text-[#0f172a] dark:text-white">
-                        {Math.min(filteredSubmissions.length, candidatePage * CANDIDATES_PER_PAGE)}
+                        {Math.min(totalCandidatesCount, (candidatePage - 1) * CANDIDATES_PER_PAGE + paginatedSubmissions.length)}
                       </strong>{" "}
                       of{" "}
-                      <strong className="text-[#0f172a] dark:text-white">{filteredSubmissions.length}</strong> candidates
+                      <strong className="text-[#0f172a] dark:text-white">{totalCandidatesCount}</strong> candidates
                     </div>
 
                     {totalCandidatePages > 1 && (

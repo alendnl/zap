@@ -51,6 +51,8 @@ export default function AdminUsersDashboardPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("solved_desc");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
+  const [totalPagesCount, setTotalPagesCount] = useState<number>(1);
   const USERS_PER_PAGE = 10;
 
   // User detail drawer
@@ -96,11 +98,16 @@ export default function AdminUsersDashboardPage() {
       const data = await adminApi.getUsersDashboard(
         student.email,
         selectedCollege === "ALL" ? undefined : selectedCollege,
-        searchQuery.trim() ? searchQuery.trim() : undefined
+        searchQuery.trim() ? searchQuery.trim() : undefined,
+        currentPage,
+        USERS_PER_PAGE,
+        sortBy
       );
       setOverview(data.overview);
       setUsers(data.users || []);
       setCollegesList(data.colleges || []);
+      setTotalUsersCount(data.totalUsers ?? (data.users || []).length);
+      setTotalPagesCount(data.totalPages ?? 1);
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -110,7 +117,7 @@ export default function AdminUsersDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [student?.email, isAdmin, selectedCollege, searchQuery]);
+  }, [student?.email, isAdmin, selectedCollege, searchQuery, currentPage, sortBy]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -139,30 +146,9 @@ export default function AdminUsersDashboardPage() {
     setUserDetail(null);
   };
 
-  // Client-side sorting
-  const sortedUsers = useMemo(() => {
-    const list = [...users];
-    switch (sortBy) {
-      case "solved_desc":
-        return list.sort((a, b) => b.totalSolved - a.totalSolved || b.accuracyRate - a.accuracyRate);
-      case "accuracy_desc":
-        return list.sort((a, b) => b.accuracyRate - a.accuracyRate || b.totalSolved - a.totalSolved);
-      case "name_asc":
-        return list.sort((a, b) => a.name.localeCompare(b.name));
-      case "recent_joined":
-        return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      default:
-        return list;
-    }
-  }, [users, sortBy]);
-
-  // Paginated users slice (10 per page)
-  const paginatedUsers = useMemo(() => {
-    const start = (currentPage - 1) * USERS_PER_PAGE;
-    return sortedUsers.slice(start, start + USERS_PER_PAGE);
-  }, [sortedUsers, currentPage]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / USERS_PER_PAGE));
+  // DB-level paginated users (10 per page retrieved directly from database)
+  const paginatedUsers = users;
+  const totalPages = totalPagesCount;
 
   // College count mapping
   const collegeCounts = useMemo(() => {
@@ -319,8 +305,8 @@ export default function AdminUsersDashboardPage() {
 
             <button
               type="button"
-              onClick={() => adminApi.exportUsersCsv(sortedUsers, selectedCollege)}
-              disabled={loading || sortedUsers.length === 0}
+              onClick={() => adminApi.exportUsersCsv(users, selectedCollege)}
+              disabled={loading || users.length === 0}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer shadow-sm disabled:opacity-50"
               title="Export filtered records as CSV"
             >
@@ -512,8 +498,8 @@ export default function AdminUsersDashboardPage() {
         {/* Results Counter */}
         <div className="flex items-center justify-between text-xs text-[#64748b] dark:text-[#94a3b8] px-1">
           <div>
-            Showing <strong className="text-[#0f172a] dark:text-white">{sortedUsers.length}</strong>{" "}
-            {sortedUsers.length === 1 ? "student" : "students"}
+            Showing <strong className="text-[#0f172a] dark:text-white">{users.length}</strong>{" "}
+            {users.length === 1 ? "student" : "students"} (Page {currentPage} of {totalPages}, Total: {totalUsersCount})
             {selectedCollege !== "ALL" && (
               <span>
                 {" "}
@@ -574,7 +560,7 @@ export default function AdminUsersDashboardPage() {
                       </td>
                     </tr>
                   ))
-                ) : sortedUsers.length === 0 ? (
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-[#64748b] dark:text-[#94a3b8]">
                       <div className="flex flex-col items-center justify-center gap-2">
@@ -721,18 +707,18 @@ export default function AdminUsersDashboardPage() {
             </table>
 
             {/* Pagination Controls (10 students per page) */}
-            {sortedUsers.length > 0 && (
+            {totalUsersCount > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-[#e2e8f0] dark:border-[#1e293b] text-xs text-[#64748b] dark:text-[#94a3b8]">
                 <div>
                   Showing{" "}
                   <strong className="text-[#0f172a] dark:text-white">
-                    {Math.min(sortedUsers.length, (currentPage - 1) * USERS_PER_PAGE + 1)}
+                    {Math.min(totalUsersCount, (currentPage - 1) * USERS_PER_PAGE + 1)}
                   </strong>{" "}
                   to{" "}
                   <strong className="text-[#0f172a] dark:text-white">
-                    {Math.min(sortedUsers.length, currentPage * USERS_PER_PAGE)}
+                    {Math.min(totalUsersCount, (currentPage - 1) * USERS_PER_PAGE + users.length)}
                   </strong>{" "}
-                  of <strong className="text-[#0f172a] dark:text-white">{sortedUsers.length}</strong> students
+                  of <strong className="text-[#0f172a] dark:text-white">{totalUsersCount}</strong> students
                 </div>
 
                 {totalPages > 1 && (

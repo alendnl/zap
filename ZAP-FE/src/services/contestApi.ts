@@ -137,10 +137,20 @@ export const contestApi = {
       body: JSON.stringify(payload),
     }),
 
-  getAnalytics: (idOrSlug: string, page?: number, limit?: number): Promise<ContestAnalyticsResponse> => {
+  getAnalytics: (
+    idOrSlug: string,
+    page?: number,
+    limit?: number,
+    search?: string,
+    status?: string,
+    sortBy?: string
+  ): Promise<ContestAnalyticsResponse> => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
+    if (search && search.trim()) params.append("search", search.trim());
+    if (status && status !== "ALL") params.append("status", status);
+    if (sortBy) params.append("sort_by", sortBy);
     const qs = params.toString();
     return apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/analytics${qs ? `?${qs}` : ""}`);
   },

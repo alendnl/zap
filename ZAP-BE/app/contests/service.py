@@ -993,12 +993,15 @@ class ContestService:
     def get_contest_analytics(
         self,
         contest_id_or_slug: str,
-        page: Optional[int] = None,
-        limit: Optional[int] = None,
+        page: Optional[int] = 1,
+        limit: Optional[int] = 10,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        sort_by: Optional[str] = "rank_asc",
     ) -> ContestAnalyticsResponse:
         """Calculates comprehensive analytics for a contest: overall KPIs, score distribution,
         per-question accuracy, coding problem acceptance rates, proctoring violations,
-        and student-by-student drilldown.
+        and student-by-student drilldown using DB-level pagination and targeted projections.
         """
         import statistics
 
@@ -1007,20 +1010,312 @@ class ContestService:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
 
         coll = self._get_submissions_coll()
-        raw_submissions = []
+        page_num = max(1, page or 1)
+        limit_num = max(1, min(100, limit or 10))
+        skip_num = (page_num - 1) * limit_num
+
         if coll is not None:
-            # Exclude codingState (source code) and violationsLog to optimize query speed and memory footprint
-            projection = {
-                "codingState": 0,
-                "proctoring.violationsLog": 0,
+            # 1. Candidate submissions filter for targeted DB pagination
+            candidate_filter: dict = {"contestId": contest.id}
+            if status and status.strip() and status.strip().upper() != "ALL":
+                candidate_filter["status"] = status.strip().upper()
+            if search and search.strip():
+                sq = re.escape(search.strip())
+                candidate_filter["$or"] = [
+                    {"studentName": {"$regex": sq, "$options": "i"}},
+                    {"studentEmail": {"$regex": sq, "$options": "i"}},
+                    {"studentId": {"$regex": sq, "$options": "i"}},
+                ]
+
+            try:
+                total_subs_count = coll.count_documents(candidate_filter)
+            except Exception:
+                total_subs_count = 0
+            total_pages = max(1, (total_subs_count + limit_num - 1) // limit_num)
+
+            # Sort spec
+            sort_spec = [("totalScore", -1), ("timeSpentSeconds", 1)]
+            if sort_by == "score_asc":
+                sort_spec = [("totalScore", 1), ("timeSpentSeconds", 1)]
+            elif sort_by == "time_asc":
+                sort_spec = [("timeSpentSeconds", 1)]
+            elif sort_by == "infractions_desc":
+                sort_spec = [("proctoring.tabSwitchCount", -1)]
+
+            # Minimal projection: strictly only table fields, NEVER static question catalogs or source code
+            candidate_projection = {
+                "_id": 1,
+                "id": 1,
+                "submissionId": 1,
+                "contestId": 1,
+                "studentId": 1,
+                "studentName": 1,
+                "studentEmail": 1,
+                "status": 1,
+                "startedAt": 1,
+                "submittedAt": 1,
+                "updatedAt": 1,
+                "totalScore": 1,
+                "maxTotalScore": 1,
+                "percentage": 1,
+                "mcqScore": 1,
+                "maxMcqScore": 1,
+                "mcqCorrectCount": 1,
+                "mcqTotalCount": 1,
+                "codingScore": 1,
+                "maxCodingScore": 1,
+                "codingProblemsAttempted": 1,
+                "codingTotalCount": 1,
+                "timeSpentSeconds": 1,
+                "proctoring.tabSwitchCount": 1,
+                "proctoring.copyPasteAttempts": 1,
+                "proctoring.fullscreenExitCount": 1,
             }
-            cursor = coll.find({"contestId": contest.id}, projection)
-            for doc in cursor:
-                clean = dict(doc)
-                clean["id"] = clean.get("id") or str(clean.get("_id"))
-                clean.pop("_id", None)
-                raw_submissions.append(clean)
+
+            cursor = coll.find(candidate_filter, candidate_projection).sort(sort_spec).skip(skip_num).limit(limit_num)
+            lightweight_submissions = []
+            for s in cursor:
+                proc = s.get("proctoring") or {}
+                lightweight_submissions.append({
+                    "id": s.get("id") or str(s.get("_id")),
+                    "submissionId": s.get("submissionId") or s.get("id") or str(s.get("_id")),
+                    "contestId": s.get("contestId"),
+                    "studentId": s.get("studentId"),
+                    "studentName": s.get("studentName"),
+                    "studentEmail": s.get("studentEmail"),
+                    "status": s.get("status"),
+                    "startedAt": s.get("startedAt"),
+                    "submittedAt": s.get("submittedAt"),
+                    "updatedAt": s.get("updatedAt"),
+                    "totalScore": s.get("totalScore", 0),
+                    "maxTotalScore": s.get("maxTotalScore", 100),
+                    "percentage": s.get("percentage", 0.0),
+                    "mcqScore": s.get("mcqScore", 0),
+                    "maxMcqScore": s.get("maxMcqScore", 0),
+                    "mcqCorrectCount": s.get("mcqCorrectCount", 0),
+                    "mcqTotalCount": s.get("mcqTotalCount", 0),
+                    "codingScore": s.get("codingScore", 0),
+                    "maxCodingScore": s.get("maxCodingScore", 0),
+                    "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
+                    "codingTotalCount": s.get("codingTotalCount", 0),
+                    "timeSpentSeconds": s.get("timeSpentSeconds", 0),
+                    "proctoring": {
+                        "tabSwitchCount": proc.get("tabSwitchCount", 0),
+                        "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
+                        "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
+                    },
+                })
+
+            # 2. Fast cohort overview aggregations across all candidates for this contest
+            totals_agg = []
+            try:
+                totals_agg = list(coll.aggregate([
+                    {"$match": {"contestId": contest.id}},
+                    {
+                        "$group": {
+                            "_id": None,
+                            "totalCandidates": {"$sum": 1},
+                            "completedCount": {"$sum": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, 1, 0]}},
+                            "inProgressCount": {"$sum": {"$cond": [{"$eq": ["$status", "IN_PROGRESS"]}, 1, 0]}},
+                            "avgScore": {"$avg": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$totalScore", "$$REMOVE"]}},
+                            "maxScore": {"$max": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$totalScore", "$$REMOVE"]}},
+                            "minScore": {"$min": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$totalScore", "$$REMOVE"]}},
+                            "avgPercentage": {"$avg": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$percentage", "$$REMOVE"]}},
+                            "avgTime": {"$avg": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$timeSpentSeconds", "$$REMOVE"]}},
+                            "totalTabSwitches": {"$sum": "$proctoring.tabSwitchCount"},
+                            "totalCopyPaste": {"$sum": "$proctoring.copyPasteAttempts"},
+                            "totalFullscreenExits": {"$sum": "$proctoring.fullscreenExitCount"},
+                            "scores": {"$push": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$totalScore", "$$REMOVE"]}},
+                            "percentages": {"$push": {"$cond": [{"$eq": ["$status", "SUBMITTED"]}, "$percentage", "$$REMOVE"]}},
+                        }
+                    }
+                ]))
+            except Exception:
+                pass
+
+            total_candidates = 0
+            completed_count = 0
+            in_progress_count = 0
+            completion_rate = 0.0
+            average_score = 0.0
+            median_score = 0.0
+            highest_score = 0.0
+            lowest_score = 0.0
+            average_percentage = 0.0
+            average_time = 0
+            scores: List[float] = []
+            percentages: List[float] = []
+            total_tab_switches = 0
+            total_copy_paste = 0
+            total_fullscreen_exits = 0
+
+            if totals_agg and totals_agg[0]:
+                t_doc = totals_agg[0]
+                total_candidates = t_doc.get("totalCandidates", 0)
+                completed_count = t_doc.get("completedCount", 0)
+                in_progress_count = t_doc.get("inProgressCount", 0)
+                completion_rate = round((completed_count / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 0.0
+                average_score = round(float(t_doc.get("avgScore") or 0.0), 1)
+                highest_score = float(t_doc.get("maxScore") or 0.0)
+                lowest_score = float(t_doc.get("minScore") or 0.0)
+                average_percentage = round(float(t_doc.get("avgPercentage") or 0.0), 1)
+                average_time = int(t_doc.get("avgTime") or 0)
+                scores = [float(s) for s in t_doc.get("scores", []) if s is not None]
+                median_score = round(statistics.median(scores), 1) if scores else 0.0
+                percentages = [float(p) for p in t_doc.get("percentages", []) if p is not None]
+                total_tab_switches = int(t_doc.get("totalTabSwitches") or 0)
+                total_copy_paste = int(t_doc.get("totalCopyPaste") or 0)
+                total_fullscreen_exits = int(t_doc.get("totalFullscreenExits") or 0)
+
+            # Score Distribution Buckets (0-20%, 21-40%, 41-60%, 61-80%, 81-100%)
+            bucket_counts = {"0-20%": 0, "21-40%": 0, "41-60%": 0, "61-80%": 0, "81-100%": 0}
+            for pct in percentages:
+                if pct <= 20:
+                    bucket_counts["0-20%"] += 1
+                elif pct <= 40:
+                    bucket_counts["21-40%"] += 1
+                elif pct <= 60:
+                    bucket_counts["41-60%"] += 1
+                elif pct <= 80:
+                    bucket_counts["61-80%"] += 1
+                else:
+                    bucket_counts["81-100%"] += 1
+
+            score_distribution = [
+                ScoreBucket(
+                    range=label,
+                    count=cnt,
+                    percentage=round((cnt / max(1, completed_count)) * 100, 1) if completed_count > 0 else 0.0
+                )
+                for label, cnt in bucket_counts.items()
+            ]
+
+            # Proctoring infractions & risk counts
+            clean_candidates = 0
+            flagged_candidates = 0
+            high_risk_candidates = 0
+            try:
+                proc_docs = list(coll.aggregate([
+                    {"$match": {"contestId": contest.id}},
+                    {
+                        "$project": {
+                            "infr": {
+                                "$add": [
+                                    {"$ifNull": ["$proctoring.tabSwitchCount", 0]},
+                                    {"$ifNull": ["$proctoring.copyPasteAttempts", 0]},
+                                    {"$ifNull": ["$proctoring.fullscreenExitCount", 0]}
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "$group": {
+                            "_id": None,
+                            "cleanCount": {"$sum": {"$cond": [{"$eq": ["$infr", 0]}, 1, 0]}},
+                            "flaggedCount": {"$sum": {"$cond": [{"$gt": ["$infr", 0]}, 1, 0]}},
+                            "highRiskCount": {"$sum": {"$cond": [{"$gte": ["$infr", 3]}, 1, 0]}}
+                        }
+                    }
+                ]))
+                if proc_docs and proc_docs[0]:
+                    clean_candidates = proc_docs[0].get("cleanCount", 0)
+                    flagged_candidates = proc_docs[0].get("flaggedCount", 0)
+                    high_risk_candidates = proc_docs[0].get("highRiskCount", 0)
+            except Exception:
+                pass
+
+            total_infractions = total_tab_switches + total_copy_paste + total_fullscreen_exits
+            clean_rate = round((clean_candidates / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 100.0
+
+            proctoring_stats = ProctoringSummaryStats(
+                totalTabSwitches=total_tab_switches,
+                totalCopyPasteAttempts=total_copy_paste,
+                totalFullscreenExits=total_fullscreen_exits,
+                totalInfractions=total_infractions,
+                cleanCandidatesCount=clean_candidates,
+                flaggedCandidatesCount=flagged_candidates,
+                highRiskCandidatesCount=high_risk_candidates,
+                cleanRate=clean_rate,
+            )
+
+            # MCQ Question accuracy
+            mcq_question_stats = []
+            try:
+                mcq_agg = list(coll.aggregate([
+                    {"$match": {"contestId": contest.id, "status": "SUBMITTED"}},
+                    {"$unwind": "$mcqBreakdown"},
+                    {
+                        "$group": {
+                            "_id": "$mcqBreakdown.questionId",
+                            "title": {"$first": "$mcqBreakdown.title"},
+                            "category": {"$first": "$mcqBreakdown.category"},
+                            "difficulty": {"$first": "$mcqBreakdown.difficulty"},
+                            "totalAttempts": {"$sum": 1},
+                            "correctCount": {
+                                "$sum": {"$cond": [{"$eq": ["$mcqBreakdown.isCorrect", True]}, 1, 0]}
+                            }
+                        }
+                    }
+                ]))
+                for item in mcq_agg:
+                    qid = str(item["_id"])
+                    tot = item.get("totalAttempts", 0)
+                    corr = item.get("correctCount", 0)
+                    acc = round((corr / max(1, tot)) * 100, 1) if tot > 0 else 0.0
+                    mcq_question_stats.append(
+                        QuestionAccuracyStat(
+                            questionId=qid,
+                            title=item.get("title") or f"Question {qid}",
+                            category=item.get("category") or "General",
+                            difficulty=item.get("difficulty") or "MEDIUM",
+                            totalAttempts=tot,
+                            correctCount=corr,
+                            accuracyRate=acc,
+                        )
+                    )
+            except Exception:
+                pass
+
+            # Coding problem accuracy
+            coding_problem_stats = []
+            try:
+                coding_agg = list(coll.aggregate([
+                    {"$match": {"contestId": contest.id, "status": "SUBMITTED"}},
+                    {"$unwind": "$codingBreakdown"},
+                    {
+                        "$group": {
+                            "_id": "$codingBreakdown.questionId",
+                            "title": {"$first": "$codingBreakdown.title"},
+                            "difficulty": {"$first": "$codingBreakdown.difficulty"},
+                            "attemptedCount": {"$sum": 1},
+                            "acceptedCount": {
+                                "$sum": {"$cond": [{"$eq": ["$codingBreakdown.status", "ACCEPTED"]}, 1, 0]}
+                            }
+                        }
+                    }
+                ]))
+                for item in coding_agg:
+                    qid = str(item["_id"])
+                    tot = item.get("attemptedCount", 0)
+                    acc = item.get("acceptedCount", 0)
+                    acc_rate = round((acc / max(1, tot)) * 100, 1) if tot > 0 else 0.0
+                    coding_problem_stats.append(
+                        ProblemAcceptanceStat(
+                            questionId=qid,
+                            title=item.get("title") or qid,
+                            difficulty=item.get("difficulty") or "MEDIUM",
+                            attemptedCount=tot,
+                            acceptedCount=acc,
+                            acceptanceRate=acc_rate,
+                            languagesUsed={},
+                        )
+                    )
+            except Exception:
+                pass
+
         else:
+            # In-memory fallback for testing without a remote database
+            raw_submissions = []
             for s in self._memory_submissions.values():
                 if s.get("contestId") == contest.id:
                     clean = dict(s)
@@ -1028,218 +1323,199 @@ class ContestService:
                     clean.pop("_id", None)
                     raw_submissions.append(clean)
 
-        total_candidates = len(raw_submissions)
-        completed_subs = [s for s in raw_submissions if s.get("status") == "SUBMITTED"]
-        in_progress_subs = [s for s in raw_submissions if s.get("status") == "IN_PROGRESS"]
+            total_candidates = len(raw_submissions)
+            completed_subs = [s for s in raw_submissions if s.get("status") == "SUBMITTED"]
+            in_progress_subs = [s for s in raw_submissions if s.get("status") == "IN_PROGRESS"]
 
-        completed_count = len(completed_subs)
-        in_progress_count = len(in_progress_subs)
-        completion_rate = round((completed_count / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 0.0
+            completed_count = len(completed_subs)
+            in_progress_count = len(in_progress_subs)
+            completion_rate = round((completed_count / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 0.0
 
-        scores = [s.get("totalScore", 0) for s in completed_subs]
-        percentages = [s.get("percentage", 0.0) for s in completed_subs]
-        times = [s.get("timeSpentSeconds", 0) for s in completed_subs if s.get("timeSpentSeconds")]
+            scores = [s.get("totalScore", 0) for s in completed_subs]
+            percentages = [s.get("percentage", 0.0) for s in completed_subs]
+            times = [s.get("timeSpentSeconds", 0) for s in completed_subs if s.get("timeSpentSeconds")]
 
-        average_score = round(sum(scores) / len(scores), 1) if scores else 0.0
-        median_score = round(statistics.median(scores), 1) if scores else 0.0
-        highest_score = max(scores) if scores else 0
-        lowest_score = min(scores) if scores else 0
-        average_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0.0
-        average_time = int(sum(times) / len(times)) if times else 0
+            average_score = round(sum(scores) / len(scores), 1) if scores else 0.0
+            median_score = round(statistics.median(scores), 1) if scores else 0.0
+            highest_score = max(scores) if scores else 0.0
+            lowest_score = min(scores) if scores else 0.0
+            average_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0.0
+            average_time = int(sum(times) / len(times)) if times else 0
 
-        # Score Distribution Buckets (0-20%, 21-40%, 41-60%, 61-80%, 81-100%)
-        bucket_counts = {"0-20%": 0, "21-40%": 0, "41-60%": 0, "61-80%": 0, "81-100%": 0}
-        for pct in percentages:
-            if pct <= 20:
-                bucket_counts["0-20%"] += 1
-            elif pct <= 40:
-                bucket_counts["21-40%"] += 1
-            elif pct <= 60:
-                bucket_counts["41-60%"] += 1
-            elif pct <= 80:
-                bucket_counts["61-80%"] += 1
-            else:
-                bucket_counts["81-100%"] += 1
+            bucket_counts = {"0-20%": 0, "21-40%": 0, "41-60%": 0, "61-80%": 0, "81-100%": 0}
+            for pct in percentages:
+                if pct <= 20:
+                    bucket_counts["0-20%"] += 1
+                elif pct <= 40:
+                    bucket_counts["21-40%"] += 1
+                elif pct <= 60:
+                    bucket_counts["41-60%"] += 1
+                elif pct <= 80:
+                    bucket_counts["61-80%"] += 1
+                else:
+                    bucket_counts["81-100%"] += 1
 
-        score_distribution = [
-            ScoreBucket(
-                range=label,
-                count=cnt,
-                percentage=round((cnt / max(1, completed_count)) * 100, 1)
-            )
-            for label, cnt in bucket_counts.items()
-        ]
-
-        # MCQ Question-Level Accuracy Analysis
-        mcq_stats_map: Dict[str, Dict[str, Any]] = {}
-        for sub in completed_subs:
-            for item in sub.get("mcqBreakdown", []):
-                qid = item.get("questionId")
-                if not qid:
-                    continue
-                if qid not in mcq_stats_map:
-                    mcq_stats_map[qid] = {
-                        "questionId": qid,
-                        "title": item.get("title", f"Question {qid}"),
-                        "category": item.get("category", "General"),
-                        "difficulty": item.get("difficulty", "MEDIUM"),
-                        "totalAttempts": 0,
-                        "correctCount": 0,
-                    }
-                mcq_stats_map[qid]["totalAttempts"] += 1
-                if item.get("isCorrect"):
-                    mcq_stats_map[qid]["correctCount"] += 1
-
-        mcq_question_stats = []
-        for qid, qstat in mcq_stats_map.items():
-            tot = qstat["totalAttempts"]
-            corr = qstat["correctCount"]
-            acc = round((corr / max(1, tot)) * 100, 1) if tot > 0 else 0.0
-            mcq_question_stats.append(
-                QuestionAccuracyStat(
-                    questionId=qid,
-                    title=qstat["title"],
-                    category=qstat["category"],
-                    difficulty=qstat["difficulty"],
-                    totalAttempts=tot,
-                    correctCount=corr,
-                    accuracyRate=acc,
+            score_distribution = [
+                ScoreBucket(
+                    range=label,
+                    count=cnt,
+                    percentage=round((cnt / max(1, completed_count)) * 100, 1) if completed_count > 0 else 0.0
                 )
-            )
+                for label, cnt in bucket_counts.items()
+            ]
 
-        # Coding Problem-Level Acceptance Analysis
-        coding_stats_map: Dict[str, Dict[str, Any]] = {}
-        for sub in completed_subs:
-            c_state_map = sub.get("codingState", {})
-            for item in sub.get("codingBreakdown", []):
-                qid = item.get("questionId")
-                if not qid:
-                    continue
-                if qid not in coding_stats_map:
-                    coding_stats_map[qid] = {
-                        "questionId": qid,
-                        "title": item.get("title", qid),
-                        "difficulty": item.get("difficulty", "MEDIUM"),
-                        "attemptedCount": 0,
-                        "acceptedCount": 0,
-                        "languagesUsed": {},
-                    }
-                coding_stats_map[qid]["attemptedCount"] += 1
-                if item.get("status") == "ACCEPTED":
-                    coding_stats_map[qid]["acceptedCount"] += 1
+            mcq_stats_map: Dict[str, Dict[str, Any]] = {}
+            for sub in completed_subs:
+                for item in sub.get("mcqBreakdown", []):
+                    qid = item.get("questionId")
+                    if not qid:
+                        continue
+                    if qid not in mcq_stats_map:
+                        mcq_stats_map[qid] = {
+                            "questionId": qid,
+                            "title": item.get("title", f"Question {qid}"),
+                            "category": item.get("category", "General"),
+                            "difficulty": item.get("difficulty", "MEDIUM"),
+                            "totalAttempts": 0,
+                            "correctCount": 0,
+                        }
+                    mcq_stats_map[qid]["totalAttempts"] += 1
+                    if item.get("isCorrect"):
+                        mcq_stats_map[qid]["correctCount"] += 1
 
-                prob_state = c_state_map.get(qid, {})
-                lang = prob_state.get("lastLanguage")
-                if lang:
-                    coding_stats_map[qid]["languagesUsed"][lang] = (
-                        coding_stats_map[qid]["languagesUsed"].get(lang, 0) + 1
+            mcq_question_stats = []
+            for qid, qstat in mcq_stats_map.items():
+                tot = qstat["totalAttempts"]
+                corr = qstat["correctCount"]
+                acc = round((corr / max(1, tot)) * 100, 1) if tot > 0 else 0.0
+                mcq_question_stats.append(
+                    QuestionAccuracyStat(
+                        questionId=qid,
+                        title=qstat["title"],
+                        category=qstat["category"],
+                        difficulty=qstat["difficulty"],
+                        totalAttempts=tot,
+                        correctCount=corr,
+                        accuracyRate=acc,
                     )
-
-        coding_problem_stats = []
-        for qid, cstat in coding_stats_map.items():
-            tot = cstat["attemptedCount"]
-            acc = cstat["acceptedCount"]
-            acc_rate = round((acc / max(1, tot)) * 100, 1) if tot > 0 else 0.0
-            coding_problem_stats.append(
-                ProblemAcceptanceStat(
-                    questionId=qid,
-                    title=cstat["title"],
-                    difficulty=cstat["difficulty"],
-                    attemptedCount=tot,
-                    acceptedCount=acc,
-                    acceptanceRate=acc_rate,
-                    languagesUsed=cstat["languagesUsed"],
                 )
+
+            coding_stats_map: Dict[str, Dict[str, Any]] = {}
+            for sub in completed_subs:
+                for item in sub.get("codingBreakdown", []):
+                    qid = item.get("questionId")
+                    if not qid:
+                        continue
+                    if qid not in coding_stats_map:
+                        coding_stats_map[qid] = {
+                            "questionId": qid,
+                            "title": item.get("title", qid),
+                            "difficulty": item.get("difficulty", "MEDIUM"),
+                            "attemptedCount": 0,
+                            "acceptedCount": 0,
+                            "languagesUsed": {},
+                        }
+                    coding_stats_map[qid]["attemptedCount"] += 1
+                    if item.get("status") == "ACCEPTED":
+                        coding_stats_map[qid]["acceptedCount"] += 1
+
+            coding_problem_stats = []
+            for qid, cstat in coding_stats_map.items():
+                tot = cstat["attemptedCount"]
+                acc = cstat["acceptedCount"]
+                acc_rate = round((acc / max(1, tot)) * 100, 1) if tot > 0 else 0.0
+                coding_problem_stats.append(
+                    ProblemAcceptanceStat(
+                        questionId=qid,
+                        title=cstat["title"],
+                        difficulty=cstat["difficulty"],
+                        attemptedCount=tot,
+                        acceptedCount=acc,
+                        acceptanceRate=acc_rate,
+                        languagesUsed=cstat["languagesUsed"],
+                    )
+                )
+
+            total_tab_switches = 0
+            total_copy_paste = 0
+            total_fullscreen_exits = 0
+            clean_candidates = 0
+            flagged_candidates = 0
+            high_risk_candidates = 0
+
+            for sub in raw_submissions:
+                proc = sub.get("proctoring") or {}
+                tabs = proc.get("tabSwitchCount", 0)
+                copy_paste = proc.get("copyPasteAttempts", 0)
+                fs = proc.get("fullscreenExitCount", 0)
+                infr = tabs + copy_paste + fs
+
+                total_tab_switches += tabs
+                total_copy_paste += copy_paste
+                total_fullscreen_exits += fs
+
+                if infr == 0:
+                    clean_candidates += 1
+                else:
+                    flagged_candidates += 1
+                    if infr >= 3:
+                        high_risk_candidates += 1
+
+            total_infractions = total_tab_switches + total_copy_paste + total_fullscreen_exits
+            clean_rate = round((clean_candidates / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 100.0
+
+            proctoring_stats = ProctoringSummaryStats(
+                totalTabSwitches=total_tab_switches,
+                totalCopyPasteAttempts=total_copy_paste,
+                totalFullscreenExits=total_fullscreen_exits,
+                totalInfractions=total_infractions,
+                cleanCandidatesCount=clean_candidates,
+                flaggedCandidatesCount=flagged_candidates,
+                highRiskCandidatesCount=high_risk_candidates,
+                cleanRate=clean_rate,
             )
 
-        # Proctoring & Integrity Telemetry Summary
-        total_tab_switches = 0
-        total_copy_paste = 0
-        total_fullscreen_exits = 0
-        clean_candidates = 0
-        flagged_candidates = 0
-        high_risk_candidates = 0
+            sorted_submissions = sorted(
+                raw_submissions,
+                key=lambda s: (-s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
+            )
 
-        for sub in raw_submissions:
-            proc = sub.get("proctoring") or {}
-            tabs = proc.get("tabSwitchCount", 0)
-            copy_paste = proc.get("copyPasteAttempts", 0)
-            fs = proc.get("fullscreenExitCount", 0)
-            infr = tabs + copy_paste + fs
+            total_subs_count = len(sorted_submissions)
+            total_pages = max(1, (total_subs_count + limit_num - 1) // limit_num)
+            subs_slice = sorted_submissions[skip_num : skip_num + limit_num]
 
-            total_tab_switches += tabs
-            total_copy_paste += copy_paste
-            total_fullscreen_exits += fs
-
-            if infr == 0:
-                clean_candidates += 1
-            else:
-                flagged_candidates += 1
-                if infr >= 3:
-                    high_risk_candidates += 1
-
-        total_infractions = total_tab_switches + total_copy_paste + total_fullscreen_exits
-        clean_rate = round((clean_candidates / max(1, total_candidates)) * 100, 1) if total_candidates > 0 else 100.0
-
-        proctoring_stats = ProctoringSummaryStats(
-            totalTabSwitches=total_tab_switches,
-            totalCopyPasteAttempts=total_copy_paste,
-            totalFullscreenExits=total_fullscreen_exits,
-            totalInfractions=total_infractions,
-            cleanCandidatesCount=clean_candidates,
-            flaggedCandidatesCount=flagged_candidates,
-            highRiskCandidatesCount=high_risk_candidates,
-            cleanRate=clean_rate,
-        )
-
-        # Sort candidate submissions by totalScore desc, then timeSpentSeconds asc
-        sorted_submissions = sorted(
-            raw_submissions,
-            key=lambda s: (-s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
-        )
-
-        total_subs_count = len(sorted_submissions)
-        total_pages = max(1, (total_subs_count + (limit or 10) - 1) // (limit or 10)) if limit else 1
-
-        # Slicing if pagination is requested
-        if page is not None and limit is not None:
-            subs_slice = sorted_submissions[(page - 1) * limit : page * limit]
-        else:
-            subs_slice = sorted_submissions
-
-        # Return lightweight submission items in analytics overview so the response is fast and compact
-        lightweight_submissions = []
-        for s in subs_slice:
-            proc = s.get("proctoring") or {}
-            lightweight_submissions.append({
-                "id": s.get("id"),
-                "submissionId": s.get("submissionId") or s.get("id"),
-                "contestId": s.get("contestId"),
-                "studentId": s.get("studentId"),
-                "studentName": s.get("studentName"),
-                "studentEmail": s.get("studentEmail"),
-                "status": s.get("status"),
-                "startedAt": s.get("startedAt"),
-                "submittedAt": s.get("submittedAt"),
-                "updatedAt": s.get("updatedAt"),
-                "totalScore": s.get("totalScore", 0),
-                "maxTotalScore": s.get("maxTotalScore", 100),
-                "percentage": s.get("percentage", 0.0),
-                "mcqScore": s.get("mcqScore", 0),
-                "maxMcqScore": s.get("maxMcqScore", 0),
-                "mcqCorrectCount": s.get("mcqCorrectCount", 0),
-                "mcqTotalCount": s.get("mcqTotalCount", 0),
-                "codingScore": s.get("codingScore", 0),
-                "maxCodingScore": s.get("maxCodingScore", 0),
-                "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
-                "codingTotalCount": s.get("codingTotalCount", 0),
-                "timeSpentSeconds": s.get("timeSpentSeconds", 0),
-                "proctoring": {
-                    "tabSwitchCount": proc.get("tabSwitchCount", 0),
-                    "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
-                    "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
-                },
-            })
+            lightweight_submissions = []
+            for s in subs_slice:
+                proc = s.get("proctoring") or {}
+                lightweight_submissions.append({
+                    "id": s.get("id"),
+                    "submissionId": s.get("submissionId") or s.get("id"),
+                    "contestId": s.get("contestId"),
+                    "studentId": s.get("studentId"),
+                    "studentName": s.get("studentName"),
+                    "studentEmail": s.get("studentEmail"),
+                    "status": s.get("status"),
+                    "startedAt": s.get("startedAt"),
+                    "submittedAt": s.get("submittedAt"),
+                    "updatedAt": s.get("updatedAt"),
+                    "totalScore": s.get("totalScore", 0),
+                    "maxTotalScore": s.get("maxTotalScore", 100),
+                    "percentage": s.get("percentage", 0.0),
+                    "mcqScore": s.get("mcqScore", 0),
+                    "maxMcqScore": s.get("maxMcqScore", 0),
+                    "mcqCorrectCount": s.get("mcqCorrectCount", 0),
+                    "mcqTotalCount": s.get("mcqTotalCount", 0),
+                    "codingScore": s.get("codingScore", 0),
+                    "maxCodingScore": s.get("maxCodingScore", 0),
+                    "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
+                    "codingTotalCount": s.get("codingTotalCount", 0),
+                    "timeSpentSeconds": s.get("timeSpentSeconds", 0),
+                    "proctoring": {
+                        "tabSwitchCount": proc.get("tabSwitchCount", 0),
+                        "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
+                        "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
+                    },
+                })
 
         mcq_count = contest.mcqConfig.totalQuestions if contest.hasMcq and contest.mcqConfig else len(mcq_question_stats)
         coding_count = contest.codingConfig.totalQuestions if contest.hasCoding and contest.codingConfig else len(coding_problem_stats)
@@ -1283,7 +1559,7 @@ class ContestService:
             proctoringStats=proctoring_stats,
             submissions=lightweight_submissions,
             totalSubmissions=total_subs_count,
-            page=page,
-            limit=limit,
-            totalPages=total_pages if page is not None else None,
+            page=page_num,
+            limit=limit_num,
+            totalPages=total_pages,
         )

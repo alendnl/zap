@@ -56,8 +56,9 @@ def get_users_dashboard(
     x_admin_email: Optional[str] = Header(None, alias="X-Admin-Email"),
     college: Optional[str] = Query(None, description="Filter by college name"),
     search: Optional[str] = Query(None, description="Search by student name, email, id, or college"),
-    page: Optional[int] = Query(None, ge=1, description="Page number for pagination"),
-    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
+    page: Optional[int] = Query(1, ge=1, description="Page number for pagination"),
+    limit: Optional[int] = Query(10, ge=1, le=100, description="Items per page"),
+    sort_by: Optional[str] = Query("solved_desc", description="Sort option (solved_desc, accuracy_desc, name_asc, recent_joined)"),
     service: AdminService = Depends(get_admin_service),
 ):
     target_email = (email or x_admin_email or "").strip()
@@ -67,7 +68,13 @@ def get_users_dashboard(
             detail="Forbidden: Admin access required. User email is not present in admin collection.",
         )
 
-    return service.get_users_dashboard(college=college, search=search, page=page, limit=limit)
+    return service.get_users_dashboard(
+        college=college,
+        search=search,
+        page=page,
+        limit=limit,
+        sort_by=sort_by,
+    )
 
 
 @router.get("/users/{user_id}", response_model=UserDetailActivityResponse)

@@ -118,19 +118,154 @@ class AdminService:
         self,
         college: Optional[str] = None,
         search: Optional[str] = None,
-        page: Optional[int] = None,
-        limit: Optional[int] = None,
+        page: Optional[int] = 1,
+        limit: Optional[int] = 10,
+        sort_by: Optional[str] = "solved_desc",
     ) -> AdminUsersResponse:
         users_coll = self._get_collection("users")
         activities_coll = self._get_collection("user_activities")
         submissions_coll = self._get_collection("submissions")
         questions_coll = self._get_collection("questions")
 
-        # 1. Fetch questions catalog for difficulty mappings (minimal projection)
-        questions_map: Dict[str, dict] = {}
-        if questions_coll is not None:
+        if users_coll is None:
+            return AdminUsersResponse(
+                overview=AdminUsersOverview(),
+                users=[],
+                colleges=[],
+                totalUsers=0,
+                page=page or 1,
+                limit=limit or 10,
+                totalPages=1,
+            )
+
+        # 1. Build DB-level match filter for college and search
+        match_filter: dict = {}
+        if college and college.strip() and college.strip().upper() != "ALL":
+            match_filter["collegeName"] = {"$regex": f"^{re.escape(college.strip())}$", "$options": "i"}
+
+        if search and search.strip():
+            sq = re.escape(search.strip())
+            match_filter["$or"] = [
+                {"name": {"$regex": sq, "$options": "i"}},
+                {"email": {"$regex": sq, "$options": "i"}},
+                {"studentId": {"$regex": sq, "$options": "i"}},
+                {"collegeName": {"$regex": sq, "$options": "i"}},
+            ]
+
+        # 2. Count matching documents at the DB layer
+        try:
+            total_users_count = users_coll.count_documents(match_filter)
+        except Exception:
+            total_users_count = 0
+
+        page_num = max(1, page or 1)
+        limit_num = max(1, min(100, limit or 10))
+        skip_num = (page_num - 1) * limit_num
+        total_pages = max(1, (total_users_count + limit_num - 1) // limit_num)
+
+        # 3. Determine database sort specification
+        sort_spec: dict = {"totalSolved": -1, "name": 1}
+        if sort_by == "accuracy_desc":
+            sort_spec = {"accuracyRate": -1, "totalSolved": -1}
+        elif sort_by == "name_asc":
+            sort_spec = {"name": 1}
+        elif sort_by == "recent_joined":
+            sort_spec = {"createdAt": -1}
+
+        # 4. Fetch ONLY the 10 users for the requested page with minimal projection
+        paged_raw_users = []
+        try:
+            pipeline = [
+                {"$match": match_filter},
+                {
+                    "$lookup": {
+                        "from": "user_activities",
+                        "localField": "id",
+                        "foreignField": "userId",
+                        "as": "act"
+                    }
+                },
+                {"$addFields": {"activity": {"$arrayElemAt": ["$act", 0]}}},
+                {"$addFields": {
+                    "totalSolved": {"$ifNull": ["$activity.totalSolved", 0]},
+                    "totalAttempted": {"$ifNull": ["$activity.totalAttempted", 0]},
+                    "accuracyRate": {
+                        "$cond": [
+                            {"$gt": [{"$ifNull": ["$activity.totalAttempted", 0]}, 0]},
+                            {"$round": [{"$multiply": [{"$divide": [{"$ifNull": ["$activity.totalSolved", 0]}, "$activity.totalAttempted"]}, 100]}, 1]},
+                            0.0
+                        ]
+                    },
+                    "lastActiveAt": {"$ifNull": ["$activity.updatedAt", "$createdAt"]},
+                    "solvedQuestionIds": {"$ifNull": ["$activity.solvedQuestionIds", []]},
+                    "attemptedQuestionIds": {"$ifNull": ["$activity.attemptedQuestionIds", []]},
+                }},
+                {"$sort": sort_spec},
+                {"$skip": skip_num},
+                {"$limit": limit_num},
+                {"$project": {
+                    "_id": 1, "id": 1, "name": 1, "email": 1, "studentId": 1, "collegeName": 1,
+                    "createdAt": 1, "totalSolved": 1, "totalAttempted": 1, "accuracyRate": 1,
+                    "lastActiveAt": 1, "solvedQuestionIds": 1, "attemptedQuestionIds": 1
+                }}
+            ]
+            paged_raw_users = list(users_coll.aggregate(pipeline))
+        except Exception:
+            # Fallback to direct cursor query if aggregate is unavailable
+            paged_raw_users = list(
+                users_coll.find(
+                    match_filter,
+                    {"_id": 1, "id": 1, "name": 1, "email": 1, "studentId": 1, "collegeName": 1, "createdAt": 1}
+                ).skip(skip_num).limit(limit_num)
+            )
+
+        # 5. For ONLY these 10 users, retrieve targeted submissions and difficulty info
+        user_keys = [str(u.get("id") or u.get("_id") or "") for u in paged_raw_users if (u.get("id") or u.get("_id"))]
+        user_emails = [str(u.get("email") or "").strip().lower() for u in paged_raw_users if u.get("email")]
+
+        user_subs_map: Dict[str, List[dict]] = {}
+        if submissions_coll is not None and (user_keys or user_emails):
             try:
-                for q in questions_coll.find({}, {"_id": 1, "id": 1, "slug": 1, "difficulty": 1}):
+                sub_or_clauses = []
+                if user_keys:
+                    sub_or_clauses.append({"userId": {"$in": user_keys}})
+                if user_emails:
+                    sub_or_clauses.append({"userEmail": {"$in": user_emails}})
+                if sub_or_clauses:
+                    sub_query = {"$or": sub_or_clauses} if len(sub_or_clauses) > 1 else sub_or_clauses[0]
+                    for sub in submissions_coll.find(
+                        sub_query,
+                        {"_id": 1, "id": 1, "userId": 1, "userEmail": 1, "questionId": 1, "verdict": 1, "createdAt": 1}
+                    ):
+                        uid = str(sub.get("userId") or "")
+                        uem = str(sub.get("userEmail") or "").strip().lower()
+                        if uid:
+                            user_subs_map.setdefault(uid, []).append(sub)
+                        if uem and uem != uid:
+                            user_subs_map.setdefault(uem, []).append(sub)
+            except Exception:
+                pass
+
+        # Collect question IDs solved by ONLY these 10 users for difficulty mapping
+        needed_qids = set()
+        for u in paged_raw_users:
+            for qid in u.get("solvedQuestionIds", []):
+                needed_qids.add(str(qid))
+            uid = str(u.get("id") or u.get("_id") or "")
+            uem = str(u.get("email") or "").strip().lower()
+            for s in user_subs_map.get(uid, []) + user_subs_map.get(uem, []):
+                if str(s.get("verdict")).upper() == "ACCEPTED":
+                    qid = str(s.get("questionId") or "")
+                    if qid:
+                        needed_qids.add(qid)
+
+        questions_map: Dict[str, dict] = {}
+        if questions_coll is not None and needed_qids:
+            try:
+                for q in questions_coll.find(
+                    {"$or": [{"id": {"$in": list(needed_qids)}}, {"slug": {"$in": list(needed_qids)}}]},
+                    {"_id": 1, "id": 1, "slug": 1, "difficulty": 1}
+                ):
                     qid = str(q.get("id") or q.get("_id") or "")
                     qslug = str(q.get("slug") or "")
                     if qid:
@@ -140,54 +275,8 @@ class AdminService:
             except Exception:
                 pass
 
-        # 2. Fetch all users (minimal projection)
-        all_user_docs = []
-        if users_coll is not None:
-            try:
-                all_user_docs = list(users_coll.find({}, {"_id": 1, "id": 1, "name": 1, "email": 1, "studentId": 1, "collegeName": 1, "createdAt": 1}))
-            except Exception:
-                all_user_docs = []
-
-        # Collect all unique colleges across the whole cohort
-        all_colleges_set = set()
-        for u in all_user_docs:
-            c = (u.get("collegeName") or "").strip()
-            if c:
-                all_colleges_set.add(c)
-        sorted_all_colleges = sorted(list(all_colleges_set), key=lambda s: s.lower())
-
-        # 3. Fetch all user activities indexed by user identifiers (minimal projection)
-        activities_by_user: Dict[str, dict] = {}
-        if activities_coll is not None:
-            try:
-                for act in activities_coll.find({}, {"_id": 1, "id": 1, "userId": 1, "totalSolved": 1, "totalAttempted": 1, "solvedQuestionIds": 1, "attemptedQuestionIds": 1, "updatedAt": 1}):
-                    uid = str(act.get("userId") or act.get("id") or act.get("_id") or "")
-                    if uid:
-                        activities_by_user[uid] = act
-            except Exception:
-                pass
-
-        # 4. Fetch submissions indexed by userId/userEmail for verification and metrics (minimal projection: no code or testcase logs)
-        user_submissions_map: Dict[str, List[dict]] = {}
-        if submissions_coll is not None:
-            try:
-                for sub in submissions_coll.find({}, {"_id": 1, "id": 1, "userId": 1, "userEmail": 1, "questionId": 1, "verdict": 1, "createdAt": 1}):
-                    uid = str(sub.get("userId") or "")
-                    uem = str(sub.get("userEmail") or "").strip().lower()
-                    if uid:
-                        user_submissions_map.setdefault(uid, []).append(sub)
-                    if uem and uem != uid:
-                        user_submissions_map.setdefault(uem, []).append(sub)
-            except Exception:
-                pass
-
         user_stats_list: List[UserAdminStats] = []
-        total_questions_solved_sum = 0
-        total_submissions_sum = 0
-        college_solved_tracker: Dict[str, int] = {}
-        college_student_tracker: Dict[str, int] = {}
-
-        for u in all_user_docs:
+        for u in paged_raw_users:
             uid = str(u.get("id") or u.get("_id") or "")
             name = str(u.get("name") or "Unknown Student").strip()
             email = str(u.get("email") or "").strip()
@@ -195,23 +284,12 @@ class AdminService:
             college_name = str(u.get("collegeName") or "Unassigned College").strip()
             created_at = str(u.get("createdAt") or "")
 
-            # College stats
-            college_student_tracker[college_name] = college_student_tracker.get(college_name, 0) + 1
-
-            # Find matching activity doc
-            activity_doc = None
-            for key in [uid, email.lower(), student_id]:
-                if key and key in activities_by_user:
-                    activity_doc = activities_by_user[key]
-                    break
-
-            # Find submissions
+            # Combine submissions for this user
             user_subs = []
             for key in [uid, email.lower(), student_id]:
-                if key and key in user_submissions_map:
-                    user_subs.extend(user_submissions_map[key])
+                if key and key in user_subs_map:
+                    user_subs.extend(user_subs_map[key])
 
-            # Deduplicate submissions by id
             seen_sub_ids = set()
             unique_subs = []
             for s in user_subs:
@@ -220,24 +298,15 @@ class AdminService:
                     seen_sub_ids.add(sid)
                     unique_subs.append(s)
 
-            # Determine solved question IDs
-            solved_qids_set = set()
-            if activity_doc and activity_doc.get("solvedQuestionIds"):
-                for qid in activity_doc.get("solvedQuestionIds", []):
-                    solved_qids_set.add(str(qid))
-
+            # Determine solved & attempted question IDs
+            solved_qids_set = set(str(qid) for qid in u.get("solvedQuestionIds", []))
             for s in unique_subs:
                 if str(s.get("verdict")).upper() == "ACCEPTED":
                     qid = str(s.get("questionId") or "")
                     if qid:
                         solved_qids_set.add(qid)
 
-            # Determine attempted question IDs
-            attempted_qids_set = set(solved_qids_set)
-            if activity_doc and activity_doc.get("attemptedQuestionIds"):
-                for qid in activity_doc.get("attemptedQuestionIds", []):
-                    attempted_qids_set.add(str(qid))
-
+            attempted_qids_set = set(str(qid) for qid in u.get("attemptedQuestionIds", [])) | solved_qids_set
             for s in unique_subs:
                 qid = str(s.get("questionId") or "")
                 if qid:
@@ -260,23 +329,23 @@ class AdminService:
                 else:
                     med_cnt += 1
 
-            total_solved = len(solved_qids_set)
-            total_attempted = len(attempted_qids_set)
-            total_subs_count = len(unique_subs)
+            total_solved = len(solved_qids_set) or u.get("totalSolved", 0)
+            total_attempted = len(attempted_qids_set) or u.get("totalAttempted", 0)
+            total_subs_count = len(unique_subs) or total_attempted
 
-            # Accuracy rate calculation
+            # Accuracy calculation
             accepted_subs_count = sum(1 for s in unique_subs if str(s.get("verdict")).upper() == "ACCEPTED")
             if total_subs_count > 0:
                 accuracy = round((accepted_subs_count / total_subs_count) * 100.0, 1)
             elif total_solved > 0:
                 accuracy = 100.0
             else:
-                accuracy = 0.0
+                accuracy = u.get("accuracyRate", 0.0)
 
             # Last active time
             timestamps = []
-            if activity_doc and activity_doc.get("updatedAt"):
-                timestamps.append(str(activity_doc["updatedAt"]))
+            if u.get("lastActiveAt"):
+                timestamps.append(str(u["lastActiveAt"]))
             for s in unique_subs:
                 if s.get("createdAt"):
                     timestamps.append(str(s["createdAt"]))
@@ -285,86 +354,119 @@ class AdminService:
 
             last_active = max(timestamps) if timestamps else created_at or None
 
-            total_questions_solved_sum += total_solved
-            total_submissions_sum += total_subs_count
-            college_solved_tracker[college_name] = college_solved_tracker.get(college_name, 0) + total_solved
-
-            stats = UserAdminStats(
-                id=uid,
-                name=name,
-                email=email,
-                studentId=student_id,
-                collegeName=college_name,
-                createdAt=created_at,
-                totalSolved=total_solved,
-                totalAttempted=total_attempted,
-                totalSubmissions=total_subs_count,
-                accuracyRate=accuracy,
-                solvedBreakdown=SolvedDifficultyBreakdown(
-                    easy=easy_cnt,
-                    medium=med_cnt,
-                    hard=hard_cnt,
-                ),
-                lastActiveAt=last_active,
-            )
-            user_stats_list.append(stats)
-
-        # Overview calculation before applying user filters
-        top_colleges: List[CollegeMetric] = []
-        for cname, solved_count in sorted(college_solved_tracker.items(), key=lambda item: item[1], reverse=True)[:5]:
-            top_colleges.append(
-                CollegeMetric(
-                    collegeName=cname,
-                    studentCount=college_student_tracker.get(cname, 0),
-                    totalSolved=solved_count,
+            user_stats_list.append(
+                UserAdminStats(
+                    id=uid,
+                    name=name,
+                    email=email,
+                    studentId=student_id,
+                    collegeName=college_name,
+                    createdAt=created_at,
+                    totalSolved=total_solved,
+                    totalAttempted=total_attempted,
+                    totalSubmissions=total_subs_count,
+                    accuracyRate=accuracy,
+                    solvedBreakdown=SolvedDifficultyBreakdown(
+                        easy=easy_cnt,
+                        medium=med_cnt,
+                        hard=hard_cnt,
+                    ),
+                    lastActiveAt=last_active,
                 )
             )
 
+        # 6. Cohort overview metrics (computed quickly via DB aggregations, not full table downloads)
+        colleges_set = set()
+        try:
+            for c in users_coll.distinct("collegeName"):
+                if c and str(c).strip():
+                    colleges_set.add(str(c).strip())
+        except Exception:
+            pass
+        sorted_all_colleges = sorted(list(colleges_set), key=lambda s: s.lower())
+
+        total_students_cohort = 0
+        try:
+            total_students_cohort = users_coll.count_documents({})
+        except Exception:
+            pass
+
+        total_submissions_cohort = 0
+        if submissions_coll is not None:
+            try:
+                total_submissions_cohort = submissions_coll.count_documents({})
+            except Exception:
+                pass
+
+        total_solved_cohort = 0
+        accepted_subs_count = 0
+        if submissions_coll is not None:
+            try:
+                accepted_subs_count = submissions_coll.count_documents({"verdict": {"$in": ["ACCEPTED", "accepted"]}})
+            except Exception:
+                pass
+
+        if activities_coll is not None:
+            try:
+                act_sum = list(activities_coll.aggregate([{"$group": {"_id": None, "total": {"$sum": "$totalSolved"}}}]))
+                if act_sum and act_sum[0].get("total"):
+                    total_solved_cohort = int(act_sum[0]["total"])
+            except Exception:
+                pass
+
+        total_solved_cohort = max(total_solved_cohort, accepted_subs_count)
+
+        top_colleges: List[CollegeMetric] = []
+        try:
+            top_pipe = [
+                {"$match": {"collegeName": {"$exists": True, "$ne": ""}}},
+                {
+                    "$lookup": {
+                        "from": "user_activities",
+                        "localField": "id",
+                        "foreignField": "userId",
+                        "as": "act"
+                    }
+                },
+                {"$addFields": {"actDoc": {"$arrayElemAt": ["$act", 0]}}},
+                {
+                    "$group": {
+                        "_id": "$collegeName",
+                        "studentCount": {"$sum": 1},
+                        "totalSolved": {"$sum": {"$ifNull": ["$actDoc.totalSolved", 0]}}
+                    }
+                },
+                {"$sort": {"totalSolved": -1, "studentCount": -1}},
+                {"$limit": 5}
+            ]
+            for doc in users_coll.aggregate(top_pipe):
+                if doc.get("_id"):
+                    top_colleges.append(
+                        CollegeMetric(
+                            collegeName=doc["_id"],
+                            studentCount=doc.get("studentCount", 0),
+                            totalSolved=doc.get("totalSolved", 0),
+                        )
+                    )
+        except Exception:
+            pass
+
         overview = AdminUsersOverview(
-            totalStudents=len(all_user_docs),
+            totalStudents=total_students_cohort,
             totalColleges=len(sorted_all_colleges),
-            totalSolvedQuestions=total_questions_solved_sum,
-            totalSubmissions=total_submissions_sum,
+            totalSolvedQuestions=total_solved_cohort,
+            totalSubmissions=total_submissions_cohort,
             topColleges=top_colleges,
         )
 
-        # Filter by college
-        filtered_users = user_stats_list
-        if college and college.strip() and college.strip().lower() != "all":
-            selected_college = college.strip().lower()
-            filtered_users = [u for u in filtered_users if u.collegeName.lower() == selected_college]
-
-        # Filter by search
-        if search and search.strip():
-            sq = search.strip().lower()
-            filtered_users = [
-                u
-                for u in filtered_users
-                if sq in u.name.lower()
-                or sq in u.email.lower()
-                or sq in u.studentId.lower()
-                or sq in u.collegeName.lower()
-            ]
-
-        # Default sort: by total solved desc, then accuracy desc
-        filtered_users.sort(key=lambda u: (u.totalSolved, u.accuracyRate, u.totalSubmissions), reverse=True)
-
-        total_users_count = len(filtered_users)
-        total_pages = max(1, (total_users_count + (limit or 10) - 1) // (limit or 10)) if limit else 1
-
-        if page is not None and limit is not None:
-            paged_users = filtered_users[(page - 1) * limit : page * limit]
-        else:
-            paged_users = filtered_users
-
         return AdminUsersResponse(
             overview=overview,
-            users=paged_users,
+            users=user_stats_list,
             colleges=sorted_all_colleges,
             totalUsers=total_users_count,
-            page=page,
-            limit=limit,
-            totalPages=total_pages if page is not None else None,
+            page=page_num,
+            limit=limit_num,
+            totalPages=total_pages,
         )
 
     def get_user_details(self, user_id: str) -> Optional[UserDetailActivityResponse]:

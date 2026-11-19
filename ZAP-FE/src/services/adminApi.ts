@@ -128,13 +128,15 @@ export const adminApi = {
     college?: string,
     search?: string,
     page?: number,
-    limit?: number
+    limit?: number,
+    sortBy?: string
   ): Promise<AdminUsersResponse> => {
     const params = new URLSearchParams({ email });
     if (college && college !== "ALL") params.set("college", college);
     if (search && search.trim()) params.set("search", search.trim());
     if (page) params.set("page", String(page));
     if (limit) params.set("limit", String(limit));
+    if (sortBy) params.set("sort_by", sortBy);
 
     return adminFetch<AdminUsersResponse>(`/api/v1/admin/users?${params.toString()}`, email);
   },

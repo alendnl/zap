@@ -173,13 +173,23 @@ def submit_contest(
 @router.get("/api/v1/contests/{contest_id_or_slug}/analytics", response_model=ContestAnalyticsResponse)
 def get_contest_analytics(
     contest_id_or_slug: str,
-    page: Optional[int] = Query(None, ge=1, description="Page number for candidate submissions"),
-    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page for candidate submissions"),
+    page: Optional[int] = Query(1, ge=1, description="Page number for candidate submissions"),
+    limit: Optional[int] = Query(10, ge=1, le=100, description="Items per page for candidate submissions"),
+    search: Optional[str] = Query(None, description="Search candidate by name, email, or id"),
+    status: Optional[str] = Query(None, description="Filter candidate by status"),
+    sort_by: Optional[str] = Query("rank_asc", description="Sort criteria"),
     service: ContestService = Depends(get_contest_service),
     admin_email: str = Depends(verify_admin_access),
 ):
     try:
-        return service.get_contest_analytics(contest_id_or_slug, page=page, limit=limit)
+        return service.get_contest_analytics(
+            contest_id_or_slug,
+            page=page,
+            limit=limit,
+            search=search,
+            status=status,
+            sort_by=sort_by,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
