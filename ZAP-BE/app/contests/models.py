@@ -273,3 +273,7 @@ class ContestAnalyticsResponse(BaseModel):
     codingStats: Dict[str, Any]
     proctoringStats: ProctoringSummaryStats
     submissions: List[Dict[str, Any]]
+    totalSubmissions: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
+    totalPages: Optional[int] = None

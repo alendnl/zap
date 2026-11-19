@@ -75,14 +75,22 @@ function ContestAnalyticsContent() {
   // View state for Question Breakdown: "mcq" | "coding"
   const [questionBreakdownTab, setQuestionBreakdownTab] = useState<"mcq" | "coding">("mcq");
 
-  // Candidate Submissions Filters & Search
+  // Candidate Submissions Filters, Search & Pagination
   const [candidateSearch, setCandidateSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "SUBMITTED" | "IN_PROGRESS">("ALL");
   const [integrityFilter, setIntegrityFilter] = useState<"ALL" | "CLEAN" | "FLAGGED">("ALL");
   const [sortBy, setSortBy] = useState<"rank_asc" | "score_desc" | "score_asc" | "infractions_desc" | "time_asc">("rank_asc");
+  const [candidatePage, setCandidatePage] = useState(1);
+  const CANDIDATES_PER_PAGE = 10;
 
-  // Selected Student Drilldown Drawer
+  // Question Breakdown pagination (10 per page)
+  const [mcqStatsPage, setMcqStatsPage] = useState(1);
+  const [codingStatsPage, setCodingStatsPage] = useState(1);
+  const STATS_PER_PAGE = 10;
+
+  // Selected Student Drilldown Drawer & Single Candidate Loading
   const [inspectingStudent, setInspectingStudent] = useState<CandidateSubmissionItem | null>(null);
+  const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
   const [studentDrawerTab, setStudentDrawerTab] = useState<"overview" | "proctoring" | "mcq" | "coding">("overview");
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [resettingCandidateId, setResettingCandidateId] = useState<string | null>(null);
@@ -212,6 +220,29 @@ function ContestAnalyticsContent() {
     }
   };
 
+  // Load single candidate drilldown on demand
+  const handleInspectStudent = async (sub: CandidateSubmissionItem) => {
+    const candidateId = sub.submissionId || sub.id || sub.studentId || sub.studentEmail;
+    setStudentDrawerTab("overview");
+    setInspectingStudent(sub);
+
+    // If candidate report with coding breakdown or coding state is already present, no need to refetch
+    if (sub.codingBreakdown && sub.codingBreakdown.length > 0 && sub.codingState) {
+      return;
+    }
+
+    setLoadingStudentDetail(true);
+    try {
+      const contestSlugOrId = analytics?.contest.slug || analytics?.contest.id || selectedContestSlug;
+      const fullSub = await contestApi.getCandidateSubmission(contestSlugOrId, candidateId);
+      setInspectingStudent(fullSub);
+    } catch (err: any) {
+      console.error("Failed to load candidate detailed report:", err);
+    } finally {
+      setLoadingStudentDetail(false);
+    }
+  };
+
   // Filtered & Sorted Candidate Submissions List
   const filteredSubmissions = useMemo(() => {
     if (!analytics?.submissions) return [];
@@ -270,6 +301,30 @@ function ContestAnalyticsContent() {
 
     return list;
   }, [analytics?.submissions, candidateSearch, statusFilter, integrityFilter, sortBy]);
+
+  // Paginated Candidate Submissions (10 per page)
+  const paginatedSubmissions = useMemo(() => {
+    const start = (candidatePage - 1) * CANDIDATES_PER_PAGE;
+    return filteredSubmissions.slice(start, start + CANDIDATES_PER_PAGE);
+  }, [filteredSubmissions, candidatePage]);
+
+  const totalCandidatePages = Math.max(1, Math.ceil(filteredSubmissions.length / CANDIDATES_PER_PAGE));
+
+  // Paginated MCQ Question Performance (10 per page)
+  const mcqQuestionsList = analytics?.mcqStats?.questions || [];
+  const paginatedMcqQuestions = useMemo(() => {
+    const start = (mcqStatsPage - 1) * STATS_PER_PAGE;
+    return mcqQuestionsList.slice(start, start + STATS_PER_PAGE);
+  }, [mcqQuestionsList, mcqStatsPage]);
+  const totalMcqStatsPages = Math.max(1, Math.ceil(mcqQuestionsList.length / STATS_PER_PAGE));
+
+  // Paginated Coding Challenges Performance (10 per page)
+  const codingProblemsList = analytics?.codingStats?.problems || [];
+  const paginatedCodingProblems = useMemo(() => {
+    const start = (codingStatsPage - 1) * STATS_PER_PAGE;
+    return codingProblemsList.slice(start, start + STATS_PER_PAGE);
+  }, [codingProblemsList, codingStatsPage]);
+  const totalCodingStatsPages = Math.max(1, Math.ceil(codingProblemsList.length / STATS_PER_PAGE));
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -707,14 +762,15 @@ function ContestAnalyticsContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#1e293b]">
-                        {analytics.mcqStats.questions.map((q, idx) => {
+                        {paginatedMcqQuestions.map((q, idx) => {
+                          const itemIndex = (mcqStatsPage - 1) * STATS_PER_PAGE + idx;
                           const isHigh = q.accuracyRate >= 70;
                           const isLow = q.accuracyRate < 40;
 
                           return (
                             <tr key={q.questionId} className="hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-colors">
                               <td className="py-3 px-3 font-medium text-[#0f172a] dark:text-white">
-                                <span className="font-mono text-[#64748b] mr-1.5">Q{idx + 1}.</span>
+                                <span className="font-mono text-[#64748b] mr-1.5">Q{itemIndex + 1}.</span>
                                 {q.title}
                               </td>
                               <td className="py-3 px-3">
@@ -756,6 +812,31 @@ function ContestAnalyticsContent() {
                       </tbody>
                     </table>
                   )}
+
+                  {totalMcqStatsPages > 1 && (
+                    <div className="flex items-center justify-between pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] text-xs text-[#64748b]">
+                      <span>Showing {((mcqStatsPage - 1) * STATS_PER_PAGE) + 1} - {Math.min(mcqQuestionsList.length, mcqStatsPage * STATS_PER_PAGE)} of {mcqQuestionsList.length} MCQs</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setMcqStatsPage((p) => Math.max(1, p - 1))}
+                          disabled={mcqStatsPage === 1}
+                          className="px-2 py-1 rounded border border-[#e2e8f0] dark:border-[#1e293b] disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <span>Page {mcqStatsPage} of {totalMcqStatsPages}</span>
+                        <button
+                          type="button"
+                          onClick={() => setMcqStatsPage((p) => Math.min(totalMcqStatsPages, p + 1))}
+                          disabled={mcqStatsPage === totalMcqStatsPages}
+                          className="px-2 py-1 rounded border border-[#e2e8f0] dark:border-[#1e293b] disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -777,53 +858,81 @@ function ContestAnalyticsContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#1e293b]">
-                        {analytics.codingStats.problems.map((p, idx) => (
-                          <tr key={p.questionId} className="hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-colors">
-                            <td className="py-3 px-3 font-medium text-[#0f172a] dark:text-white">
-                              <span className="font-mono text-[#64748b] mr-1.5">P{idx + 1}.</span>
-                              {p.title}
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                                {p.difficulty}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-center font-mono">{p.attemptedCount}</td>
-                            <td className="py-3 px-3 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                              {p.acceptedCount}
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {Object.entries(p.languagesUsed || {}).map(([lang, cnt]) => (
-                                  <span
-                                    key={lang}
-                                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#f1f5f9] dark:bg-[#0b0f17] text-[#475569] dark:text-[#94a3b8] border border-[#e2e8f0] dark:border-[#1e293b]"
-                                  >
-                                    {lang}: {cnt}
-                                  </span>
-                                ))}
-                                {(!p.languagesUsed || Object.keys(p.languagesUsed).length === 0) && (
-                                  <span className="text-[10px] text-[#64748b]">None recorded</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              <div className="inline-flex items-center gap-2">
-                                <div className="w-16 h-1.5 rounded-full bg-[#e2e8f0] dark:bg-[#0b0f17] overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full bg-emerald-500"
-                                    style={{ width: `${p.acceptanceRate}%` }}
-                                  />
-                                </div>
-                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                                  {p.acceptanceRate}%
+                        {paginatedCodingProblems.map((p, idx) => {
+                          const itemIndex = (codingStatsPage - 1) * STATS_PER_PAGE + idx;
+                          return (
+                            <tr key={p.questionId} className="hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-colors">
+                              <td className="py-3 px-3 font-medium text-[#0f172a] dark:text-white">
+                                <span className="font-mono text-[#64748b] mr-1.5">P{itemIndex + 1}.</span>
+                                {p.title}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                  {p.difficulty}
                                 </span>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="py-3 px-3 text-center font-mono">{p.attemptedCount}</td>
+                              <td className="py-3 px-3 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                                {p.acceptedCount}
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {Object.entries(p.languagesUsed || {}).map(([lang, cnt]) => (
+                                    <span
+                                      key={lang}
+                                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#f1f5f9] dark:bg-[#0b0f17] text-[#475569] dark:text-[#94a3b8] border border-[#e2e8f0] dark:border-[#1e293b]"
+                                    >
+                                      {lang}: {cnt}
+                                    </span>
+                                  ))}
+                                  {(!p.languagesUsed || Object.keys(p.languagesUsed).length === 0) && (
+                                    <span className="text-[10px] text-[#64748b]">None recorded</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <div className="inline-flex items-center gap-2">
+                                  <div className="w-16 h-1.5 rounded-full bg-[#e2e8f0] dark:bg-[#0b0f17] overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-emerald-500"
+                                      style={{ width: `${p.acceptanceRate}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                                    {p.acceptanceRate}%
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
+                  )}
+
+                  {totalCodingStatsPages > 1 && (
+                    <div className="flex items-center justify-between pt-3 border-t border-[#e2e8f0] dark:border-[#1e293b] text-xs text-[#64748b]">
+                      <span>Showing {((codingStatsPage - 1) * STATS_PER_PAGE) + 1} - {Math.min(codingProblemsList.length, codingStatsPage * STATS_PER_PAGE)} of {codingProblemsList.length} Challenges</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCodingStatsPage((p) => Math.max(1, p - 1))}
+                          disabled={codingStatsPage === 1}
+                          className="px-2 py-1 rounded border border-[#e2e8f0] dark:border-[#1e293b] disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <span>Page {codingStatsPage} of {totalCodingStatsPages}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCodingStatsPage((p) => Math.min(totalCodingStatsPages, p + 1))}
+                          disabled={codingStatsPage === totalCodingStatsPages}
+                          className="px-2 py-1 rounded border border-[#e2e8f0] dark:border-[#1e293b] disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -847,7 +956,10 @@ function ContestAnalyticsContent() {
                       type="text"
                       placeholder="Search candidate name or email..."
                       value={candidateSearch}
-                      onChange={(e) => setCandidateSearch(e.target.value)}
+                      onChange={(e) => {
+                        setCandidateSearch(e.target.value);
+                        setCandidatePage(1);
+                      }}
                       className="pl-8 pr-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0b0f17] text-xs text-[#0f172a] dark:text-white placeholder-[#94a3b8] focus:outline-none focus:border-purple-500 w-48 sm:w-64"
                     />
                   </div>
@@ -855,7 +967,10 @@ function ContestAnalyticsContent() {
                   {/* Status Filter */}
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value as any);
+                      setCandidatePage(1);
+                    }}
                     className="px-2.5 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0b0f17] text-xs text-[#0f172a] dark:text-white focus:outline-none cursor-pointer"
                   >
                     <option value="ALL">All Statuses</option>
@@ -866,7 +981,10 @@ function ContestAnalyticsContent() {
                   {/* Integrity Filter */}
                   <select
                     value={integrityFilter}
-                    onChange={(e) => setIntegrityFilter(e.target.value as any)}
+                    onChange={(e) => {
+                      setIntegrityFilter(e.target.value as any);
+                      setCandidatePage(1);
+                    }}
                     className="px-2.5 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0b0f17] text-xs text-[#0f172a] dark:text-white focus:outline-none cursor-pointer"
                   >
                     <option value="ALL">All Integrity</option>
@@ -877,7 +995,10 @@ function ContestAnalyticsContent() {
                   {/* Sorting */}
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => {
+                      setSortBy(e.target.value as any);
+                      setCandidatePage(1);
+                    }}
                     className="px-2.5 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-[#f8fafc] dark:bg-[#0b0f17] text-xs text-[#0f172a] dark:text-white focus:outline-none cursor-pointer"
                   >
                     <option value="rank_asc">Sort by Rank / Highest Score</option>
@@ -910,10 +1031,11 @@ function ContestAnalyticsContent() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#1e293b]">
-                      {filteredSubmissions.map((sub, idx) => {
+                      {paginatedSubmissions.map((sub, idx) => {
+                        const rankIdx = (candidatePage - 1) * CANDIDATES_PER_PAGE + idx;
                         const proc = sub.proctoring || { tabSwitchCount: 0, copyPasteAttempts: 0, fullscreenExitCount: 0 };
                         const infractions = proc.tabSwitchCount + proc.copyPasteAttempts + proc.fullscreenExitCount;
-                        const isTopRank = idx < 3;
+                        const isTopRank = rankIdx < 3;
 
                         return (
                           <tr
@@ -924,17 +1046,17 @@ function ContestAnalyticsContent() {
                               {isTopRank ? (
                                 <span
                                   className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-bold text-xs ${
-                                    idx === 0
+                                    rankIdx === 0
                                       ? "bg-amber-400/20 text-amber-500 border border-amber-400/40"
-                                      : idx === 1
+                                      : rankIdx === 1
                                       ? "bg-slate-300/20 text-slate-400 border border-slate-300/40"
                                       : "bg-amber-700/20 text-amber-600 border border-amber-700/40"
                                   }`}
                                 >
-                                  {idx + 1}
+                                  {rankIdx + 1}
                                 </span>
                               ) : (
-                                <span className="font-mono text-[#64748b]">#{idx + 1}</span>
+                                <span className="font-mono text-[#64748b]">#{rankIdx + 1}</span>
                               )}
                             </td>
 
@@ -1014,10 +1136,7 @@ function ContestAnalyticsContent() {
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setInspectingStudent(sub);
-                                    setStudentDrawerTab("overview");
-                                  }}
+                                  onClick={() => void handleInspectStudent(sub)}
                                   className="px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold text-xs cursor-pointer transition-all"
                                 >
                                   Inspect
@@ -1039,6 +1158,50 @@ function ContestAnalyticsContent() {
                       })}
                     </tbody>
                   </table>
+                )}
+
+                {/* Candidate Submissions Pagination (10 per page) */}
+                {filteredSubmissions.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b] text-xs text-[#64748b] dark:text-[#94a3b8]">
+                    <div>
+                      Showing{" "}
+                      <strong className="text-[#0f172a] dark:text-white">
+                        {Math.min(filteredSubmissions.length, (candidatePage - 1) * CANDIDATES_PER_PAGE + 1)}
+                      </strong>{" "}
+                      to{" "}
+                      <strong className="text-[#0f172a] dark:text-white">
+                        {Math.min(filteredSubmissions.length, candidatePage * CANDIDATES_PER_PAGE)}
+                      </strong>{" "}
+                      of{" "}
+                      <strong className="text-[#0f172a] dark:text-white">{filteredSubmissions.length}</strong> candidates
+                    </div>
+
+                    {totalCandidatePages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCandidatePage((p) => Math.max(1, p - 1))}
+                          disabled={candidatePage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e293b] hover:bg-slate-100 dark:hover:bg-[#1a2233] disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+                        >
+                          Previous
+                        </button>
+
+                        <span className="px-2 py-1 text-xs font-semibold text-[#0f172a] dark:text-white">
+                          Page {candidatePage} of {totalCandidatePages}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setCandidatePage((p) => Math.min(totalCandidatePages, p + 1))}
+                          disabled={candidatePage === totalCandidatePages}
+                          className="px-2.5 py-1.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e293b] hover:bg-slate-100 dark:hover:bg-[#1a2233] disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1142,7 +1305,15 @@ function ContestAnalyticsContent() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              {/* TAB 1: OVERVIEW */}
+              {loadingStudentDetail ? (
+                <div className="py-24 flex flex-col items-center justify-center text-xs text-[#64748b] dark:text-[#94a3b8] gap-3">
+                  <RefreshCw className="w-8 h-8 animate-spin text-purple-600 dark:text-purple-400" />
+                  <span className="font-semibold text-sm text-[#0f172a] dark:text-white">Loading candidate submission dossier...</span>
+                  <span className="text-[11px]">Fetching candidate code, test cases, and telemetry from database</span>
+                </div>
+              ) : (
+                <>
+                  {/* TAB 1: OVERVIEW */}
               {studentDrawerTab === "overview" && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -1367,6 +1538,8 @@ function ContestAnalyticsContent() {
                     </div>
                   )}
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>

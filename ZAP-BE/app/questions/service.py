@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, Any, List, Union
+import re
 from datetime import datetime, timezone
 from app.questions.models import Question, QuestionCreate, QuestionUpdate, QuestionSummary
 
@@ -59,13 +60,27 @@ class QuestionService:
                 return Question(**clean)
         return None
 
-    def list_questions(self, status: Optional[str] = None, summary: bool = True) -> list:
+    def list_questions(
+        self,
+        status: Optional[str] = None,
+        difficulty: Optional[str] = None,
+        search: Optional[str] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+        summary: bool = True,
+    ) -> Union[List[Union[QuestionSummary, Question]], Dict[str, Any]]:
         coll = self._get_collection()
+        query: Dict[str, Any] = {}
+        if status and status.upper() != "ALL":
+            query["status"] = status
+        if difficulty and difficulty.upper() != "ALL":
+            query["difficulty"] = difficulty.upper()
+        if search and search.strip():
+            rgx = {"$regex": re.escape(search.strip()), "$options": "i"}
+            query["$or"] = [{"title": rgx}, {"slug": rgx}, {"tags": rgx}]
+
         questions = []
         if coll is not None:
-            query = {}
-            if status:
-                query["status"] = status
             if summary:
                 projection = {
                     "_id": 1,
@@ -77,39 +92,95 @@ class QuestionService:
                     "status": 1,
                     "version": 1,
                     "supportedLanguages": 1,
+                    "testCasesCount": 1,
                     "testCases": 1,
                 }
-                cursor = coll.find(query, projection)
+                cursor = coll.find(query, projection).sort("createdAt", -1)
+                total = coll.count_documents(query) if page is not None and limit is not None else 0
+
+                if page is not None and limit is not None:
+                    skip = (page - 1) * limit
+                    cursor = cursor.skip(skip).limit(limit)
+
                 for doc in cursor:
                     if not doc.get("id") and "_id" in doc:
                         doc["id"] = str(doc["_id"])
                     doc.pop("_id", None)
-                    doc["testCasesCount"] = len(doc.get("testCases", []))
+                    if doc.get("testCasesCount") is None:
+                        doc["testCasesCount"] = len(doc.get("testCases", []))
                     doc.pop("testCases", None)
                     questions.append(QuestionSummary(**doc))
+
+                if page is not None and limit is not None:
+                    return {
+                        "items": questions,
+                        "total": total,
+                        "page": page,
+                        "limit": limit,
+                        "totalPages": max(1, (total + limit - 1) // limit),
+                    }
                 return questions
 
-            cursor = coll.find(query)
+            cursor = coll.find(query).sort("createdAt", -1)
+            total = coll.count_documents(query) if page is not None and limit is not None else 0
+
+            if page is not None and limit is not None:
+                skip = (page - 1) * limit
+                cursor = cursor.skip(skip).limit(limit)
+
             for doc in cursor:
                 if not doc.get("id") and "_id" in doc:
                     doc["id"] = str(doc["_id"])
                 doc.pop("_id", None)
                 questions.append(Question(**doc))
+
+            if page is not None and limit is not None:
+                return {
+                    "items": questions,
+                    "total": total,
+                    "page": page,
+                    "limit": limit,
+                    "totalPages": max(1, (total + limit - 1) // limit),
+                }
             return questions
-        
+
+        # Memory store fallback
         for item in self._memory_store.values():
-            if status and item.get("status") != status:
+            if status and status.upper() != "ALL" and item.get("status") != status:
                 continue
+            if difficulty and difficulty.upper() != "ALL" and str(item.get("difficulty", "")).upper() != difficulty.upper():
+                continue
+            if search and search.strip():
+                s = search.strip().lower()
+                title_match = s in str(item.get("title", "")).lower()
+                slug_match = s in str(item.get("slug", "")).lower()
+                tags_match = any(s in str(t).lower() for t in item.get("tags", []))
+                if not (title_match or slug_match or tags_match):
+                    continue
+
             clean = dict(item)
             if not clean.get("id") and "_id" in clean:
                 clean["id"] = str(clean["_id"])
             clean.pop("_id", None)
             if summary:
-                clean["testCasesCount"] = len(clean.get("testCases", []))
+                if clean.get("testCasesCount") is None:
+                    clean["testCasesCount"] = len(clean.get("testCases", []))
                 clean.pop("testCases", None)
                 questions.append(QuestionSummary(**clean))
             else:
                 questions.append(Question(**clean))
+
+        if page is not None and limit is not None:
+            total = len(questions)
+            skip = (page - 1) * limit
+            sliced = questions[skip : skip + limit]
+            return {
+                "items": sliced,
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "totalPages": max(1, (total + limit - 1) // limit),
+            }
         return questions
 
     def update_question(self, question_id: str, data: QuestionUpdate) -> Optional[Question]:

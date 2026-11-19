@@ -127,6 +127,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [questionPage, setQuestionPage] = useState(1);
+  const QUESTIONS_PER_PAGE = 10;
 
   // Contest Management & Session State
   const [contests, setContests] = useState<ContestSummary[]>([]);
@@ -135,6 +137,8 @@ export default function Home() {
   const [loadingContestStart, setLoadingContestStart] = useState(false);
   const [activeContestSession, setActiveContestSession] = useState<ContestStartResponse | null>(null);
   const [contestSearch, setContestSearch] = useState("");
+  const [contestPage, setContestPage] = useState(1);
+  const CONTESTS_PER_PAGE = 10;
 
   const loadContestsList = useCallback(async () => {
     setLoadingContests(true);
@@ -470,6 +474,43 @@ export default function Home() {
       return matchesSearch && matchesDifficulty && matchesTag;
     });
   }, [currentTopicQuestions, searchQuery, difficultyFilter, selectedTag]);
+
+  // Reset pagination to page 1 whenever filters or tabs change
+  useEffect(() => {
+    setQuestionPage(1);
+  }, [searchQuery, difficultyFilter, selectedTag, activeTab]);
+
+  const totalQuestionPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
+  const safeQuestionPage = Math.min(questionPage, totalQuestionPages);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (safeQuestionPage - 1) * QUESTIONS_PER_PAGE;
+    return filteredQuestions.slice(start, start + QUESTIONS_PER_PAGE);
+  }, [filteredQuestions, safeQuestionPage]);
+
+  // Filtered and paginated contests
+  const filteredContests = useMemo(() => {
+    if (!contestSearch.trim()) return contests;
+    const term = contestSearch.toLowerCase().trim();
+    return contests.filter(
+      (c) =>
+        c.title.toLowerCase().includes(term) ||
+        c.slug.toLowerCase().includes(term) ||
+        c.description?.toLowerCase().includes(term)
+    );
+  }, [contests, contestSearch]);
+
+  useEffect(() => {
+    setContestPage(1);
+  }, [contestSearch]);
+
+  const totalContestPages = Math.max(1, Math.ceil(filteredContests.length / CONTESTS_PER_PAGE));
+  const safeContestPage = Math.min(contestPage, totalContestPages);
+
+  const paginatedContests = useMemo(() => {
+    const start = (safeContestPage - 1) * CONTESTS_PER_PAGE;
+    return filteredContests.slice(start, start + CONTESTS_PER_PAGE);
+  }, [filteredContests, safeContestPage]);
 
   // Solved Count for current active topic
   const solvedCount = useMemo(() => {
@@ -1018,7 +1059,7 @@ export default function Home() {
 
                 {/* Table Body */}
                 <div className="divide-y divide-[#e2e8f0] dark:divide-[#1e293b]">
-                  {filteredQuestions.map((q) => {
+                  {paginatedQuestions.map((q) => {
                     const diffConfig =
                       DIFFICULTY_BADGES[q.difficulty] || DIFFICULTY_BADGES.EASY;
                     const isOpening =
@@ -1161,6 +1202,41 @@ export default function Home() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Pagination Controls for Problems Catalog */}
+            {filteredQuestions.length > 0 && totalQuestionPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+                <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                  Showing <strong className="text-[#0f172a] dark:text-white">{(safeQuestionPage - 1) * QUESTIONS_PER_PAGE + 1}</strong> to{" "}
+                  <strong className="text-[#0f172a] dark:text-white">{Math.min(safeQuestionPage * QUESTIONS_PER_PAGE, filteredQuestions.length)}</strong> of{" "}
+                  <strong className="text-[#0f172a] dark:text-white">{filteredQuestions.length}</strong> problems
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQuestionPage((p) => Math.max(1, p - 1))}
+                    disabled={safeQuestionPage <= 1}
+                    className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                    <span>Page</span>
+                    <strong className="text-[#0f172a] dark:text-white">{safeQuestionPage}</strong>
+                    <span>of</span>
+                    <strong className="text-[#0f172a] dark:text-white">{totalQuestionPages}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuestionPage((p) => Math.min(totalQuestionPages, p + 1))}
+                    disabled={safeQuestionPage >= totalQuestionPages}
+                    className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             )}
@@ -1313,65 +1389,101 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-5">
-                  {contests.map((c) => (
-                    <div
-                      key={c.id}
-                      className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-6 shadow-xs hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6"
-                    >
-                      <div className="space-y-3 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono uppercase tracking-wide">
-                            {c.status}
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold font-mono">
-                            {c.durationMinutes} Minutes
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold font-mono">
-                            {c.totalPoints} Total Points
-                          </span>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-5">
+                    {paginatedContests.map((c) => (
+                      <div
+                        key={c.id}
+                        className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-6 shadow-xs hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+                      >
+                        <div className="space-y-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono uppercase tracking-wide">
+                              {c.status}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold font-mono">
+                              {c.durationMinutes} Minutes
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold font-mono">
+                              {c.totalPoints} Total Points
+                            </span>
+                          </div>
+
+                          <div>
+                            <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] dark:text-white tracking-tight">
+                              {c.title}
+                            </h2>
+                            <p className="text-xs sm:text-sm text-[#64748b] dark:text-[#94a3b8] mt-1 leading-relaxed">
+                              {c.description}
+                            </p>
+                          </div>
+
+                          {/* Structure breakdown tags */}
+                          <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+                            {c.hasMcq && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
+                                <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                <span>{c.mcqQuestionsCount} Multiple Choice Questions</span>
+                              </span>
+                            )}
+
+                            {c.hasCoding && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
+                                <Code2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>{c.codingQuestionsCount} Algorithm Coding Challenges</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div>
-                          <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] dark:text-white tracking-tight">
-                            {c.title}
-                          </h2>
-                          <p className="text-xs sm:text-sm text-[#64748b] dark:text-[#94a3b8] mt-1 leading-relaxed">
-                            {c.description}
-                          </p>
-                        </div>
-
-                        {/* Structure breakdown tags */}
-                        <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
-                          {c.hasMcq && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
-                              <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>{c.mcqQuestionsCount} Multiple Choice Questions</span>
-                            </span>
-                          )}
-
-                          {c.hasCoding && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] text-[#334155] dark:text-[#cbd5e1] font-medium">
-                              <Code2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span>{c.codingQuestionsCount} Algorithm Coding Challenges</span>
-                            </span>
-                          )}
+                        {/* Primary CTA Button */}
+                        <div className="shrink-0 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setActiveContestOverview(c)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-600/25 cursor-pointer transition-transform active:scale-98"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>View Structure & Enter</span>
+                          </button>
                         </div>
                       </div>
+                    ))}
+                  </div>
 
-                      {/* Primary CTA Button */}
-                      <div className="shrink-0 flex items-center justify-end">
+                  {totalContestPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+                      <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                        Showing <strong className="text-[#0f172a] dark:text-white">{(safeContestPage - 1) * CONTESTS_PER_PAGE + 1}</strong> to{" "}
+                        <strong className="text-[#0f172a] dark:text-white">{Math.min(safeContestPage * CONTESTS_PER_PAGE, filteredContests.length)}</strong> of{" "}
+                        <strong className="text-[#0f172a] dark:text-white">{filteredContests.length}</strong> contests
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setActiveContestOverview(c)}
-                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-600/25 cursor-pointer transition-transform active:scale-98"
+                          onClick={() => setContestPage((p) => Math.max(1, p - 1))}
+                          disabled={safeContestPage <= 1}
+                          className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
                         >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>View Structure & Enter</span>
+                          Previous
+                        </button>
+                        <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                          <span>Page</span>
+                          <strong className="text-[#0f172a] dark:text-white">{safeContestPage}</strong>
+                          <span>of</span>
+                          <strong className="text-[#0f172a] dark:text-white">{totalContestPages}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setContestPage((p) => Math.min(totalContestPages, p + 1))}
+                          disabled={safeContestPage >= totalContestPages}
+                          className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                        >
+                          Next
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

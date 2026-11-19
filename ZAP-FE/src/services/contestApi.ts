@@ -7,6 +7,7 @@ import {
   ContestSubmitResponse,
   ContestSessionSyncRequest,
   ContestAnalyticsResponse,
+  CandidateSubmissionItem,
 } from "@/types/contest";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
 
@@ -136,8 +137,21 @@ export const contestApi = {
       body: JSON.stringify(payload),
     }),
 
-  getAnalytics: (idOrSlug: string): Promise<ContestAnalyticsResponse> =>
-    apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/analytics`),
+  getAnalytics: (idOrSlug: string, page?: number, limit?: number): Promise<ContestAnalyticsResponse> => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    if (limit) params.append("limit", String(limit));
+    const qs = params.toString();
+    return apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/analytics${qs ? `?${qs}` : ""}`);
+  },
+
+  getCandidateSubmission: (
+    idOrSlug: string,
+    studentIdOrSubId: string
+  ): Promise<CandidateSubmissionItem> =>
+    apiFetch(
+      `/api/v1/contests/${encodeURIComponent(idOrSlug)}/submissions/${encodeURIComponent(studentIdOrSubId)}`
+    ),
 
   resetCandidate: (
     idOrSlug: string,

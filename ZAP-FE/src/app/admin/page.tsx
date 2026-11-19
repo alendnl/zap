@@ -89,10 +89,10 @@ export default function AdminOverviewHub() {
     setLoadingStats(true);
     try {
       const [usersData, questionsList, mcqList, contestsList] = await Promise.allSettled([
-        adminApi.getUsersDashboard(student.email),
-        questionsApi.list(),
-        mcqApi.list(),
-        contestApi.list(),
+        adminApi.getUsersDashboard(student.email, undefined, undefined, 1, 1),
+        questionsApi.list(undefined, true),
+        mcqApi.list(undefined, undefined, undefined, undefined, true),
+        contestApi.list(undefined, true),
       ]);
 
       if (usersData.status === "fulfilled") {

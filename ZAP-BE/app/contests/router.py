@@ -173,11 +173,33 @@ def submit_contest(
 @router.get("/api/v1/contests/{contest_id_or_slug}/analytics", response_model=ContestAnalyticsResponse)
 def get_contest_analytics(
     contest_id_or_slug: str,
+    page: Optional[int] = Query(None, ge=1, description="Page number for candidate submissions"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page for candidate submissions"),
     service: ContestService = Depends(get_contest_service),
     admin_email: str = Depends(verify_admin_access),
 ):
     try:
-        return service.get_contest_analytics(contest_id_or_slug)
+        return service.get_contest_analytics(contest_id_or_slug, page=page, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/contests/{contest_id_or_slug}/submissions/{student_id_or_sub_id}")
+@router.get("/api/v1/contests/{contest_id_or_slug}/submissions/{student_id_or_sub_id}")
+def get_contest_candidate_submission(
+    contest_id_or_slug: str,
+    student_id_or_sub_id: str,
+    service: ContestService = Depends(get_contest_service),
+    admin_email: str = Depends(verify_admin_access),
+):
+    try:
+        candidate_sub = service.get_candidate_submission(contest_id_or_slug, student_id_or_sub_id)
+        if not candidate_sub:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Candidate submission '{student_id_or_sub_id}' not found for contest '{contest_id_or_slug}'"
+            )
+        return candidate_sub
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

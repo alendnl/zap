@@ -49,6 +49,15 @@ def test_search_mcq():
     assert response_halving.status_code == 200
     assert len(response_halving.json()) >= 1
 
+def test_list_mcq_pagination():
+    response = client.get("/api/v1/mcq/questions?page=1&limit=10")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 10
+    assert "X-Total-Count" in response.headers
+    assert int(response.headers["X-Total-Count"]) >= 35
+    assert response.headers["X-Page"] == "1"
+
 def test_get_single_mcq_question():
     list_res = client.get("/api/v1/mcq/questions")
     first_id = list_res.json()[0]["id"]

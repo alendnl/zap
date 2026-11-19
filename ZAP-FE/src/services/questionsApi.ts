@@ -61,10 +61,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const questionsApi = {
-  list: (status?: string, summary: boolean = true): Promise<QuestionSummary[]> => {
+  list: (
+    status?: string,
+    summary: boolean = true,
+    page?: number,
+    limit?: number,
+    difficulty?: string,
+    search?: string
+  ): Promise<QuestionSummary[]> => {
     const params = new URLSearchParams();
-    if (status) params.append("status", status);
+    if (status && status !== "ALL") params.append("status", status);
     params.append("summary", summary ? "true" : "false");
+    if (page) params.append("page", String(page));
+    if (limit) params.append("limit", String(limit));
+    if (difficulty && difficulty !== "ALL") params.append("difficulty", difficulty);
+    if (search && search.trim()) params.append("search", search.trim());
     return apiFetch(`/api/v1/questions?${params.toString()}`);
   },
 

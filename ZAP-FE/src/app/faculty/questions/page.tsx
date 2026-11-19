@@ -23,17 +23,26 @@ export default function FacultyDashboard() {
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const QUESTIONS_PER_PAGE = 10;
 
   useEffect(() => {
     setLoading(true);
     questionsApi
-      .list()
+      .list(undefined, true)
       .then(setQuestions)
       .catch((err: unknown) => {
         setError(err instanceof Error ? `Could not load questions: ${err.message}` : "Could not load questions.");
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedQuestions = questions.slice(
+    (safePage - 1) * QUESTIONS_PER_PAGE,
+    safePage * QUESTIONS_PER_PAGE
+  );
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this question?")) return;
@@ -103,7 +112,7 @@ export default function FacultyDashboard() {
         )}
 
         <div className="space-y-3">
-          {questions.map((q) => (
+          {paginatedQuestions.map((q) => (
             <div
               key={q.id}
               className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-blue-500/30 transition-all group shadow-xs"
@@ -147,6 +156,40 @@ export default function FacultyDashboard() {
               </div>
             </div>
           ))}
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+              <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                Showing <strong className="text-[#0f172a] dark:text-white">{(safePage - 1) * QUESTIONS_PER_PAGE + 1}</strong> to{" "}
+                <strong className="text-[#0f172a] dark:text-white">{Math.min(safePage * QUESTIONS_PER_PAGE, questions.length)}</strong> of{" "}
+                <strong className="text-[#0f172a] dark:text-white">{questions.length}</strong> questions
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                  <span>Page</span>
+                  <strong className="text-[#0f172a] dark:text-white">{safePage}</strong>
+                  <span>of</span>
+                  <strong className="text-[#0f172a] dark:text-white">{totalPages}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
           {questions.length === 0 && !loading && (
             <div className="text-center py-20 text-[#64748b] dark:text-[#94a3b8]">

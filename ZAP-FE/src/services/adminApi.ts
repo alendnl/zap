@@ -45,6 +45,10 @@ export interface AdminUsersResponse {
   overview: AdminUsersOverview;
   users: UserAdminStats[];
   colleges: string[];
+  totalUsers?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
 }
 
 export interface SolvedQuestionBrief {
@@ -122,11 +126,15 @@ export const adminApi = {
   getUsersDashboard: async (
     email: string,
     college?: string,
-    search?: string
+    search?: string,
+    page?: number,
+    limit?: number
   ): Promise<AdminUsersResponse> => {
     const params = new URLSearchParams({ email });
     if (college && college !== "ALL") params.set("college", college);
     if (search && search.trim()) params.set("search", search.trim());
+    if (page) params.set("page", String(page));
+    if (limit) params.set("limit", String(limit));
 
     return adminFetch<AdminUsersResponse>(`/api/v1/admin/users?${params.toString()}`, email);
   },

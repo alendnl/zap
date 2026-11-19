@@ -118,17 +118,19 @@ class AdminService:
         self,
         college: Optional[str] = None,
         search: Optional[str] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
     ) -> AdminUsersResponse:
         users_coll = self._get_collection("users")
         activities_coll = self._get_collection("user_activities")
         submissions_coll = self._get_collection("submissions")
         questions_coll = self._get_collection("questions")
 
-        # 1. Fetch questions catalog for difficulty mappings
+        # 1. Fetch questions catalog for difficulty mappings (minimal projection)
         questions_map: Dict[str, dict] = {}
         if questions_coll is not None:
             try:
-                for q in questions_coll.find({}):
+                for q in questions_coll.find({}, {"_id": 1, "id": 1, "slug": 1, "difficulty": 1}):
                     qid = str(q.get("id") or q.get("_id") or "")
                     qslug = str(q.get("slug") or "")
                     if qid:
@@ -138,11 +140,11 @@ class AdminService:
             except Exception:
                 pass
 
-        # 2. Fetch all users
+        # 2. Fetch all users (minimal projection)
         all_user_docs = []
         if users_coll is not None:
             try:
-                all_user_docs = list(users_coll.find({}))
+                all_user_docs = list(users_coll.find({}, {"_id": 1, "id": 1, "name": 1, "email": 1, "studentId": 1, "collegeName": 1, "createdAt": 1}))
             except Exception:
                 all_user_docs = []
 
@@ -154,22 +156,22 @@ class AdminService:
                 all_colleges_set.add(c)
         sorted_all_colleges = sorted(list(all_colleges_set), key=lambda s: s.lower())
 
-        # 3. Fetch all user activities indexed by user identifiers
+        # 3. Fetch all user activities indexed by user identifiers (minimal projection)
         activities_by_user: Dict[str, dict] = {}
         if activities_coll is not None:
             try:
-                for act in activities_coll.find({}):
+                for act in activities_coll.find({}, {"_id": 1, "id": 1, "userId": 1, "totalSolved": 1, "totalAttempted": 1, "solvedQuestionIds": 1, "attemptedQuestionIds": 1, "updatedAt": 1}):
                     uid = str(act.get("userId") or act.get("id") or act.get("_id") or "")
                     if uid:
                         activities_by_user[uid] = act
             except Exception:
                 pass
 
-        # 4. Fetch submissions indexed by userId/userEmail for verification and metrics
+        # 4. Fetch submissions indexed by userId/userEmail for verification and metrics (minimal projection: no code or testcase logs)
         user_submissions_map: Dict[str, List[dict]] = {}
         if submissions_coll is not None:
             try:
-                for sub in submissions_coll.find({}):
+                for sub in submissions_coll.find({}, {"_id": 1, "id": 1, "userId": 1, "userEmail": 1, "questionId": 1, "verdict": 1, "createdAt": 1}):
                     uid = str(sub.get("userId") or "")
                     uem = str(sub.get("userEmail") or "").strip().lower()
                     if uid:
@@ -347,10 +349,22 @@ class AdminService:
         # Default sort: by total solved desc, then accuracy desc
         filtered_users.sort(key=lambda u: (u.totalSolved, u.accuracyRate, u.totalSubmissions), reverse=True)
 
+        total_users_count = len(filtered_users)
+        total_pages = max(1, (total_users_count + (limit or 10) - 1) // (limit or 10)) if limit else 1
+
+        if page is not None and limit is not None:
+            paged_users = filtered_users[(page - 1) * limit : page * limit]
+        else:
+            paged_users = filtered_users
+
         return AdminUsersResponse(
             overview=overview,
-            users=filtered_users,
+            users=paged_users,
             colleges=sorted_all_colleges,
+            totalUsers=total_users_count,
+            page=page,
+            limit=limit,
+            totalPages=total_pages if page is not None else None,
         )
 
     def get_user_details(self, user_id: str) -> Optional[UserDetailActivityResponse]:
@@ -381,11 +395,11 @@ class AdminService:
         college_name = str(user_doc.get("collegeName") or "Unassigned")
         created_at = str(user_doc.get("createdAt") or "")
 
-        # Questions map
+        # Questions map (project only metadata)
         questions_map: Dict[str, dict] = {}
         if questions_coll is not None:
             try:
-                for q in questions_coll.find({}):
+                for q in questions_coll.find({}, {"_id": 1, "id": 1, "slug": 1, "title": 1, "difficulty": 1}):
                     qid = str(q.get("id") or q.get("_id") or "")
                     qslug = str(q.get("slug") or "")
                     if qid:
@@ -407,18 +421,30 @@ class AdminService:
                 ]
             })
 
-        # Submissions
+        # Submissions (project only status/verdict metadata, exclude source code bodies)
         subs = []
         if submissions_coll is not None:
             try:
-                cursor = submissions_coll.find({
-                    "$or": [
-                        {"userId": uid},
-                        {"userId": email.lower()},
-                        {"userEmail": email.lower()},
-                        {"userId": student_id},
-                    ]
-                }).sort("createdAt", -1).limit(50)
+                cursor = submissions_coll.find(
+                    {
+                        "$or": [
+                            {"userId": uid},
+                            {"userId": email.lower()},
+                            {"userEmail": email.lower()},
+                            {"userId": student_id},
+                        ]
+                    },
+                    {
+                        "_id": 1,
+                        "id": 1,
+                        "questionId": 1,
+                        "language": 1,
+                        "mode": 1,
+                        "status": 1,
+                        "verdict": 1,
+                        "createdAt": 1,
+                    }
+                ).sort("createdAt", -1).limit(50)
                 subs = list(cursor)
             except Exception:
                 subs = []

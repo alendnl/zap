@@ -1,5 +1,5 @@
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.db.mongodb import get_database
 from app.questions.models import Question, QuestionCreate, QuestionUpdate, QuestionSummary
 from app.questions.service import QuestionService
@@ -12,11 +12,29 @@ def get_question_service(db = Depends(get_database)) -> QuestionService:
 @router.get("/questions", response_model=Union[List[QuestionSummary], List[Question]])
 @router.get("/api/v1/questions", response_model=Union[List[QuestionSummary], List[Question]])
 def list_questions(
+    response: Response,
     status: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    search: Optional[str] = None,
+    page: Optional[int] = Query(None, ge=1, description="Page number for pagination"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
     summary: bool = Query(True, description="Return lightweight summaries without statements or test cases"),
     service: QuestionService = Depends(get_question_service)
 ):
-    return service.list_questions(status=status, summary=summary)
+    result = service.list_questions(
+        status=status,
+        difficulty=difficulty,
+        search=search,
+        page=page,
+        limit=limit,
+        summary=summary,
+    )
+    if isinstance(result, dict) and "items" in result:
+        response.headers["X-Total-Count"] = str(result["total"])
+        response.headers["X-Page"] = str(result["page"])
+        response.headers["X-Total-Pages"] = str(result["totalPages"])
+        return result["items"]
+    return result
 
 @router.get("/questions/{question_id}", response_model=Question)
 @router.get("/api/v1/questions/{question_id}", response_model=Question)

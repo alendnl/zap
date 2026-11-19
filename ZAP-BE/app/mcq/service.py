@@ -153,8 +153,10 @@ class MCQService:
         difficulty: Optional[str] = None,
         status: Optional[str] = None,
         search: Optional[str] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
         summary: bool = True,
-    ) -> List[Union[MCQQuestionSummary, MCQQuestion]]:
+    ) -> Union[List[Union[MCQQuestionSummary, MCQQuestion]], Dict[str, Any]]:
         coll = self._get_collection()
 
         # Auto-seed if collection is completely empty
@@ -188,7 +190,34 @@ class MCQService:
 
         results = []
         if coll is not None:
-            cursor = coll.find(query).sort("createdAt", -1)
+            projection = None
+            if summary:
+                projection = {
+                    "_id": 1,
+                    "id": 1,
+                    "slug": 1,
+                    "title": 1,
+                    "category": 1,
+                    "difficulty": 1,
+                    "tags": 1,
+                    "questionType": 1,
+                    "statement": 1,
+                    "codeSnippet": 1,
+                    "imageUrl": 1,
+                    "points": 1,
+                    "status": 1,
+                    "createdAt": 1,
+                    "updatedAt": 1,
+                    "options.isCorrect": 1,
+                    "options.id": 1,
+                }
+            cursor = coll.find(query, projection).sort("createdAt", -1) if projection else coll.find(query).sort("createdAt", -1)
+            total = coll.count_documents(query) if page is not None and limit is not None else 0
+
+            if page is not None and limit is not None:
+                skip = (page - 1) * limit
+                cursor = cursor.skip(skip).limit(limit)
+
             for doc in cursor:
                 if not doc.get("id") and "_id" in doc:
                     doc["id"] = str(doc["_id"])
@@ -217,6 +246,15 @@ class MCQService:
                     results.append(MCQQuestionSummary(**summary_doc))
                 else:
                     results.append(MCQQuestion(**doc))
+
+            if page is not None and limit is not None:
+                return {
+                    "items": results,
+                    "total": total,
+                    "page": page,
+                    "limit": limit,
+                    "totalPages": max(1, (total + limit - 1) // limit),
+                }
             return results
 
         # Memory store fallback
@@ -270,6 +308,17 @@ class MCQService:
             else:
                 results.append(MCQQuestion(**clean))
 
+        if page is not None and limit is not None:
+            total = len(results)
+            skip = (page - 1) * limit
+            sliced = results[skip : skip + limit]
+            return {
+                "items": sliced,
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "totalPages": max(1, (total + limit - 1) // limit),
+            }
         return results
 
     def update_question(self, question_id: str, data: MCQQuestionUpdate) -> Optional[MCQQuestion]:

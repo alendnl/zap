@@ -62,6 +62,8 @@ export default function AdminContestsPage() {
   const [contests, setContests] = useState<ContestSummary[]>([]);
   const [loadingContests, setLoadingContests] = useState(true);
   const [contestFilter, setContestFilter] = useState<string>("ALL");
+  const [contestPage, setContestPage] = useState(1);
+  const CONTESTS_PER_PAGE = 10;
 
   // Database questions for selection
   const [dbMcqs, setDbMcqs] = useState<MCQQuestionSummary[]>([]);
@@ -170,6 +172,18 @@ export default function AdminContestsPage() {
       void loadContests();
     }
   }, [isAdmin, loadContests]);
+
+  useEffect(() => {
+    setContestPage(1);
+  }, [contestFilter]);
+
+  const totalContestPages = Math.max(1, Math.ceil(contests.length / CONTESTS_PER_PAGE));
+  const safeContestPage = Math.min(contestPage, totalContestPages);
+
+  const paginatedContests = useMemo(() => {
+    const start = (safeContestPage - 1) * CONTESTS_PER_PAGE;
+    return contests.slice(start, start + CONTESTS_PER_PAGE);
+  }, [contests, safeContestPage]);
 
   // Fetch database questions when in creation mode
   useEffect(() => {
@@ -552,8 +566,9 @@ export default function AdminContestsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {contests.map((c) => (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  {paginatedContests.map((c) => (
                   <div
                     key={c.id}
                     className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-5 shadow-xs hover:border-purple-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -647,7 +662,42 @@ export default function AdminContestsPage() {
                   </div>
                 ))}
               </div>
-            )}
+
+              {totalContestPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+                  <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                    Showing <strong className="text-[#0f172a] dark:text-white">{(safeContestPage - 1) * CONTESTS_PER_PAGE + 1}</strong> to{" "}
+                    <strong className="text-[#0f172a] dark:text-white">{Math.min(safeContestPage * CONTESTS_PER_PAGE, contests.length)}</strong> of{" "}
+                    <strong className="text-[#0f172a] dark:text-white">{contests.length}</strong> contests
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setContestPage((p) => Math.max(1, p - 1))}
+                      disabled={safeContestPage <= 1}
+                      className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                    >
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                      <span>Page</span>
+                      <strong className="text-[#0f172a] dark:text-white">{safeContestPage}</strong>
+                      <span>of</span>
+                      <strong className="text-[#0f172a] dark:text-white">{totalContestPages}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setContestPage((p) => Math.min(totalContestPages, p + 1))}
+                      disabled={safeContestPage >= totalContestPages}
+                      className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           </div>
         )}
 

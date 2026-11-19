@@ -87,6 +87,8 @@ export default function AdminQuestionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const QUESTIONS_PER_PAGE = 10;
 
   // Modal (Create / Edit) state
   const [modalOpen, setModalOpen] = useState(false);
@@ -208,6 +210,18 @@ export default function AdminQuestionsPage() {
       return titleMatch || slugMatch || tagMatch;
     });
   }, [questions, difficultyFilter, statusFilter, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [difficultyFilter, statusFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (safePage - 1) * QUESTIONS_PER_PAGE;
+    return filteredQuestions.slice(start, start + QUESTIONS_PER_PAGE);
+  }, [filteredQuestions, safePage]);
 
   // Handlers for Form updates
   const updateForm = <K extends keyof QuestionFormData>(key: K, value: QuestionFormData[K]) => {
@@ -737,13 +751,14 @@ export default function AdminQuestionsPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-[#64748b] dark:text-[#94a3b8] px-1">
             <span>
-              Showing <strong className="text-[#0f172a] dark:text-white">{filteredQuestions.length}</strong> of{" "}
-              {questions.length} questions
+              Showing <strong className="text-[#0f172a] dark:text-white">{(safePage - 1) * QUESTIONS_PER_PAGE + 1}</strong> to{" "}
+              <strong className="text-[#0f172a] dark:text-white">{Math.min(safePage * QUESTIONS_PER_PAGE, filteredQuestions.length)}</strong> of{" "}
+              <strong className="text-[#0f172a] dark:text-white">{filteredQuestions.length}</strong> questions
             </span>
             {loading && <span className="animate-pulse">Loading problem bank...</span>}
           </div>
 
-          {filteredQuestions.map((q) => (
+          {paginatedQuestions.map((q) => (
             <div
               key={q.id}
               className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-blue-500/40 dark:hover:border-blue-500/30 transition-all shadow-xs group"
@@ -835,6 +850,41 @@ export default function AdminQuestionsPage() {
               </div>
             </div>
           ))}
+
+          {/* Pagination Controls */}
+          {filteredQuestions.length > 0 && totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+              <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                Showing <strong className="text-[#0f172a] dark:text-white">{(safePage - 1) * QUESTIONS_PER_PAGE + 1}</strong> to{" "}
+                <strong className="text-[#0f172a] dark:text-white">{Math.min(safePage * QUESTIONS_PER_PAGE, filteredQuestions.length)}</strong> of{" "}
+                <strong className="text-[#0f172a] dark:text-white">{filteredQuestions.length}</strong> questions
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                  <span>Page</span>
+                  <strong className="text-[#0f172a] dark:text-white">{safePage}</strong>
+                  <span>of</span>
+                  <strong className="text-[#0f172a] dark:text-white">{totalPages}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
           {filteredQuestions.length === 0 && !loading && (
             <div className="bg-white dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-12 text-center shadow-xs">

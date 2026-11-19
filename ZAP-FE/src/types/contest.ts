@@ -336,4 +336,8 @@ export interface ContestAnalyticsResponse {
   };
   proctoringStats: ProctoringSummaryStats;
   submissions: CandidateSubmissionItem[];
+  totalSubmissions?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
 }

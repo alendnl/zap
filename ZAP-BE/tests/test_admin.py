@@ -256,3 +256,40 @@ def test_get_user_details_drilldown(setup_test_db):
     assert len(data["solvedQuestions"]) == 1
     assert data["solvedQuestions"][0]["slug"] == "two-sum"
     assert len(data["recentSubmissions"]) == 1
+
+
+def test_get_users_dashboard_pagination(setup_test_db):
+    mock_db = setup_test_db
+    mock_db.admin.insert_one({"email": "admin@zap.dev"})
+
+    # Insert 15 users
+    users = [
+        {
+            "id": f"u_{i}",
+            "name": f"Student {i:02d}",
+            "studentId": f"ID_{i:02d}",
+            "collegeName": "Tech University",
+            "email": f"student{i:02d}@tech.edu",
+        }
+        for i in range(1, 16)
+    ]
+    mock_db.users.insert_many(users)
+
+    client = TestClient(app)
+    # Page 1, limit 10
+    res = client.get("/api/v1/admin/users?email=admin@zap.dev&page=1&limit=10")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["page"] == 1
+    assert data["limit"] == 10
+    assert data["totalUsers"] == 15
+    assert data["totalPages"] == 2
+    assert len(data["users"]) == 10
+
+    # Page 2, limit 10
+    res2 = client.get("/api/v1/admin/users?email=admin@zap.dev&page=2&limit=10")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["page"] == 2
+    assert len(data2["users"]) == 5
+

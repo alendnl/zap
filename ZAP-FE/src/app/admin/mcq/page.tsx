@@ -122,6 +122,8 @@ export default function AdminMCQPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const MCQ_PER_PAGE = 10;
 
   // Create / Edit Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -210,6 +212,18 @@ export default function AdminMCQPage() {
       fetchQuestions();
     }
   }, [isAdmin, fetchQuestions]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(questions.length / MCQ_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (safePage - 1) * MCQ_PER_PAGE;
+    return questions.slice(start, start + MCQ_PER_PAGE);
+  }, [questions, safePage]);
 
   // Compute category stats
   const categoryCounts = useMemo(() => {
@@ -781,8 +795,18 @@ export default function AdminMCQPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {questions.map((q) => {
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-xs text-[#64748b] dark:text-[#94a3b8] px-1">
+              <span>
+                Showing <strong className="text-[#0f172a] dark:text-white">{(safePage - 1) * MCQ_PER_PAGE + 1}</strong> to{" "}
+                <strong className="text-[#0f172a] dark:text-white">{Math.min(safePage * MCQ_PER_PAGE, questions.length)}</strong> of{" "}
+                <strong className="text-[#0f172a] dark:text-white">{questions.length}</strong> MCQs
+              </span>
+              {loading && <span className="animate-pulse">Loading MCQ bank...</span>}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {paginatedQuestions.map((q) => {
               const catConfig = CATEGORY_STYLES[q.category?.toUpperCase()] || {
                 label: q.category || "DSA",
                 badge: "text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800",
@@ -935,7 +959,42 @@ export default function AdminMCQPage() {
               );
             })}
           </div>
-        )}
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-[#e2e8f0] dark:border-[#1e293b]">
+              <div className="text-xs text-[#64748b] dark:text-[#94a3b8]">
+                Showing <strong className="text-[#0f172a] dark:text-white">{(safePage - 1) * MCQ_PER_PAGE + 1}</strong> to{" "}
+                <strong className="text-[#0f172a] dark:text-white">{Math.min(safePage * MCQ_PER_PAGE, questions.length)}</strong> of{" "}
+                <strong className="text-[#0f172a] dark:text-white">{questions.length}</strong> MCQs
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1 px-2.5 text-xs font-mono text-[#64748b] dark:text-[#94a3b8]">
+                  <span>Page</span>
+                  <strong className="text-[#0f172a] dark:text-white">{safePage}</strong>
+                  <span>of</span>
+                  <strong className="text-[#0f172a] dark:text-white">{totalPages}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 rounded-xl border border-[#e2e8f0] dark:border-[#232f45] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f8fafc] dark:hover:bg-[#1a2233] transition-all cursor-pointer shadow-xs"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       </main>
 
       {/* ============================================================== */}

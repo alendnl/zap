@@ -143,3 +143,34 @@ def test_create_and_get_question():
     # Confirm deletion
     get_after_del = client.get(f"/api/v1/questions/{q_id}")
     assert get_after_del.status_code == 404
+
+
+def test_list_questions_pagination_and_search():
+    # Create 5 test questions
+    for i in range(5):
+        client.post("/api/v1/questions", json={
+            "slug": f"problem-page-{i}",
+            "title": f"Problem Page {i}",
+            "statement": f"Statement for problem {i}",
+            "difficulty": "EASY" if i % 2 == 0 else "HARD",
+            "supportedLanguages": ["python"],
+            "testCases": []
+        })
+
+    # Page 1, limit 2
+    res = client.get("/api/v1/questions?page=1&limit=2")
+    assert res.status_code == 200
+    assert len(res.json()) == 2
+    assert "X-Total-Count" in res.headers
+    assert int(res.headers["X-Total-Count"]) >= 5
+    assert res.headers["X-Page"] == "1"
+
+    # Search filter
+    search_res = client.get("/api/v1/questions?search=problem-page-3")
+    assert search_res.status_code == 200
+    assert any(q["slug"] == "problem-page-3" for q in search_res.json())
+
+    # Cleanup
+    for i in range(5):
+        client.delete(f"/api/v1/questions/problem-page-{i}")
+

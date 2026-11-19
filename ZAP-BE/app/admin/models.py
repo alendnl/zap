@@ -56,6 +56,10 @@ class AdminUsersResponse(BaseModel):
     overview: AdminUsersOverview
     users: List[UserAdminStats]
     colleges: List[str]
+    totalUsers: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
+    totalPages: Optional[int] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

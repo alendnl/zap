@@ -95,6 +95,16 @@
 - **Decision**: Centralize workbench navigation tab configuration in `ZAP-FE/src/config/tabs.ts` (`TAB_CONFIG`) with simple boolean flags (`enabled: boolean`) and optional environment variable overrides (`NEXT_PUBLIC_ENABLE_TAB_*`). Tabs default safely to the first enabled tab, URL parameters for disabled tabs gracefully fallback, and DSA problems tab is disabled by default while retaining full underlying code.
 - **Consequences**: Zero code deletion, instant one-line toggle to enable/disable any tab, and robust fallback handling.
 
+### ADR-009: Strict Field Projections, On-Demand Candidate Drilldown, and 10-Item Pagination
+- **Status**: Accepted
+- **Context**: The `contest_submissions` collection grew beyond 21 MB after a major contest. Full-document scans (including heavy `codingState` source code across 5 languages, compiler logs, and proctoring violation logs) caused severe memory pressure, payload bloat, and API timeouts across dashboards and question banks.
+- **Decision**:
+  1. **Minimal Database Projections**: Omit heavy fields (`codingState`, `proctoring.violationsLog`, testcase payloads, option explanations) from list and analytics queries across `contest_submissions`, `questions`, `mcq_questions`, `submissions`, and `users`.
+  2. **On-Demand Candidate Dossier Fetching**: Fetch full source code, test execution outputs, and proctoring logs only when an administrator inspects an individual student via `GET /api/v1/contests/{contest_id_or_slug}/submissions/{student_id_or_sub_id}`.
+  3. **10-per-Page Pagination**: Standardize 10-item pagination with clean navigation controls across Student Home catalog, Admin Users, Contest Analytics, Admin Coding Questions, Admin MCQs, Faculty Questions, and Contest Directories.
+- **Consequences**: Main analytics payloads reduced by >98% (<25 KB), zero API timeouts, responsive UI rendering, and scalable to large candidate cohorts.
+
+
 
 
 

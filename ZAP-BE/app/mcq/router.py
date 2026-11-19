@@ -1,5 +1,5 @@
 from typing import List, Optional, Union, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.db.mongodb import get_database
 from app.mcq.models import (
     MCQQuestion,
@@ -19,20 +19,31 @@ def get_mcq_service(db=Depends(get_database)) -> MCQService:
 @router.get("/mcq/questions", response_model=Union[List[MCQQuestionSummary], List[MCQQuestion]])
 @router.get("/api/v1/mcq/questions", response_model=Union[List[MCQQuestionSummary], List[MCQQuestion]])
 def list_mcq_questions(
+    response: Response,
     category: Optional[str] = Query(None, description="Filter by category (DSA, DBMS, NETWORKS, OOPS)"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (EASY, MEDIUM, HARD)"),
     status: Optional[str] = Query(None, description="Filter by status (PUBLISHED, DRAFT, ARCHIVED)"),
     search: Optional[str] = Query(None, description="Search query across title, statement, category, tags"),
+    page: Optional[int] = Query(None, ge=1, description="Page number for pagination"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
     summary: bool = Query(True, description="Return lightweight summaries without full explanations"),
     service: MCQService = Depends(get_mcq_service),
 ):
-    return service.list_questions(
+    result = service.list_questions(
         category=category,
         difficulty=difficulty,
         status=status,
         search=search,
+        page=page,
+        limit=limit,
         summary=summary,
     )
+    if isinstance(result, dict) and "items" in result:
+        response.headers["X-Total-Count"] = str(result["total"])
+        response.headers["X-Page"] = str(result["page"])
+        response.headers["X-Total-Pages"] = str(result["totalPages"])
+        return result["items"]
+    return result
 
 
 @router.get("/mcq/questions/{question_id}", response_model=MCQQuestion)

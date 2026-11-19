@@ -67,13 +67,17 @@ export const mcqApi = {
     difficulty?: string,
     status?: string,
     search?: string,
-    summary: boolean = true
+    summary: boolean = true,
+    page?: number,
+    limit?: number
   ): Promise<MCQQuestionSummary[]> => {
     const params = new URLSearchParams();
     if (category && category !== "ALL") params.append("category", category);
     if (difficulty && difficulty !== "ALL") params.append("difficulty", difficulty);
     if (status && status !== "ALL") params.append("status", status);
     if (search && search.trim()) params.append("search", search.trim());
+    if (page) params.append("page", String(page));
+    if (limit) params.append("limit", String(limit));
     params.append("summary", summary ? "true" : "false");
     return apiFetch(`/api/v1/mcq/questions?${params.toString()}`);
   },

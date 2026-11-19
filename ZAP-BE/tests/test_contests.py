@@ -473,3 +473,50 @@ def test_create_contest_with_short_description_and_reset_candidate():
     assert re_start_res.status_code == 200
     assert re_start_res.json()["alreadySubmitted"] is False
 
+
+def test_get_single_candidate_submission_and_pagination():
+    admin_email = "superadmin@zap.dev"
+
+    # Start and submit for a candidate in zap-grand-assessment-1
+    student_id = "candidate-perf-01"
+    student_email = "candidate01@college.edu"
+
+    client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}&student_name=Performance+Student"
+    )
+
+    submit_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "studentName": "Performance Student",
+        "mcqAnswers": {},
+        "codingSubmissions": {},
+        "timeSpentSeconds": 120,
+    }
+    client.post("/api/v1/contests/zap-grand-assessment-1/submit", json=submit_payload)
+
+    # 1. Fetch single candidate submission drilldown
+    res_single = client.get(
+        f"/api/v1/contests/zap-grand-assessment-1/submissions/{student_id}",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert res_single.status_code == 200
+    sub_data = res_single.json()
+    assert sub_data["studentId"] == student_id
+    assert sub_data["studentEmail"] == student_email
+    assert "status" in sub_data
+
+    # 2. Test paginated analytics
+    res_paged = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/analytics?page=1&limit=10",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert res_paged.status_code == 200
+    paged_data = res_paged.json()
+    assert paged_data["page"] == 1
+    assert paged_data["limit"] == 10
+    assert paged_data["totalPages"] >= 1
+    assert isinstance(paged_data["submissions"], list)
+    assert len(paged_data["submissions"]) <= 10
+
+

@@ -321,6 +321,46 @@ class ContestService:
 
         return True
 
+    def get_candidate_submission(self, contest_id_or_slug: str, student_id_or_sub_id: str) -> Optional[Dict[str, Any]]:
+        """Fetches the full submission details (including codingState and proctoring logs) for a single candidate."""
+        contest = self.get_contest(contest_id_or_slug)
+        if not contest:
+            raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        coll = self._get_submissions_coll()
+        target = student_id_or_sub_id.strip()
+        query = {
+            "contestId": contest.id,
+            "$or": [
+                {"_id": target},
+                {"id": target},
+                {"submissionId": target},
+                {"studentId": target},
+                {"studentEmail": target.lower()},
+            ],
+        }
+
+        if coll is not None:
+            doc = coll.find_one(query)
+            if doc:
+                clean = dict(doc)
+                clean["id"] = clean.get("id") or str(clean.get("_id"))
+                clean.pop("_id", None)
+                return clean
+            return None
+        else:
+            for s in self._memory_submissions.values():
+                if s.get("contestId") == contest.id:
+                    sid = str(s.get("id") or s.get("_id") or s.get("submissionId") or "")
+                    st_id = str(s.get("studentId") or "")
+                    st_email = str(s.get("studentEmail") or "").lower()
+                    if target in (sid, st_id, st_email):
+                        clean = dict(s)
+                        clean["id"] = clean.get("id") or str(clean.get("_id"))
+                        clean.pop("_id", None)
+                        return clean
+            return None
+
     def delete_contest_submission(self, contest_id_or_slug: str, student_id_or_sub_id: str) -> bool:
         """Deletes/resets a particular candidate's contest submission and session so they can retake it."""
         contest = self.get_contest(contest_id_or_slug)
@@ -950,7 +990,12 @@ class ContestService:
 
         return response
 
-    def get_contest_analytics(self, contest_id_or_slug: str) -> ContestAnalyticsResponse:
+    def get_contest_analytics(
+        self,
+        contest_id_or_slug: str,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> ContestAnalyticsResponse:
         """Calculates comprehensive analytics for a contest: overall KPIs, score distribution,
         per-question accuracy, coding problem acceptance rates, proctoring violations,
         and student-by-student drilldown.
@@ -964,7 +1009,12 @@ class ContestService:
         coll = self._get_submissions_coll()
         raw_submissions = []
         if coll is not None:
-            cursor = coll.find({"contestId": contest.id})
+            # Exclude codingState (source code) and violationsLog to optimize query speed and memory footprint
+            projection = {
+                "codingState": 0,
+                "proctoring.violationsLog": 0,
+            }
+            cursor = coll.find({"contestId": contest.id}, projection)
             for doc in cursor:
                 clean = dict(doc)
                 clean["id"] = clean.get("id") or str(clean.get("_id"))
@@ -1148,6 +1198,49 @@ class ContestService:
             key=lambda s: (-s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
         )
 
+        total_subs_count = len(sorted_submissions)
+        total_pages = max(1, (total_subs_count + (limit or 10) - 1) // (limit or 10)) if limit else 1
+
+        # Slicing if pagination is requested
+        if page is not None and limit is not None:
+            subs_slice = sorted_submissions[(page - 1) * limit : page * limit]
+        else:
+            subs_slice = sorted_submissions
+
+        # Return lightweight submission items in analytics overview so the response is fast and compact
+        lightweight_submissions = []
+        for s in subs_slice:
+            proc = s.get("proctoring") or {}
+            lightweight_submissions.append({
+                "id": s.get("id"),
+                "submissionId": s.get("submissionId") or s.get("id"),
+                "contestId": s.get("contestId"),
+                "studentId": s.get("studentId"),
+                "studentName": s.get("studentName"),
+                "studentEmail": s.get("studentEmail"),
+                "status": s.get("status"),
+                "startedAt": s.get("startedAt"),
+                "submittedAt": s.get("submittedAt"),
+                "updatedAt": s.get("updatedAt"),
+                "totalScore": s.get("totalScore", 0),
+                "maxTotalScore": s.get("maxTotalScore", 100),
+                "percentage": s.get("percentage", 0.0),
+                "mcqScore": s.get("mcqScore", 0),
+                "maxMcqScore": s.get("maxMcqScore", 0),
+                "mcqCorrectCount": s.get("mcqCorrectCount", 0),
+                "mcqTotalCount": s.get("mcqTotalCount", 0),
+                "codingScore": s.get("codingScore", 0),
+                "maxCodingScore": s.get("maxCodingScore", 0),
+                "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
+                "codingTotalCount": s.get("codingTotalCount", 0),
+                "timeSpentSeconds": s.get("timeSpentSeconds", 0),
+                "proctoring": {
+                    "tabSwitchCount": proc.get("tabSwitchCount", 0),
+                    "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
+                    "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
+                },
+            })
+
         mcq_count = contest.mcqConfig.totalQuestions if contest.hasMcq and contest.mcqConfig else len(mcq_question_stats)
         coding_count = contest.codingConfig.totalQuestions if contest.hasCoding and contest.codingConfig else len(coding_problem_stats)
         contest_summary = ContestSummary(
@@ -1188,5 +1281,9 @@ class ContestService:
                 "problems": [p.model_dump() for p in coding_problem_stats],
             },
             proctoringStats=proctoring_stats,
-            submissions=sorted_submissions,
+            submissions=lightweight_submissions,
+            totalSubmissions=total_subs_count,
+            page=page,
+            limit=limit,
+            totalPages=total_pages if page is not None else None,
         )
