@@ -79,8 +79,8 @@ export const questionsApi = {
     return apiFetch(`/api/v1/questions?${params.toString()}`);
   },
 
-  get: (id: string): Promise<Question> =>
-    apiFetch(`/api/v1/questions/${id}`),
+  get: (id: string, includeHidden: boolean = false): Promise<Question> =>
+    apiFetch(`/api/v1/questions/${id}${includeHidden ? "?include_hidden=true" : ""}`),
 
   create: (data: QuestionFormData): Promise<Question> =>
     apiFetch("/api/v1/questions", { method: "POST", body: JSON.stringify(data) }),

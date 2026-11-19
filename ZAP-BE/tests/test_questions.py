@@ -66,15 +66,23 @@ def test_create_and_get_question():
     assert created["version"] == 1
     q_id = created["id"]
 
-    # Get by ID
+    # Get by ID (default hides hidden test cases)
     get_res = client.get(f"/api/v1/questions/{q_id}")
     assert get_res.status_code == 200
     assert get_res.json()["title"] == "Two Sum"
+    assert len(get_res.json()["testCases"]) == 1
+    assert get_res.json()["testCases"][0]["visibility"] == "PUBLIC"
 
-    # Get by Slug
+    # Get by ID with include_hidden=true
+    get_all_res = client.get(f"/api/v1/questions/{q_id}?include_hidden=true")
+    assert get_all_res.status_code == 200
+    assert len(get_all_res.json()["testCases"]) == 2
+
+    # Get by Slug (default hides hidden test cases)
     get_slug_res = client.get("/api/v1/questions/two-sum")
     assert get_slug_res.status_code == 200
     assert get_slug_res.json()["id"] == q_id
+    assert len(get_slug_res.json()["testCases"]) == 1
 
     # List questions (summary by default)
     list_res = client.get("/api/v1/questions")
@@ -87,13 +95,15 @@ def test_create_and_get_question():
     assert "difficulty" in first
     assert "tags" in first
     assert "testCasesCount" in first
+    assert first["testCasesCount"] == 1
     assert "statement" not in first
     assert "solutions" not in first
 
-    # Full list query
+    # Full list query (default hides hidden test cases)
     full_list_res = client.get("/api/v1/questions?summary=false")
     assert full_list_res.status_code == 200
     assert "statement" in full_list_res.json()[0]
+    assert len(full_list_res.json()[0]["testCases"]) == 1
 
     # Update question
     update_res = client.put(f"/api/v1/questions/{q_id}", json={"title": "Two Sum Updated"})

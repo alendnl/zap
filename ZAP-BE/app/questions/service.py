@@ -26,7 +26,7 @@ class QuestionService:
             self._memory_store[question.id] = doc
         return question
 
-    def get_question(self, question_id: str) -> Optional[Question]:
+    def get_question(self, question_id: str, include_hidden: bool = False) -> Optional[Question]:
         coll = self._get_collection()
         if coll is not None:
             query_filter = [{"_id": question_id}, {"id": question_id}, {"slug": question_id}]
@@ -36,7 +36,30 @@ class QuestionService:
                     query_filter.append({"_id": ObjectId(question_id)})
             except Exception:
                 pass
-            doc = coll.find_one({"$or": query_filter})
+
+            if include_hidden:
+                doc = coll.find_one({"$or": query_filter})
+            else:
+                pipeline = [
+                    {"$match": {"$or": query_filter}},
+                    {"$set": {
+                        "testCases": {
+                            "$filter": {
+                                "input": {"$ifNull": ["$testCases", []]},
+                                "as": "tc",
+                                "cond": {
+                                    "$ne": [
+                                        {"$ifNull": ["$$tc.visibility", "PUBLIC"]},
+                                        "HIDDEN"
+                                    ]
+                                }
+                            }
+                        }
+                    }}
+                ]
+                docs = list(coll.aggregate(pipeline))
+                doc = docs[0] if docs else None
+
             if doc:
                 if not doc.get("id") and "_id" in doc:
                     doc["id"] = str(doc["_id"])
@@ -44,20 +67,24 @@ class QuestionService:
                 return Question(**doc)
             return None
         doc = self._memory_store.get(question_id)
+        if not doc:
+            # Search by slug in memory
+            for item in self._memory_store.values():
+                if item.get("slug") == question_id:
+                    doc = item
+                    break
         if doc:
             clean = dict(doc)
             if not clean.get("id") and "_id" in clean:
                 clean["id"] = str(clean["_id"])
             clean.pop("_id", None)
+            if not include_hidden:
+                clean["testCases"] = [
+                    tc for tc in clean.get("testCases", [])
+                    if (isinstance(tc, dict) and tc.get("visibility") != "HIDDEN")
+                    or (not isinstance(tc, dict) and getattr(tc, "visibility", None) != "HIDDEN")
+                ]
             return Question(**clean)
-        # Search by slug in memory
-        for item in self._memory_store.values():
-            if item.get("slug") == question_id:
-                clean = dict(item)
-                if not clean.get("id") and "_id" in clean:
-                    clean["id"] = str(clean["_id"])
-                clean.pop("_id", None)
-                return Question(**clean)
         return None
 
     def list_questions(
@@ -68,6 +95,7 @@ class QuestionService:
         page: Optional[int] = None,
         limit: Optional[int] = None,
         summary: bool = True,
+        include_hidden: bool = False,
     ) -> Union[List[Union[QuestionSummary, Question]], Dict[str, Any]]:
         coll = self._get_collection()
         query: Dict[str, Any] = {}
@@ -81,33 +109,54 @@ class QuestionService:
 
         questions = []
         if coll is not None:
+            total = coll.count_documents(query) if page is not None and limit is not None else 0
+
+            pipeline = [
+                {"$match": query},
+                {"$sort": {"createdAt": -1}},
+            ]
+            if page is not None and limit is not None:
+                skip = (page - 1) * limit
+                pipeline.append({"$skip": skip})
+                pipeline.append({"$limit": limit})
+
             if summary:
-                projection = {
-                    "_id": 1,
-                    "id": 1,
-                    "slug": 1,
-                    "title": 1,
-                    "difficulty": 1,
-                    "tags": 1,
-                    "status": 1,
-                    "version": 1,
-                    "supportedLanguages": 1,
-                    "testCasesCount": 1,
-                    "testCases": 1,
-                }
-                cursor = coll.find(query, projection).sort("createdAt", -1)
-                total = coll.count_documents(query) if page is not None and limit is not None else 0
-
-                if page is not None and limit is not None:
-                    skip = (page - 1) * limit
-                    cursor = cursor.skip(skip).limit(limit)
-
+                if not include_hidden:
+                    pipeline.append({
+                        "$set": {
+                            "testCases": {
+                                "$filter": {
+                                    "input": {"$ifNull": ["$testCases", []]},
+                                    "as": "tc",
+                                    "cond": {
+                                        "$ne": [
+                                            {"$ifNull": ["$$tc.visibility", "PUBLIC"]},
+                                            "HIDDEN"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    })
+                pipeline.append({
+                    "$project": {
+                        "_id": 1,
+                        "id": 1,
+                        "slug": 1,
+                        "title": 1,
+                        "difficulty": 1,
+                        "tags": 1,
+                        "status": 1,
+                        "version": 1,
+                        "supportedLanguages": 1,
+                        "testCasesCount": {"$size": {"$ifNull": ["$testCases", []]}},
+                    }
+                })
+                cursor = coll.aggregate(pipeline)
                 for doc in cursor:
                     if not doc.get("id") and "_id" in doc:
                         doc["id"] = str(doc["_id"])
                     doc.pop("_id", None)
-                    if doc.get("testCasesCount") is None:
-                        doc["testCasesCount"] = len(doc.get("testCases", []))
                     doc.pop("testCases", None)
                     questions.append(QuestionSummary(**doc))
 
@@ -121,13 +170,24 @@ class QuestionService:
                     }
                 return questions
 
-            cursor = coll.find(query).sort("createdAt", -1)
-            total = coll.count_documents(query) if page is not None and limit is not None else 0
-
-            if page is not None and limit is not None:
-                skip = (page - 1) * limit
-                cursor = cursor.skip(skip).limit(limit)
-
+            if not include_hidden:
+                pipeline.append({
+                    "$set": {
+                        "testCases": {
+                            "$filter": {
+                                "input": {"$ifNull": ["$testCases", []]},
+                                "as": "tc",
+                                "cond": {
+                                    "$ne": [
+                                        {"$ifNull": ["$$tc.visibility", "PUBLIC"]},
+                                        "HIDDEN"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                })
+            cursor = coll.aggregate(pipeline)
             for doc in cursor:
                 if not doc.get("id") and "_id" in doc:
                     doc["id"] = str(doc["_id"])
@@ -162,9 +222,20 @@ class QuestionService:
             if not clean.get("id") and "_id" in clean:
                 clean["id"] = str(clean["_id"])
             clean.pop("_id", None)
-            if summary:
+
+            if not include_hidden:
+                visible_tcs = [
+                    tc for tc in clean.get("testCases", [])
+                    if (isinstance(tc, dict) and tc.get("visibility") != "HIDDEN")
+                    or (not isinstance(tc, dict) and getattr(tc, "visibility", None) != "HIDDEN")
+                ]
+                clean["testCases"] = visible_tcs
+                clean["testCasesCount"] = len(visible_tcs)
+            else:
                 if clean.get("testCasesCount") is None:
                     clean["testCasesCount"] = len(clean.get("testCases", []))
+
+            if summary:
                 clean.pop("testCases", None)
                 questions.append(QuestionSummary(**clean))
             else:
@@ -184,7 +255,7 @@ class QuestionService:
         return questions
 
     def update_question(self, question_id: str, data: QuestionUpdate) -> Optional[Question]:
-        existing = self.get_question(question_id)
+        existing = self.get_question(question_id, include_hidden=True)
         if not existing:
             return None
         
@@ -206,10 +277,10 @@ class QuestionService:
             if existing.id in self._memory_store:
                 self._memory_store[existing.id].update(update_data)
 
-        return self.get_question(existing.id)
+        return self.get_question(existing.id, include_hidden=True)
 
     def delete_question(self, question_id: str) -> bool:
-        existing = self.get_question(question_id)
+        existing = self.get_question(question_id, include_hidden=True)
         if not existing:
             return False
         

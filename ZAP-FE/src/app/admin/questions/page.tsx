@@ -326,7 +326,7 @@ export default function AdminQuestionsPage() {
     setModalOpen(true);
 
     try {
-      const full = await questionsApi.get(summary.id);
+      const full = await questionsApi.get(summary.id, true);
       const data: QuestionFormData = {
         slug: full.slug,
         title: full.title,

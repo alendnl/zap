@@ -221,3 +221,102 @@ def test_execute_task_uses_environment_database():
     assert response.status_code == 200
     assert response.json()["verdict"] == "ACCEPTED"
     assert db_manager.dbs["qa"].submissions.find_one({"_id": sub_id})["status"] == SubmissionStatus.COMPLETED.value
+
+
+def test_hidden_test_cases_filtering_and_submission():
+    # Create question with 1 PUBLIC test case and 1 HIDDEN test case
+    payload = {
+        "slug": "sum-visible-and-hidden",
+        "title": "Sum Visible and Hidden",
+        "difficulty": "EASY",
+        "tags": ["math"],
+        "statement": "Add two numbers.",
+        "testCases": [
+            {
+                "visibility": "PUBLIC",
+                "input": "2 3",
+                "expectedOutput": "5",
+                "enabled": True
+            },
+            {
+                "visibility": "HIDDEN",
+                "input": "10 20",
+                "expectedOutput": "30",
+                "enabled": True
+            }
+        ],
+        "executionLimits": {"timeMs": 2000, "memoryMb": 256, "outputKb": 1024},
+        "supportedLanguages": ["python"]
+    }
+    create_res = client.post("/api/v1/questions", json=payload)
+    assert create_res.status_code == 201
+    q_id = create_res.json()["id"]
+
+    # When client fetches question, hidden test case is NOT returned
+    get_q = client.get(f"/api/v1/questions/{q_id}")
+    assert len(get_q.json()["testCases"]) == 1
+    assert get_q.json()["testCases"][0]["visibility"] == "PUBLIC"
+
+    # 1. RUN mode: should only run public test case
+    run_res = client.post("/api/v1/submissions", json={
+        "questionId": q_id,
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "import sys\nprint(sum(map(int, sys.stdin.read().split())))",
+        "userId": "student-run-filter"
+    })
+    assert run_res.status_code == 202
+    run_sub_id = run_res.json()["submissionId"]
+
+    exec_run = client.post("/internal/tasks/execute", json={"submissionId": run_sub_id})
+    assert exec_run.status_code == 200
+    sub_run = client.get(f"/api/v1/submissions/{run_sub_id}").json()
+    assert sub_run["tests"]["total"] == 1
+    assert sub_run["tests"]["passed"] == 1
+    assert len(sub_run["testResults"]) == 1
+
+    # 2. SUBMIT mode: should evaluate both public and hidden test cases, but get_submission returns only public in testResults
+    submit_res = client.post("/api/v1/submissions", json={
+        "questionId": q_id,
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "import sys\nprint(sum(map(int, sys.stdin.read().split())))",
+        "userId": "student-submit-filter"
+    })
+    assert submit_res.status_code == 202
+    submit_sub_id = submit_res.json()["submissionId"]
+
+    exec_submit = client.post("/internal/tasks/execute", json={"submissionId": submit_sub_id})
+    assert exec_submit.status_code == 200
+    sub_submit = client.get(f"/api/v1/submissions/{submit_sub_id}").json()
+    # Judge evaluated both test cases
+    assert sub_submit["tests"]["total"] == 2
+    assert sub_submit["tests"]["passed"] == 2
+    assert sub_submit["verdict"] == SubmissionVerdict.ACCEPTED.value
+    # But only the PUBLIC test case result is returned in testResults!
+    assert len(sub_submit["testResults"]) == 1
+    assert sub_submit["testResults"][0]["visibility"] == "PUBLIC"
+    assert sub_submit["testResults"][0]["input"] == "2 3"
+
+    # 3. SUBMIT mode where hidden test case fails
+    # Hardcoded answer that passes 2 3 -> 5, but fails 10 20 -> outputs 5 instead of 30
+    partial_res = client.post("/api/v1/submissions", json={
+        "questionId": q_id,
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print(5)",
+        "userId": "student-partial-filter"
+    })
+    assert partial_res.status_code == 202
+    partial_sub_id = partial_res.json()["submissionId"]
+
+    exec_partial = client.post("/internal/tasks/execute", json={"submissionId": partial_sub_id})
+    assert exec_partial.status_code == 200
+    sub_partial = client.get(f"/api/v1/submissions/{partial_sub_id}").json()
+    assert sub_partial["tests"]["total"] == 2
+    assert sub_partial["tests"]["passed"] == 1
+    assert sub_partial["tests"]["failed"] == 1
+    assert sub_partial["verdict"] == SubmissionVerdict.WRONG_ANSWER.value
+    # testResults only contains the visible test case!
+    assert len(sub_partial["testResults"]) == 1
+    assert sub_partial["testResults"][0]["passed"] is True

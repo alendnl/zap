@@ -89,10 +89,32 @@ class SubmissionService:
 
         return submission
 
-    def get_submission(self, submission_id: str) -> Optional[Submission]:
+    def get_submission(self, submission_id: str, include_hidden: bool = False) -> Optional[Submission]:
         coll = self._get_collection()
         if coll is not None:
-            doc = coll.find_one({"$or": [{"_id": submission_id}, {"id": submission_id}]})
+            if include_hidden:
+                doc = coll.find_one({"$or": [{"_id": submission_id}, {"id": submission_id}]})
+            else:
+                pipeline = [
+                    {"$match": {"$or": [{"_id": submission_id}, {"id": submission_id}]}},
+                    {"$set": {
+                        "testResults": {
+                            "$filter": {
+                                "input": {"$ifNull": ["$testResults", []]},
+                                "as": "tr",
+                                "cond": {
+                                    "$ne": [
+                                        {"$ifNull": ["$$tr.visibility", "PUBLIC"]},
+                                        "HIDDEN"
+                                    ]
+                                }
+                            }
+                        }
+                    }}
+                ]
+                docs = list(coll.aggregate(pipeline))
+                doc = docs[0] if docs else None
+
             if doc:
                 doc.pop("_id", None)
                 return Submission(**doc)
@@ -101,6 +123,12 @@ class SubmissionService:
         if doc:
             clean = dict(doc)
             clean.pop("_id", None)
+            if not include_hidden:
+                clean["testResults"] = [
+                    tr for tr in clean.get("testResults", [])
+                    if (isinstance(tr, dict) and tr.get("visibility") != "HIDDEN")
+                    or (not isinstance(tr, dict) and getattr(tr, "visibility", None) != "HIDDEN")
+                ]
             return Submission(**clean)
         return None
 

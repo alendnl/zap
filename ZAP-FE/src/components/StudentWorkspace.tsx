@@ -474,7 +474,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           if (isTerminalStatus(sub.status)) {
             isDone = true;
             if (sub.testResults && sub.testResults.length > 0) {
-              const firstFail = sub.testResults.findIndex((tc) => !tc.passed);
+              const visibleResults = sub.testResults.filter((tc) => tc.visibility !== "HIDDEN");
+              const firstFail = visibleResults.findIndex((tc) => !tc.passed);
               setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
             }
 
@@ -631,47 +632,64 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               )}
 
               {/* Individual Test Cases Viewer */}
-              {currentSubmission.testResults && currentSubmission.testResults.length > 0 && (
-                <div className="flex flex-col gap-2 mt-1">
-                  {/* Test Case Tabs */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-                    {currentSubmission.testResults.map((tc, idx) => {
-                      const isSelected = idx === selectedCaseIdx;
-                      return (
-                        <button
-                          key={tc.id || idx}
-                          type="button"
-                          onClick={() => setSelectedCaseIdx(idx)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
-                              : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                              tc.passed ? "bg-emerald-500" : "bg-rose-500"
-                            }`}
-                          />
-                          <span>Case {idx + 1}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                              tc.passed
-                                ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                                : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
+              {(() => {
+                const visibleResults = (currentSubmission.testResults || []).filter(
+                  (tc) => tc.visibility !== "HIDDEN"
+                );
+                if (visibleResults.length === 0) return null;
+                const safeIdx = Math.max(0, Math.min(selectedCaseIdx, visibleResults.length - 1));
+                const activeCase = visibleResults[safeIdx];
+
+                const allVisiblePassed = visibleResults.every((tc) => tc.passed);
+                const hasHiddenFailures =
+                  Boolean(currentSubmission.tests && currentSubmission.tests.failed > 0 && allVisiblePassed);
+
+                return (
+                  <div className="flex flex-col gap-2 mt-1">
+                    {/* Notice if all visible tests passed but hidden test cases failed */}
+                    {hasHiddenFailures && (
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                        <span>All sample test cases passed, but one or more evaluation test cases failed.</span>
+                      </div>
+                    )}
+
+                    {/* Test Case Tabs */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+                      {visibleResults.map((tc, idx) => {
+                        const isSelected = idx === safeIdx;
+                        return (
+                          <button
+                            key={tc.id || idx}
+                            type="button"
+                            onClick={() => setSelectedCaseIdx(idx)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
+                                : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
                             }`}
                           >
-                            {tc.passed ? "Passed" : "Failed"}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                tc.passed ? "bg-emerald-500" : "bg-rose-500"
+                              }`}
+                            />
+                            <span>Case {idx + 1}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
+                                tc.passed
+                                  ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                                  : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
+                              }`}
+                            >
+                              {tc.passed ? "Passed" : "Failed"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                  {/* Active Test Case Detail */}
-                  {currentSubmission.testResults[selectedCaseIdx] && (() => {
-                    const activeCase = currentSubmission.testResults[selectedCaseIdx];
-                    return (
+                    {/* Active Test Case Detail */}
+                    {activeCase && (
                       <div className="flex flex-col gap-2.5 pt-1">
                         {/* Input */}
                         <div>
@@ -679,7 +697,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             Input:
                           </div>
                           <pre className="bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap">
-                            {activeCase.input != null ? activeCase.input : "(Hidden test case)"}
+                            {activeCase.input != null ? activeCase.input : "(No input)"}
                           </pre>
                         </div>
 
@@ -692,7 +710,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             <pre className="bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap">
                               {activeCase.expectedOutput != null
                                 ? activeCase.expectedOutput
-                                : "(Hidden test case)"}
+                                : "(No expected output)"}
                             </pre>
                           </div>
 
@@ -735,10 +753,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                           </div>
                         )}
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1374,47 +1392,59 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   )}
 
                   {/* Test Cases Results with Data */}
-                  {viewingSubmission.testResults && viewingSubmission.testResults.length > 0 ? (
-                    <div className="flex flex-col gap-2.5">
-                      {/* Case selector chips */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-                        {viewingSubmission.testResults.map((tc, idx) => {
-                          const isSelected = idx === dialogCaseIdx;
-                          return (
-                            <button
-                              key={tc.id || idx}
-                              type="button"
-                              onClick={() => setDialogCaseIdx(idx)}
-                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                                isSelected
-                                  ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
-                                  : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                  tc.passed ? "bg-emerald-500" : "bg-rose-500"
-                                }`}
-                              />
-                              <span>Case {idx + 1}</span>
-                              <span
-                                className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                                  tc.passed
-                                    ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                                    : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
+                  {(() => {
+                    const visibleDialogResults = (viewingSubmission.testResults || []).filter(
+                      (tc) => tc.visibility !== "HIDDEN"
+                    );
+                    if (visibleDialogResults.length === 0) {
+                      return (
+                        <div className="py-8 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
+                          No individual test case results recorded for this submission.
+                        </div>
+                      );
+                    }
+                    const safeIdx = Math.max(0, Math.min(dialogCaseIdx, visibleDialogResults.length - 1));
+                    const activeCase = visibleDialogResults[safeIdx];
+
+                    return (
+                      <div className="flex flex-col gap-2.5">
+                        {/* Case selector chips */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
+                          {visibleDialogResults.map((tc, idx) => {
+                            const isSelected = idx === safeIdx;
+                            return (
+                              <button
+                                key={tc.id || idx}
+                                type="button"
+                                onClick={() => setDialogCaseIdx(idx)}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
+                                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
                                 }`}
                               >
-                                {tc.passed ? "Passed" : "Failed"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                    tc.passed ? "bg-emerald-500" : "bg-rose-500"
+                                  }`}
+                                />
+                                <span>Case {idx + 1}</span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
+                                    tc.passed
+                                      ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                                      : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
+                                  }`}
+                                >
+                                  {tc.passed ? "Passed" : "Failed"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                      {/* Selected Case Detail */}
-                      {viewingSubmission.testResults[dialogCaseIdx] && (() => {
-                        const activeCase = viewingSubmission.testResults[dialogCaseIdx];
-                        return (
+                        {/* Selected Case Detail */}
+                        {activeCase && (
                           <div className="flex flex-col gap-2.5 pt-1">
                             {/* Input */}
                             <div>
@@ -1422,7 +1452,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                                 Input:
                               </div>
                               <pre className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {activeCase.input != null ? activeCase.input : "(Hidden test case input)"}
+                                {activeCase.input != null ? activeCase.input : "(No input)"}
                               </pre>
                             </div>
 
@@ -1435,7 +1465,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                                 <pre className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap max-h-36 overflow-y-auto">
                                   {activeCase.expectedOutput != null
                                     ? activeCase.expectedOutput
-                                    : "(Hidden test case expected output)"}
+                                    : "(No expected output)"}
                                 </pre>
                               </div>
 
@@ -1478,14 +1508,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                               </div>
                             )}
                           </div>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <div className="py-8 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
-                      No individual test case results recorded for this submission.
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div>

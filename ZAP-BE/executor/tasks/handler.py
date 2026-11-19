@@ -207,7 +207,10 @@ def _run_judge(submission_id: str, submission, environment: str = "production") 
 
     db = get_database_for_env(environment)
     question_service = QuestionService(db)
-    question = question_service.get_question(submission.questionId)
+    is_run_mode = getattr(submission, "mode", None) in [SubmissionMode.RUN, "RUN"]
+    # RUN mode: only visible test cases are fetched from MongoDB (hidden filtered at DB level)
+    # SUBMIT mode: all test cases are loaded into sandbox/judge for complete grading
+    question = question_service.get_question(submission.questionId, include_hidden=not is_run_mode)
     if not question:
         raise PermanentExecutionError(f"Question '{submission.questionId}' not found")
 

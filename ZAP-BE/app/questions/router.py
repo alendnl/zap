@@ -19,6 +19,7 @@ def list_questions(
     page: Optional[int] = Query(None, ge=1, description="Page number for pagination"),
     limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
     summary: bool = Query(True, description="Return lightweight summaries without statements or test cases"),
+    include_hidden: bool = Query(False, description="Include hidden test cases"),
     service: QuestionService = Depends(get_question_service)
 ):
     result = service.list_questions(
@@ -28,6 +29,7 @@ def list_questions(
         page=page,
         limit=limit,
         summary=summary,
+        include_hidden=include_hidden,
     )
     if isinstance(result, dict) and "items" in result:
         response.headers["X-Total-Count"] = str(result["total"])
@@ -40,9 +42,10 @@ def list_questions(
 @router.get("/api/v1/questions/{question_id}", response_model=Question)
 def get_question(
     question_id: str,
+    include_hidden: bool = Query(False, description="Include hidden test cases"),
     service: QuestionService = Depends(get_question_service)
 ):
-    question = service.get_question(question_id)
+    question = service.get_question(question_id, include_hidden=include_hidden)
     if not question:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
