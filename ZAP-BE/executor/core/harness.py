@@ -48,9 +48,9 @@ def outputs_match(actual: str, expected: str) -> bool:
     except Exception:
         pass
 
-    # 3. Space-separated tokens vs JSON arrays (e.g. "0 1" vs "[0, 1]")
-    act_tokens = [t.strip("[],\"'") for t in act.split() if t.strip("[],\"'")]
-    exp_tokens = [t.strip("[],\"'") for t in exp.split() if t.strip("[],\"'")]
+    # 3. Space-separated and comma-separated tokens vs JSON arrays (e.g. "0 1" vs "[0, 1]" or "[0,1]")
+    act_tokens = [t.strip("[],\"'") for t in act.replace(",", " ").split() if t.strip("[],\"'")]
+    exp_tokens = [t.strip("[],\"'") for t in exp.replace(",", " ").split() if t.strip("[],\"'")]
     if act_tokens and exp_tokens and act_tokens == exp_tokens:
         return True
 
@@ -268,7 +268,24 @@ if __name__ == "__main__":
                     except Exception:
                         parsed_args.append(t)
 
-        # 2e. Default single argument
+        # 2e. Parse 5-argument tree/graph query problems (n, q, riskScores, connections, operations)
+        if not parsed_args and len(params) == 5:
+            tokens = raw_stdin.split()
+            if len(tokens) >= 2:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    q_val = int(next(it))
+                    scores = [int(next(it)) for _ in range(n_val)]
+                    edges = [[int(next(it)), int(next(it))] for _ in range(n_val - 1)]
+                    ops = []
+                    for _ in range(q_val):
+                        ops.append([int(next(it)), int(next(it)), int(next(it))])
+                    parsed_args = [n_val, q_val, scores, edges, ops]
+                except Exception:
+                    pass
+
+        # 2f. Default single argument
         if not parsed_args and len(params) == 1:
             try:
                 parsed_args = [json.loads(raw_stdin)]
@@ -411,17 +428,40 @@ def _prepare_node_harness(source: str) -> str:
     }
 
     let args = [];
-    try {
-        const parsed = JSON.parse(raw);
-        args = Array.isArray(parsed) && targetFn.length > 1 && parsed.length === targetFn.length ? parsed : [parsed];
-    } catch (e) {
-        const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
-        if (lines.length === targetFn.length) {
-            args = lines.map(l => {
-                try { return JSON.parse(l); } catch (_) { return l; }
-            });
-        } else {
-            args = [raw];
+    if (targetFn.length === 5) {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 2) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const qVal = parseInt(tokens[idx++], 10);
+                const scores = [];
+                for (let i = 0; i < nVal; i++) scores.push(parseInt(tokens[idx++], 10));
+                const edges = [];
+                for (let i = 0; i < nVal - 1; i++) {
+                    edges.push([parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10)]);
+                }
+                const ops = [];
+                for (let i = 0; i < qVal; i++) {
+                    ops.push([parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10)]);
+                }
+                args = [nVal, qVal, scores, edges, ops];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0) {
+        try {
+            const parsed = JSON.parse(raw);
+            args = Array.isArray(parsed) && targetFn.length > 1 && parsed.length === targetFn.length ? parsed : [parsed];
+        } catch (e) {
+            const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
+            if (lines.length === targetFn.length) {
+                args = lines.map(l => {
+                    try { return JSON.parse(l); } catch (_) { return l; }
+                });
+            } else {
+                args = [raw];
+            }
         }
     }
 
@@ -647,6 +687,25 @@ int main() {
     std::cout << ans << std::endl;
     return 0;
 }
+"""
+    elif re.search(r'\bdynamicRiskAssessment\s*\(', source) or re.search(r'\bsolution\s*\([^)]+\)', source):
+        call_fn = "dynamicRiskAssessment" if re.search(r'\bdynamicRiskAssessment\s*\(', source) else "solution"
+        driver += f"""
+    int n, q;
+    if (std::cin >> n >> q) {{
+        std::vector<int> riskScores(n);
+        for (int i = 0; i < n; i++) std::cin >> riskScores[i];
+        std::vector<std::vector<int>> connections(n - 1, std::vector<int>(2));
+        for (int i = 0; i < n - 1; i++) std::cin >> connections[i][0] >> connections[i][1];
+        std::vector<std::vector<int>> operations(q, std::vector<int>(3));
+        for (int i = 0; i < q; i++) std::cin >> operations[i][0] >> operations[i][1] >> operations[i][2];
+        std::vector<int> res = sol.{call_fn}(n, q, riskScores, connections, operations);
+        for (size_t i = 0; i < res.size(); i++) {{
+            std::cout << res[i] << "\\n";
+        }}
+    }}
+    return 0;
+}}
 """
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
@@ -1015,6 +1074,46 @@ int main() {
     return 0;
 }
 """
+    elif re.search(r'\bdynamicRiskAssessment\s*\(', source) or re.search(r'\bsolution\s*\([^)]+\)', source):
+        call_fn = "dynamicRiskAssessment" if re.search(r'\bdynamicRiskAssessment\s*\(', source) else "solution"
+        driver += f"""
+    int n, q;
+    if (scanf("%d %d", &n, &q) == 2) {{
+        int* riskScores = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) scanf("%d", &riskScores[i]);
+        int** connections = (int**)malloc((n - 1) * sizeof(int*));
+        int* connectionsColSize = (int*)malloc((n - 1) * sizeof(int));
+        for (int i = 0; i < n - 1; i++) {{
+            connections[i] = (int*)malloc(2 * sizeof(int));
+            connectionsColSize[i] = 2;
+            scanf("%d %d", &connections[i][0], &connections[i][1]);
+        }}
+        int** operations = (int**)malloc(q * sizeof(int*));
+        int* operationsColSize = (int*)malloc(q * sizeof(int));
+        for (int i = 0; i < q; i++) {{
+            operations[i] = (int*)malloc(3 * sizeof(int));
+            operationsColSize[i] = 3;
+            scanf("%d %d %d", &operations[i][0], &operations[i][1], &operations[i][2]);
+        }}
+        int returnSize = 0;
+        int* res = {call_fn}(n, q, riskScores, n, connections, n - 1, connectionsColSize, operations, q, operationsColSize, &returnSize);
+        if (res) {{
+            for (int i = 0; i < returnSize; i++) {{
+                printf("%d\\n", res[i]);
+            }}
+            free(res);
+        }}
+        for (int i = 0; i < n - 1; i++) free(connections[i]);
+        free(connections);
+        free(connectionsColSize);
+        for (int i = 0; i < q; i++) free(operations[i]);
+        free(operations);
+        free(operationsColSize);
+        free(riskScores);
+    }}
+    return 0;
+}}
+"""
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     solution();
@@ -1336,6 +1435,68 @@ def _prepare_java_harness(source: str) -> str:
         if (types.length == 1) {
             args[0] = _zapParseSingle(raw, types[0]);
             return args;
+        }
+
+        if (types.length == 5) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 2) {
+                try {
+                    int idx = 0;
+                    int n = Integer.parseInt(tokens[idx++]);
+                    int q = Integer.parseInt(tokens[idx++]);
+                    args[0] = n;
+                    args[1] = q;
+
+                    if (types[2].equals(int[].class)) {
+                        int[] arr = new int[n];
+                        for (int i = 0; i < n; i++) arr[i] = Integer.parseInt(tokens[idx++]);
+                        args[2] = arr;
+                    } else {
+                        List<Integer> list = new ArrayList<>();
+                        for (int i = 0; i < n; i++) list.add(Integer.parseInt(tokens[idx++]));
+                        args[2] = list;
+                    }
+
+                    if (types[3].equals(int[][].class)) {
+                        int[][] conns = new int[n - 1][2];
+                        for (int i = 0; i < n - 1; i++) {
+                            conns[i][0] = Integer.parseInt(tokens[idx++]);
+                            conns[i][1] = Integer.parseInt(tokens[idx++]);
+                        }
+                        args[3] = conns;
+                    } else {
+                        List<List<Integer>> conns = new ArrayList<>();
+                        for (int i = 0; i < n - 1; i++) {
+                            List<Integer> edge = new ArrayList<>();
+                            edge.add(Integer.parseInt(tokens[idx++]));
+                            edge.add(Integer.parseInt(tokens[idx++]));
+                            conns.add(edge);
+                        }
+                        args[3] = conns;
+                    }
+
+                    if (types[4].equals(int[][].class)) {
+                        int[][] ops = new int[q][3];
+                        for (int i = 0; i < q; i++) {
+                            ops[i][0] = Integer.parseInt(tokens[idx++]);
+                            ops[i][1] = Integer.parseInt(tokens[idx++]);
+                            ops[i][2] = Integer.parseInt(tokens[idx++]);
+                        }
+                        args[4] = ops;
+                    } else {
+                        List<List<Integer>> ops = new ArrayList<>();
+                        for (int i = 0; i < q; i++) {
+                            List<Integer> op = new ArrayList<>();
+                            op.add(Integer.parseInt(tokens[idx++]));
+                            op.add(Integer.parseInt(tokens[idx++]));
+                            op.add(Integer.parseInt(tokens[idx++]));
+                            ops.add(op);
+                        }
+                        args[4] = ops;
+                    }
+                    return args;
+                } catch (Exception ignored) {}
+            }
         }
 
         String[] lines = raw.split("\r?\n");

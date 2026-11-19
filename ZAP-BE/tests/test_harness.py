@@ -233,5 +233,336 @@ int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
     assert result.passed_tests == 2
 
 
+def test_harness_python_dynamic_risk_assessment():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def dynamicRiskAssessment(self, n: int, q: int, riskScores: list[int], connections: list[list[int]], operations: list[list[int]]) -> list[int]:
+        adj = [[] for _ in range(n + 1)]
+        for u, v in connections:
+            adj[u].append(v)
+            adj[v].append(u)
+        scores = [0] + list(riskScores)
+        res = []
+        for op in operations:
+            if op[0] == 1:
+                scores[op[1]] = op[2]
+            elif op[0] == 2:
+                q_bfs = [(op[1], [op[1]])]
+                vis = {op[1]}
+                found = []
+                while q_bfs:
+                    curr, path = q_bfs.pop(0)
+                    if curr == op[2]:
+                        found = path
+                        break
+                    for nxt in adj[curr]:
+                        if nxt not in vis:
+                            vis.add(nxt)
+                            q_bfs.append((nxt, path + [nxt]))
+                res.append(max(scores[node] for node in found))
+        return res
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "7 8\n5 3 8 2 10 6 4\n1 2\n1 3\n2 4\n2 5\n3 6\n3 7\n2 4 6\n2 5 7\n1 2 15\n2 4 6\n1 3 -5\n2 4 7\n2 1 1\n2 5 6",
+            "expectedOutput": "8\n10\n15\n15\n5\n15",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_cpp_dynamic_risk_assessment():
+    if not (shutil.which("g++") or shutil.which("clang++")):
+        pytest.skip("C++ compiler not installed")
+    runner = get_runner("cpp")
+    judge = JudgeEngine()
+
+    code = """
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+using namespace std;
+
+class Solution {
+public:
+    vector<int> dynamicRiskAssessment(int n, int q, vector<int>& riskScores, vector<vector<int>>& connections, vector<vector<int>>& operations) {
+        vector<vector<int>> adj(n + 1);
+        for (auto& e : connections) {
+            adj[e[0]].push_back(e[1]);
+            adj[e[1]].push_back(e[0]);
+        }
+        vector<int> scores(n + 1);
+        for (int i = 0; i < n; i++) scores[i + 1] = riskScores[i];
+        vector<int> res;
+        for (auto& op : operations) {
+            if (op[0] == 1) {
+                scores[op[1]] = op[2];
+            } else if (op[0] == 2) {
+                int src = op[1], dst = op[2];
+                vector<int> parent(n + 1, 0);
+                vector<bool> vis(n + 1, false);
+                queue<int> qu;
+                qu.push(src);
+                vis[src] = true;
+                while (!qu.empty()) {
+                    int curr = qu.front(); qu.pop();
+                    if (curr == dst) break;
+                    for (int nxt : adj[curr]) {
+                        if (!vis[nxt]) {
+                            vis[nxt] = true;
+                            parent[nxt] = curr;
+                            qu.push(nxt);
+                        }
+                    }
+                }
+                int curr = dst;
+                int maxVal = scores[curr];
+                while (curr != src) {
+                    curr = parent[curr];
+                    maxVal = max(maxVal, scores[curr]);
+                }
+                res.push_back(maxVal);
+            }
+        }
+        return res;
+    }
+};
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "7 8\n5 3 8 2 10 6 4\n1 2\n1 3\n2 4\n2 5\n3 6\n3 7\n2 4 6\n2 5 7\n1 2 15\n2 4 6\n1 3 -5\n2 4 7\n2 1 1\n2 5 6",
+            "expectedOutput": "8\n10\n15\n15\n5\n15",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_node_dynamic_risk_assessment():
+    if not shutil.which("node"):
+        pytest.skip("Node not installed")
+    runner = get_runner("node")
+    judge = JudgeEngine()
+
+    code = """
+var dynamicRiskAssessment = function(n, q, riskScores, connections, operations) {
+    const adj = Array.from({ length: n + 1 }, () => []);
+    for (const [u, v] of connections) {
+        adj[u].push(v);
+        adj[v].push(u);
+    }
+    const scores = [0, ...riskScores];
+    const res = [];
+    for (const [type, u, v] of operations) {
+        if (type === 1) {
+            scores[u] = v;
+        } else if (type === 2) {
+            const qu = [[u, [u]]];
+            const vis = new Set([u]);
+            let path = [];
+            while (qu.length > 0) {
+                const [curr, p] = qu.shift();
+                if (curr === v) {
+                    path = p;
+                    break;
+                }
+                for (const nxt of adj[curr]) {
+                    if (!vis.has(nxt)) {
+                        vis.add(nxt);
+                        qu.push([nxt, [...p, nxt]]);
+                    }
+                }
+            }
+            res.push(Math.max(...path.map(node => scores[node])));
+        }
+    }
+    return res;
+};
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "7 8\n5 3 8 2 10 6 4\n1 2\n1 3\n2 4\n2 5\n3 6\n3 7\n2 4 6\n2 5 7\n1 2 15\n2 4 6\n1 3 -5\n2 4 7\n2 1 1\n2 5 6",
+            "expectedOutput": "8\n10\n15\n15\n5\n15",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_java_dynamic_risk_assessment():
+    if not shutil.which("javac"):
+        pytest.skip("Java compiler (javac) not installed")
+    runner = get_runner("java")
+    judge = JudgeEngine()
+
+    code = """
+import java.util.*;
+
+class Solution {
+    public List<Integer> dynamicRiskAssessment(int n, int q, int[] riskScores, int[][] connections, int[][] operations) {
+        List<List<Integer>> adj = new ArrayList<>();
+        for (int i = 0; i <= n; i++) adj.add(new ArrayList<>());
+        for (int[] e : connections) {
+            adj.get(e[0]).add(e[1]);
+            adj.get(e[1]).add(e[0]);
+        }
+        int[] scores = new int[n + 1];
+        for (int i = 0; i < n; i++) scores[i + 1] = riskScores[i];
+        List<Integer> res = new ArrayList<>();
+        for (int[] op : operations) {
+            if (op[0] == 1) {
+                scores[op[1]] = op[2];
+            } else if (op[0] == 2) {
+                int src = op[1], dst = op[2];
+                int[] parent = new int[n + 1];
+                boolean[] vis = new boolean[n + 1];
+                Queue<Integer> qu = new ArrayDeque<>();
+                qu.add(src);
+                vis[src] = true;
+                while (!qu.isEmpty()) {
+                    int curr = qu.poll();
+                    if (curr == dst) break;
+                    for (int nxt : adj.get(curr)) {
+                        if (!vis[nxt]) {
+                            vis[nxt] = true;
+                            parent[nxt] = curr;
+                            qu.add(nxt);
+                        }
+                    }
+                }
+                int curr = dst;
+                int maxVal = scores[curr];
+                while (curr != src) {
+                    curr = parent[curr];
+                    maxVal = Math.max(maxVal, scores[curr]);
+                }
+                res.add(maxVal);
+            }
+        }
+        return res;
+    }
+}
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "7 8\n5 3 8 2 10 6 4\n1 2\n1 3\n2 4\n2 5\n3 6\n3 7\n2 4 6\n2 5 7\n1 2 15\n2 4 6\n1 3 -5\n2 4 7\n2 1 1\n2 5 6",
+            "expectedOutput": "8\n10\n15\n15\n5\n15",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_c_dynamic_risk_assessment():
+    if not (shutil.which("gcc") or shutil.which("clang")):
+        pytest.skip("C compiler (gcc/clang) not installed")
+    runner = get_runner("c")
+    judge = JudgeEngine()
+
+    code = """
+#include <stdio.h>
+#include <stdlib.h>
+
+int* dynamicRiskAssessment(int n, int q, int* riskScores, int riskScoresSize, int** connections, int connectionsSize, int* connectionsColSize, int** operations, int operationsSize, int* operationsColSize, int* returnSize) {
+    int* scores = (int*)malloc((n + 1) * sizeof(int));
+    for (int i = 0; i < n; i++) scores[i + 1] = riskScores[i];
+    int* res = (int*)malloc(q * sizeof(int));
+    int count = 0;
+
+    int* head = (int*)malloc((n + 1) * sizeof(int));
+    for (int i = 0; i <= n; i++) head[i] = -1;
+    int edgeCap = 2 * (n - 1) + 2;
+    int* to = (int*)malloc(edgeCap * sizeof(int));
+    int* nextEdge = (int*)malloc(edgeCap * sizeof(int));
+    int eIdx = 0;
+    for (int i = 0; i < connectionsSize; i++) {
+        int u = connections[i][0];
+        int v = connections[i][1];
+        to[eIdx] = v; nextEdge[eIdx] = head[u]; head[u] = eIdx++;
+        to[eIdx] = u; nextEdge[eIdx] = head[v]; head[v] = eIdx++;
+    }
+
+    int* parent = (int*)malloc((n + 1) * sizeof(int));
+    int* vis = (int*)malloc((n + 1) * sizeof(int));
+    int* qu = (int*)malloc((n + 1) * sizeof(int));
+
+    for (int i = 0; i < operationsSize; i++) {
+        int type = operations[i][0];
+        if (type == 1) {
+            scores[operations[i][1]] = operations[i][2];
+        } else if (type == 2) {
+            int src = operations[i][1];
+            int dst = operations[i][2];
+            for (int j = 0; j <= n; j++) vis[j] = 0;
+            int qh = 0, qt = 0;
+            qu[qt++] = src;
+            vis[src] = 1;
+            while (qh < qt) {
+                int curr = qu[qh++];
+                if (curr == dst) break;
+                for (int e = head[curr]; e != -1; e = nextEdge[e]) {
+                    int nxt = to[e];
+                    if (!vis[nxt]) {
+                        vis[nxt] = 1;
+                        parent[nxt] = curr;
+                        qu[qt++] = nxt;
+                    }
+                }
+            }
+            int curr = dst;
+            int maxVal = scores[curr];
+            while (curr != src) {
+                curr = parent[curr];
+                if (scores[curr] > maxVal) maxVal = scores[curr];
+            }
+            res[count++] = maxVal;
+        }
+    }
+    *returnSize = count;
+    free(head); free(to); free(nextEdge); free(parent); free(vis); free(qu); free(scores);
+    return res;
+}
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "7 8\n5 3 8 2 10 6 4\n1 2\n1 3\n2 4\n2 5\n3 6\n3 7\n2 4 6\n2 5 7\n1 2 15\n2 4 6\n1 3 -5\n2 4 7\n2 1 1\n2 5 6",
+            "expectedOutput": "8\n10\n15\n15\n5\n15",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+
 
 
