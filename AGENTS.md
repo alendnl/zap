@@ -47,4 +47,4 @@ The persistent, single source of truth for the codebase:
 
 - [`build`](file:///.agents/skills/build/SKILL.md): Prompt-to-implementation workflow with gated clarification, test-driven verification, and capped iterations.
 - [`frontend-design`](file:///.agents/skills/frontend-design/SKILL.md): Distinctive, intentional UI/UX design guidance for Next.js and Tailwind CSS components.
-- [`cloud-ops`](file:///.agents/skills/cloud-ops/SKILL.md): Safe querying, diagnostic monitoring, and management across MongoDB Atlas, GCP Cloud Run/Tasks/Logs, and GitHub CI/CD workflows.
+- [`project-operations`](file:///.agents/skills/project-operations/SKILL.md): Unified operational skill for managing, inspecting, and diagnosing cloud infrastructure, databases (MongoDB Atlas), GCP Cloud Run/Tasks/Logs, and Git/GitHub CI/CD workflows.

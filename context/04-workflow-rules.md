@@ -95,7 +95,7 @@ Before marking any feature, bug fix, or refactor complete, execute the verificat
    ```
 4. **Cloud & Database Verification (When Applicable)**:
    ```bash
-   .agents/skills/cloud-ops/scripts/zap-ops doctor
+   .agents/skills/project-operations/scripts/zap-ops doctor
    ```
 All checks must pass with zero regressions and zero broken imports.
 

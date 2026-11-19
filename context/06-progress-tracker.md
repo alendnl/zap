@@ -29,7 +29,7 @@
 - [x] **MCQ Question Subsystem & Admin Portal**: Dedicated MongoDB collection `mcq_questions` with 10 curated seed questions (DSA, DBMS, Networks, OOPS), FastAPI CRUD endpoints (`/api/v1/mcq/questions`), and full-featured Admin MCQ Manager portal at `/admin/mcq` with rich support for text, code snippet, and diagram image questions and options.
 - [x] **Contest Engine & Anti-Cheat Proctoring**: Dedicated timed assessment environment with isolated contest sessions, auto-sync, client proctoring guards (fullscreen enforcement, clipboard copy/paste interception, tab switch detection), and isolated submission pipeline.
 - [x] **Contest Submissions Analytics Dashboard**: Executive telemetry dashboard at `/admin/contests/analytics` featuring cohort metrics (completion rate, score distribution histogram, MCQ accuracy, coding acceptance), proctoring infraction analytics, candidate submissions leaderboard, and individual candidate inspection modal with chronological proctoring violation timeline and full source code viewer.
-- [x] **Cloud & Database Operations Skill (`cloud-ops`)**: Dedicated operational agent skill and zero-setup CLI tool (`zap-ops`) unifying MongoDB Atlas queries/schema inspection, GCP Cloud Run/Tasks/Logs management, and GitHub CI/CD monitoring with strict production safety guardrails.
+- [x] **Unified Cloud & Repository Operations Skill (`project-operations`)**: Dedicated operational agent skill and zero-setup CLI tool (`zap-ops`) unifying MongoDB Atlas queries/schema inspection/aggregations/writes/backups, GCP Cloud Run/Tasks/Logs/Scaling management, and Git/GitHub CI/CD monitoring with cross-system intelligence and production safety guardrails. (Superseded `cloud-ops`).
 - [x] **In-Browser Admin Load Testing Studio (`/admin/load-test`)**: Replaced unmaintainable local CLI load testing scripts with a full-featured, zero-setup in-browser load testing studio. Features dual target subsystems (ZAP API & ZAP Executor), configurable concurrency, linear vs instant spike ramp-up schedules, multi-language compiler stress (C++, Java, Python, C, JavaScript) across Light/Medium/Heavy workloads, live telemetry streaming, response time percentiles (p50, p75, p90, p95, p99), historical run recording in `zap_platform_lower`, and strict environment isolation with an automated lower DB synthetic data cleanup modal.
 
 ---
@@ -74,11 +74,11 @@
 - **Decision**: Consolidate all core context into 6 canonical files in `context/`, while keeping `.agents/rules/` and `AGENTS.md` synchronized as direct harness bridges.
 - **Consequences**: Standardized context architecture compatible with Antigravity IDE, Cursor, Claude Code, and human engineers with zero breakage.
 
-### ADR-006: Dedicated Cloud & Database Operational Agent Skill (`cloud-ops`)
-- **Status**: Accepted
+### ADR-006: Unified Cloud & Repository Operations Skill (`project-operations`)
+- **Status**: Accepted (Supersedes legacy `cloud-ops`)
 - **Context**: Managing, troubleshooting, and querying MongoDB Atlas, GCP Cloud Run/Tasks/Logs, and GitHub CI/CD required disparate ad-hoc scripts with risks of accidental mutation on production.
-- **Decision**: Implement the `cloud-ops` agent skill with a dedicated, safe CLI tool (`zap-ops`) providing unified diagnostic health checks, read-only defaults, production write guardrails, one-way sync to QA, and log inspection.
-- **Consequences**: Instant operational visibility and safe developer troubleshooting across cloud infrastructure with zero accidental production blast radius.
+- **Decision**: Implement the unified `project-operations` agent skill with a dedicated, safe CLI tool (`zap-ops`) providing multi-system diagnostic health checks, read-only defaults, production write guardrails, one-way sync to QA, log inspection, full aggregation/export capabilities, scaling management, deployment sync verification, and cross-system root cause troubleshooting.
+- **Consequences**: Instant operational visibility and safe developer troubleshooting across cloud infrastructure with cross-system synthesis and zero accidental production blast radius.
 
 ### ADR-007: Independent Percentage Scoring for Contest MCQs and Coding Problems
 - **Status**: Accepted

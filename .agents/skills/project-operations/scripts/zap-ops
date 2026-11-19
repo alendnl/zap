@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Wrapper for zap_ops CLI tool
+# Wrapper for zap-ops CLI tool (Unified Project Operations)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
+# Locate Python binary
 PYTHON_BIN=""
 if [ -f "$REPO_ROOT/.venv/bin/python" ]; then
     PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
@@ -13,6 +14,14 @@ elif command -v python3 >/dev/null 2>&1; then
 else
     echo "Error: Python 3 not found." >&2
     exit 1
+fi
+
+# Inject GH_TOKEN from GIT_TOKEN in .env if gh is used
+if [ -z "$GH_TOKEN" ] && [ -z "$GITHUB_TOKEN" ] && [ -f "$REPO_ROOT/.env" ]; then
+    GIT_TOKEN_VAL=$(grep -E "^GIT_TOKEN=" "$REPO_ROOT/.env" | cut -d '=' -f2- | tr -d '"'\'' ')
+    if [ -n "$GIT_TOKEN_VAL" ]; then
+        export GH_TOKEN="$GIT_TOKEN_VAL"
+    fi
 fi
 
 exec "$PYTHON_BIN" "$SCRIPT_DIR/zap_ops.py" "$@"
