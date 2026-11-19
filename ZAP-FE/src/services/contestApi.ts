@@ -7,6 +7,7 @@ import {
   ContestSubmitResponse,
   ContestSessionSyncRequest,
   ContestAnalyticsResponse,
+  ContestSubmissionsResponse,
   CandidateSubmissionItem,
 } from "@/types/contest";
 import { ENVIRONMENT_HEADER, getEnvironment } from "./environment";
@@ -143,7 +144,8 @@ export const contestApi = {
     limit?: number,
     search?: string,
     status?: string,
-    sortBy?: string
+    sortBy?: string,
+    includeSubmissions: boolean = false
   ): Promise<ContestAnalyticsResponse> => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
@@ -151,8 +153,27 @@ export const contestApi = {
     if (search && search.trim()) params.append("search", search.trim());
     if (status && status !== "ALL") params.append("status", status);
     if (sortBy) params.append("sort_by", sortBy);
+    if (!includeSubmissions) params.append("include_submissions", "false");
     const qs = params.toString();
     return apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/analytics${qs ? `?${qs}` : ""}`);
+  },
+
+  getSubmissions: (
+    idOrSlug: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    status?: string,
+    sortBy?: string
+  ): Promise<ContestSubmissionsResponse> => {
+    const params = new URLSearchParams();
+    params.append("page", String(page));
+    params.append("limit", String(limit));
+    if (search && search.trim()) params.append("search", search.trim());
+    if (status && status !== "ALL") params.append("status", status);
+    if (sortBy) params.append("sort_by", sortBy);
+    const qs = params.toString();
+    return apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/submissions${qs ? `?${qs}` : ""}`);
   },
 
   getCandidateSubmission: (

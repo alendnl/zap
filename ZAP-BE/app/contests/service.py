@@ -28,6 +28,7 @@ from app.contests.models import (
     ProblemAcceptanceStat,
     ProctoringSummaryStats,
     ContestAnalyticsResponse,
+    ContestSubmissionsResponse,
 )
 from app.mcq.service import MCQService
 from app.questions.service import QuestionService
@@ -990,7 +991,7 @@ class ContestService:
 
         return response
 
-    def get_contest_analytics(
+    def get_contest_submissions(
         self,
         contest_id_or_slug: str,
         page: Optional[int] = 1,
@@ -998,13 +999,10 @@ class ContestService:
         search: Optional[str] = None,
         status: Optional[str] = None,
         sort_by: Optional[str] = "rank_asc",
-    ) -> ContestAnalyticsResponse:
-        """Calculates comprehensive analytics for a contest: overall KPIs, score distribution,
-        per-question accuracy, coding problem acceptance rates, proctoring violations,
-        and student-by-student drilldown using DB-level pagination and targeted projections.
+    ) -> ContestSubmissionsResponse:
+        """Retrieves paginated, lightweight candidate submissions directly from the DB layer.
+        Excludes full question catalogs and code states to keep the payload minimal.
         """
-        import statistics
-
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
@@ -1015,7 +1013,6 @@ class ContestService:
         skip_num = (page_num - 1) * limit_num
 
         if coll is not None:
-            # 1. Candidate submissions filter for targeted DB pagination
             candidate_filter: dict = {"contestId": contest.id}
             if status and status.strip() and status.strip().upper() != "ALL":
                 candidate_filter["status"] = status.strip().upper()
@@ -1033,7 +1030,6 @@ class ContestService:
                 total_subs_count = 0
             total_pages = max(1, (total_subs_count + limit_num - 1) // limit_num)
 
-            # Sort spec
             sort_spec = [("totalScore", -1), ("timeSpentSeconds", 1)]
             if sort_by == "score_asc":
                 sort_spec = [("totalScore", 1), ("timeSpentSeconds", 1)]
@@ -1042,7 +1038,6 @@ class ContestService:
             elif sort_by == "infractions_desc":
                 sort_spec = [("proctoring.tabSwitchCount", -1)]
 
-            # Minimal projection: strictly only table fields, NEVER static question catalogs or source code
             candidate_projection = {
                 "_id": 1,
                 "id": 1,
@@ -1106,7 +1101,142 @@ class ContestService:
                     },
                 })
 
-            # 2. Fast cohort overview aggregations across all candidates for this contest
+            return ContestSubmissionsResponse(
+                submissions=lightweight_submissions,
+                totalSubmissions=total_subs_count,
+                page=page_num,
+                limit=limit_num,
+                totalPages=total_pages,
+            )
+        else:
+            raw_submissions = []
+            for s in self._memory_submissions.values():
+                if s.get("contestId") == contest.id:
+                    clean = dict(s)
+                    clean["id"] = clean.get("id") or str(clean.get("_id"))
+                    clean.pop("_id", None)
+                    raw_submissions.append(clean)
+
+            if status and status.strip() and status.strip().upper() != "ALL":
+                raw_submissions = [s for s in raw_submissions if s.get("status") == status.strip().upper()]
+            if search and search.strip():
+                sq = search.strip().lower()
+                raw_submissions = [
+                    s for s in raw_submissions
+                    if sq in (s.get("studentName") or "").lower()
+                    or sq in (s.get("studentEmail") or "").lower()
+                    or sq in (s.get("studentId") or "").lower()
+                ]
+
+            if sort_by == "score_asc":
+                sorted_submissions = sorted(
+                    raw_submissions,
+                    key=lambda s: (s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
+                )
+            elif sort_by == "time_asc":
+                sorted_submissions = sorted(
+                    raw_submissions,
+                    key=lambda s: s.get("timeSpentSeconds", 999999)
+                )
+            elif sort_by == "infractions_desc":
+                sorted_submissions = sorted(
+                    raw_submissions,
+                    key=lambda s: -(s.get("proctoring", {}).get("tabSwitchCount", 0) if isinstance(s.get("proctoring"), dict) else 0)
+                )
+            else:
+                sorted_submissions = sorted(
+                    raw_submissions,
+                    key=lambda s: (-s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
+                )
+
+            total_subs_count = len(sorted_submissions)
+            total_pages = max(1, (total_subs_count + limit_num - 1) // limit_num)
+            subs_slice = sorted_submissions[skip_num : skip_num + limit_num]
+
+            lightweight_submissions = []
+            for s in subs_slice:
+                proc = s.get("proctoring") or {}
+                lightweight_submissions.append({
+                    "id": s.get("id"),
+                    "submissionId": s.get("submissionId") or s.get("id"),
+                    "contestId": s.get("contestId"),
+                    "studentId": s.get("studentId"),
+                    "studentName": s.get("studentName"),
+                    "studentEmail": s.get("studentEmail"),
+                    "status": s.get("status"),
+                    "startedAt": s.get("startedAt"),
+                    "submittedAt": s.get("submittedAt"),
+                    "updatedAt": s.get("updatedAt"),
+                    "totalScore": s.get("totalScore", 0),
+                    "maxTotalScore": s.get("maxTotalScore", 100),
+                    "percentage": s.get("percentage", 0.0),
+                    "mcqScore": s.get("mcqScore", 0),
+                    "maxMcqScore": s.get("maxMcqScore", 0),
+                    "mcqCorrectCount": s.get("mcqCorrectCount", 0),
+                    "mcqTotalCount": s.get("mcqTotalCount", 0),
+                    "codingScore": s.get("codingScore", 0),
+                    "maxCodingScore": s.get("maxCodingScore", 0),
+                    "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
+                    "codingTotalCount": s.get("codingTotalCount", 0),
+                    "timeSpentSeconds": s.get("timeSpentSeconds", 0),
+                    "proctoring": {
+                        "tabSwitchCount": proc.get("tabSwitchCount", 0),
+                        "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
+                        "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
+                    },
+                })
+
+            return ContestSubmissionsResponse(
+                submissions=lightweight_submissions,
+                totalSubmissions=total_subs_count,
+                page=page_num,
+                limit=limit_num,
+                totalPages=total_pages,
+            )
+
+    def get_contest_analytics(
+        self,
+        contest_id_or_slug: str,
+        page: Optional[int] = 1,
+        limit: Optional[int] = 10,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        sort_by: Optional[str] = "rank_asc",
+        include_submissions: bool = True,
+    ) -> ContestAnalyticsResponse:
+        """Calculates comprehensive analytics for a contest: overall KPIs, score distribution,
+        per-question accuracy, coding problem acceptance rates, and proctoring violations.
+        Optionally includes initial page of candidate submissions.
+        """
+        import statistics
+
+        contest = self.get_contest(contest_id_or_slug)
+        if not contest:
+            raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        coll = self._get_submissions_coll()
+        page_num = max(1, page or 1)
+        limit_num = max(1, min(100, limit or 10))
+
+        if include_submissions:
+            sub_res = self.get_contest_submissions(
+                contest_id_or_slug=contest.id,
+                page=page_num,
+                limit=limit_num,
+                search=search,
+                status=status,
+                sort_by=sort_by,
+            )
+            lightweight_submissions = sub_res.submissions
+            total_subs_count = sub_res.totalSubmissions
+            total_pages = sub_res.totalPages
+        else:
+            lightweight_submissions = []
+            total_subs_count = 0
+            total_pages = 1
+
+        if coll is not None:
+            # Fast cohort overview aggregations across all candidates for this contest
             totals_agg = []
             try:
                 totals_agg = list(coll.aggregate([
@@ -1474,48 +1604,6 @@ class ContestService:
                 highRiskCandidatesCount=high_risk_candidates,
                 cleanRate=clean_rate,
             )
-
-            sorted_submissions = sorted(
-                raw_submissions,
-                key=lambda s: (-s.get("totalScore", 0), s.get("timeSpentSeconds", 999999))
-            )
-
-            total_subs_count = len(sorted_submissions)
-            total_pages = max(1, (total_subs_count + limit_num - 1) // limit_num)
-            subs_slice = sorted_submissions[skip_num : skip_num + limit_num]
-
-            lightweight_submissions = []
-            for s in subs_slice:
-                proc = s.get("proctoring") or {}
-                lightweight_submissions.append({
-                    "id": s.get("id"),
-                    "submissionId": s.get("submissionId") or s.get("id"),
-                    "contestId": s.get("contestId"),
-                    "studentId": s.get("studentId"),
-                    "studentName": s.get("studentName"),
-                    "studentEmail": s.get("studentEmail"),
-                    "status": s.get("status"),
-                    "startedAt": s.get("startedAt"),
-                    "submittedAt": s.get("submittedAt"),
-                    "updatedAt": s.get("updatedAt"),
-                    "totalScore": s.get("totalScore", 0),
-                    "maxTotalScore": s.get("maxTotalScore", 100),
-                    "percentage": s.get("percentage", 0.0),
-                    "mcqScore": s.get("mcqScore", 0),
-                    "maxMcqScore": s.get("maxMcqScore", 0),
-                    "mcqCorrectCount": s.get("mcqCorrectCount", 0),
-                    "mcqTotalCount": s.get("mcqTotalCount", 0),
-                    "codingScore": s.get("codingScore", 0),
-                    "maxCodingScore": s.get("maxCodingScore", 0),
-                    "codingProblemsAttempted": s.get("codingProblemsAttempted", 0),
-                    "codingTotalCount": s.get("codingTotalCount", 0),
-                    "timeSpentSeconds": s.get("timeSpentSeconds", 0),
-                    "proctoring": {
-                        "tabSwitchCount": proc.get("tabSwitchCount", 0),
-                        "copyPasteAttempts": proc.get("copyPasteAttempts", 0),
-                        "fullscreenExitCount": proc.get("fullscreenExitCount", 0),
-                    },
-                })
 
         mcq_count = contest.mcqConfig.totalQuestions if contest.hasMcq and contest.mcqConfig else len(mcq_question_stats)
         coding_count = contest.codingConfig.totalQuestions if contest.hasCoding and contest.codingConfig else len(coding_problem_stats)

@@ -519,4 +519,42 @@ def test_get_single_candidate_submission_and_pagination():
     assert isinstance(paged_data["submissions"], list)
     assert len(paged_data["submissions"]) <= 10
 
+    # 3. Test analytics with include_submissions=false
+    res_no_subs = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/analytics?include_submissions=false",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert res_no_subs.status_code == 200
+    no_subs_data = res_no_subs.json()
+    assert no_subs_data["submissions"] == []
+    assert "scoreDistribution" in no_subs_data
+    assert "totalCandidates" in no_subs_data
+
+    # 4. Test dedicated contest submissions pagination endpoint
+    unauth_subs = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/submissions?page=1&limit=10"
+    )
+    assert unauth_subs.status_code == 401
+
+    res_subs = client.get(
+        "/api/v1/contests/zap-grand-assessment-1/submissions?page=1&limit=10&sort_by=rank_asc",
+        headers={"X-Admin-Email": admin_email}
+    )
+    assert res_subs.status_code == 200
+    subs_resp = res_subs.json()
+    assert "submissions" in subs_resp
+    assert "totalSubmissions" in subs_resp
+    assert subs_resp["page"] == 1
+    assert subs_resp["limit"] == 10
+    assert subs_resp["totalPages"] >= 1
+    assert isinstance(subs_resp["submissions"], list)
+    assert len(subs_resp["submissions"]) <= 10
+    if len(subs_resp["submissions"]) > 0:
+        first = subs_resp["submissions"][0]
+        assert "studentId" in first
+        assert "studentEmail" in first
+        assert "totalScore" in first
+        assert "proctoring" in first
+
+
 

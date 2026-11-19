@@ -67,10 +67,17 @@ function ContestAnalyticsContent() {
   const [contests, setContests] = useState<ContestSummary[]>([]);
   const [selectedContestSlug, setSelectedContestSlug] = useState<string>(initialContestSlug);
 
-  // Analytics Data State
+  // Analytics Data State (Top-Level Dashboard Metrics)
   const [analytics, setAnalytics] = useState<ContestAnalyticsResponse | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+
+  // Candidate Submissions Data State (Dedicated Paginated Collection)
+  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSubmissionItem[]>([]);
+  const [totalCandidateSubmissions, setTotalCandidateSubmissions] = useState(0);
+  const [totalCandidatePages, setTotalCandidatePages] = useState(1);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
   // View state for Question Breakdown: "mcq" | "coding"
   const [questionBreakdownTab, setQuestionBreakdownTab] = useState<"mcq" | "coding">("mcq");
@@ -157,7 +164,7 @@ function ContestAnalyticsContent() {
     }
   }, [isAdmin, loadContestsList]);
 
-  // 3. Fetch Analytics for Selected Contest
+  // 3. Fetch Top-Level Analytics (Score Distribution, Questions, Proctoring, Overview)
   const loadAnalytics = useCallback(async () => {
     if (!selectedContestSlug) return;
     setLoadingAnalytics(true);
@@ -165,11 +172,12 @@ function ContestAnalyticsContent() {
     try {
       const data = await contestApi.getAnalytics(
         selectedContestSlug,
-        candidatePage,
-        CANDIDATES_PER_PAGE,
-        candidateSearch.trim() || undefined,
-        statusFilter !== "ALL" ? statusFilter : undefined,
-        sortBy
+        1,
+        10,
+        undefined,
+        undefined,
+        undefined,
+        false // includeSubmissions=false: only load top-level dashboard metrics
       );
       setAnalytics(data);
     } catch (err: any) {
@@ -177,17 +185,60 @@ function ContestAnalyticsContent() {
     } finally {
       setLoadingAnalytics(false);
     }
+  }, [selectedContestSlug]);
+
+  // 4. Fetch Paginated Candidate Submissions via dedicated submissions API
+  const loadSubmissions = useCallback(async () => {
+    if (!selectedContestSlug) return;
+    setLoadingSubmissions(true);
+    setSubmissionsError(null);
+    try {
+      const data = await contestApi.getSubmissions(
+        selectedContestSlug,
+        candidatePage,
+        CANDIDATES_PER_PAGE,
+        candidateSearch.trim() || undefined,
+        statusFilter !== "ALL" ? statusFilter : undefined,
+        sortBy
+      );
+      setCandidateSubmissions(data.submissions || []);
+      setTotalCandidateSubmissions(data.totalSubmissions || 0);
+      setTotalCandidatePages(data.totalPages || 1);
+    } catch (err: any) {
+      setSubmissionsError(err.message || "Failed to load candidate submissions.");
+    } finally {
+      setLoadingSubmissions(false);
+    }
   }, [selectedContestSlug, candidatePage, candidateSearch, statusFilter, sortBy]);
 
+  // Initial and Contest-switch analytics loader
   useEffect(() => {
     if (isAdmin && selectedContestSlug) {
       void loadAnalytics();
     }
   }, [isAdmin, selectedContestSlug, loadAnalytics]);
 
+  // Submissions loader (runs on contest change, pagination, search, status, or sorting)
+  useEffect(() => {
+    if (isAdmin && selectedContestSlug) {
+      void loadSubmissions();
+    }
+  }, [isAdmin, selectedContestSlug, loadSubmissions]);
+
+  // Handle Full Dashboard Refresh
+  const handleRefresh = () => {
+    void loadAnalytics();
+    void loadSubmissions();
+  };
+
   // Handle Contest Selector Change
   const handleContestChange = (newSlug: string) => {
     setSelectedContestSlug(newSlug);
+    setCandidatePage(1);
+    setCandidateSearch("");
+    setStatusFilter("ALL");
+    setIntegrityFilter("ALL");
+    setSortBy("rank_asc");
     setInspectingStudent(null);
     router.push(`/admin/contests/analytics?contest=${newSlug}`);
   };
@@ -217,6 +268,7 @@ function ContestAnalyticsContent() {
         setInspectingStudent(null);
       }
       void loadAnalytics();
+      void loadSubmissions();
     } catch (err: any) {
       setActionFeedback({
         type: "error",
@@ -252,7 +304,7 @@ function ContestAnalyticsContent() {
 
   // DB-level paginated candidate submissions (10 per page retrieved directly from database)
   const paginatedSubmissions = useMemo(() => {
-    const list = analytics?.submissions || [];
+    const list = candidateSubmissions || [];
     if (integrityFilter === "CLEAN") {
       return list.filter((s) => {
         const p = s.proctoring;
@@ -265,10 +317,9 @@ function ContestAnalyticsContent() {
       });
     }
     return list;
-  }, [analytics?.submissions, integrityFilter]);
+  }, [candidateSubmissions, integrityFilter]);
 
-  const totalCandidatesCount = analytics?.totalSubmissions ?? analytics?.totalCandidates ?? 0;
-  const totalCandidatePages = analytics?.totalPages ?? Math.max(1, Math.ceil(totalCandidatesCount / CANDIDATES_PER_PAGE));
+  const totalCandidatesCount = totalCandidateSubmissions || analytics?.totalCandidates || 0;
 
   // Paginated MCQ Question Performance (10 per page)
   const mcqQuestionsList = analytics?.mcqStats?.questions || [];
@@ -390,11 +441,11 @@ function ContestAnalyticsContent() {
 
             <button
               type="button"
-              onClick={loadAnalytics}
-              disabled={loadingAnalytics}
+              onClick={handleRefresh}
+              disabled={loadingAnalytics || loadingSubmissions}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] text-xs font-semibold text-[#0f172a] dark:text-white hover:bg-slate-50 dark:hover:bg-[#1a2233] cursor-pointer shadow-xs disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-[#64748b] ${loadingAnalytics ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-[#64748b] ${loadingAnalytics || loadingSubmissions ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -973,7 +1024,16 @@ function ContestAnalyticsContent() {
               <div className="overflow-x-auto">
                 {paginatedSubmissions.length === 0 ? (
                   <div className="py-12 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
-                    No candidates matching current filter criteria.
+                    {loadingSubmissions ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                        <span>Loading candidate submissions...</span>
+                      </div>
+                    ) : submissionsError ? (
+                      <span className="text-rose-500 font-medium">{submissionsError}</span>
+                    ) : (
+                      <span>No candidates matching current filter criteria.</span>
+                    )}
                   </div>
                 ) : (
                   <table className="w-full text-left text-xs">
@@ -990,7 +1050,7 @@ function ContestAnalyticsContent() {
                         <th className="py-3 px-3 font-semibold text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#e2e8f0] dark:divide-[#1e293b]">
+                    <tbody className={`divide-y divide-[#e2e8f0] dark:divide-[#1e293b] ${loadingSubmissions ? "opacity-50 pointer-events-none transition-opacity" : ""}`}>
                       {paginatedSubmissions.map((sub, idx) => {
                         const rankIdx = (candidatePage - 1) * CANDIDATES_PER_PAGE + idx;
                         const proc = sub.proctoring || { tabSwitchCount: 0, copyPasteAttempts: 0, fullscreenExitCount: 0 };
@@ -1141,7 +1201,7 @@ function ContestAnalyticsContent() {
                         <button
                           type="button"
                           onClick={() => setCandidatePage((p) => Math.max(1, p - 1))}
-                          disabled={candidatePage === 1}
+                          disabled={candidatePage === 1 || loadingSubmissions}
                           className="px-2.5 py-1.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e293b] hover:bg-slate-100 dark:hover:bg-[#1a2233] disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
                         >
                           Previous
@@ -1154,7 +1214,7 @@ function ContestAnalyticsContent() {
                         <button
                           type="button"
                           onClick={() => setCandidatePage((p) => Math.min(totalCandidatePages, p + 1))}
-                          disabled={candidatePage === totalCandidatePages}
+                          disabled={candidatePage === totalCandidatePages || loadingSubmissions}
                           className="px-2.5 py-1.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e293b] hover:bg-slate-100 dark:hover:bg-[#1a2233] disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
                         >
                           Next

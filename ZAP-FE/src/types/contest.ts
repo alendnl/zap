@@ -341,3 +341,12 @@ export interface ContestAnalyticsResponse {
   limit?: number;
   totalPages?: number;
 }
+
+export interface ContestSubmissionsResponse {
+  submissions: CandidateSubmissionItem[];
+  totalSubmissions: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+

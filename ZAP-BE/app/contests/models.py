@@ -256,6 +256,16 @@ class ProctoringSummaryStats(BaseModel):
     cleanRate: float = 100.0
 
 
+class ContestSubmissionsResponse(BaseModel):
+    submissions: List[Dict[str, Any]]
+    totalSubmissions: int
+    page: int
+    limit: int
+    totalPages: int
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class ContestAnalyticsResponse(BaseModel):
     contest: ContestSummary
     totalCandidates: int
@@ -272,7 +282,7 @@ class ContestAnalyticsResponse(BaseModel):
     mcqStats: Dict[str, Any]
     codingStats: Dict[str, Any]
     proctoringStats: ProctoringSummaryStats
-    submissions: List[Dict[str, Any]]
+    submissions: List[Dict[str, Any]] = Field(default_factory=list)
     totalSubmissions: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
