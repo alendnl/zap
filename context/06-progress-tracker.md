@@ -89,5 +89,12 @@
   3. Keep MCQ and individual coding problem percentages distinct and un-cumulated on scorecards and analytics drilldowns for transparent candidate evaluation.
 - **Consequences**: Accurate, fair assessment reporting with zero phantom marks.
 
+### ADR-008: Configurable Navigation Tabs Architecture
+- **Status**: Accepted
+- **Context**: Different operational scenarios require toggling specific navigation areas (e.g. DSA problems, basic concepts, compiler, contests) without removing the underlying views or logic.
+- **Decision**: Centralize workbench navigation tab configuration in `ZAP-FE/src/config/tabs.ts` (`TAB_CONFIG`) with simple boolean flags (`enabled: boolean`) and optional environment variable overrides (`NEXT_PUBLIC_ENABLE_TAB_*`). Tabs default safely to the first enabled tab, URL parameters for disabled tabs gracefully fallback, and DSA problems tab is disabled by default while retaining full underlying code.
+- **Consequences**: Zero code deletion, instant one-line toggle to enable/disable any tab, and robust fallback handling.
+
+
 
 

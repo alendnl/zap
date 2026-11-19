@@ -45,8 +45,11 @@ import { StudentAuthView } from "@/components/StudentAuthView";
 import type { Student } from "@/types/auth";
 import type { Question, QuestionSummary } from "@/types/question";
 import type { ContestSummary, ContestStartResponse } from "@/types/contest";
-
-type NavigationTopic = "dsa" | "basic" | "compiler" | "contest";
+import {
+  type NavigationTopic,
+  isTabEnabled,
+  DEFAULT_TAB,
+} from "@/config/tabs";
 
 const DIFFICULTY_BADGES: Record<
   string,
@@ -103,7 +106,7 @@ const BASIC_CONCEPTS = [
 ];
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<NavigationTopic>("dsa");
+  const [activeTab, setActiveTab] = useState<NavigationTopic>(DEFAULT_TAB);
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionData | null>(null);
   const [initialSubmissions, setInitialSubmissions] = useState<SubmissionSummary[] | undefined>(undefined);
@@ -188,7 +191,16 @@ export default function Home() {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get("tab") as NavigationTopic | null;
       if (tabParam && ["dsa", "basic", "compiler", "contest"].includes(tabParam)) {
-        setActiveTab(tabParam);
+        if (isTabEnabled(tabParam)) {
+          setActiveTab(tabParam);
+        } else {
+          setActiveTab(DEFAULT_TAB);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("tab");
+          window.history.replaceState({}, "", url.toString());
+        }
+      } else {
+        setActiveTab(DEFAULT_TAB);
       }
       const problemParam = urlParams.get("problem") || urlParams.get("id");
       if (problemParam) {
@@ -378,6 +390,7 @@ export default function Home() {
   }, [loadUserSolvedStatus]);
 
   const handleTabSwitch = (newTab: NavigationTopic) => {
+    if (!isTabEnabled(newTab)) return;
     setActiveTab(newTab);
     setSearchQuery("");
     setDifficultyFilter("ALL");
@@ -391,6 +404,13 @@ export default function Home() {
       window.history.pushState({}, "", url.toString());
     }
   };
+
+  // Guard against disabled active tab
+  useEffect(() => {
+    if (!isTabEnabled(activeTab)) {
+      setActiveTab(DEFAULT_TAB);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (student) {
@@ -557,64 +577,72 @@ export default function Home() {
 
             {/* Segmented Topic Navigation (Responsive scroll on mobile) */}
             <nav className="flex items-center gap-1 bg-[#f1f5f9] dark:bg-[#0b0f17] p-1 rounded-xl border border-[#e2e8f0] dark:border-[#1e293b] overflow-x-auto no-scrollbar max-w-full">
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("dsa")}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "dsa"
-                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
-                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
-              >
-                <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span>DSA<span className="hidden sm:inline"> Problems</span></span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
-                  {dsaQuestions.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("basic")}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "basic"
-                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
-                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
-              >
-                <BookOpen className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
-                <span><span className="hidden md:inline">Basic </span>Concepts</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
-                  {basicQuestions.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("compiler")}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "compiler"
-                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
-                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
-              >
-                <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-                <span>Compiler</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("contest")}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "contest"
-                    ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
-                    : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
-              >
-                <Trophy className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                <span>Contests</span>
-                {contests.length > 0 && (
+              {isTabEnabled("dsa") && (
+                <button
+                  type="button"
+                  onClick={() => handleTabSwitch("dsa")}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "dsa"
+                      ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                      : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                    }`}
+                >
+                  <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <span>DSA<span className="hidden sm:inline"> Problems</span></span>
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
-                    {contests.length}
+                    {dsaQuestions.length}
                   </span>
-                )}
-              </button>
+                </button>
+              )}
+
+              {isTabEnabled("basic") && (
+                <button
+                  type="button"
+                  onClick={() => handleTabSwitch("basic")}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "basic"
+                      ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                      : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                    }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+                  <span><span className="hidden md:inline">Basic </span>Concepts</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
+                    {basicQuestions.length}
+                  </span>
+                </button>
+              )}
+
+              {isTabEnabled("compiler") && (
+                <button
+                  type="button"
+                  onClick={() => handleTabSwitch("compiler")}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "compiler"
+                      ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                      : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                    }`}
+                >
+                  <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
+                  <span>Compiler</span>
+                </button>
+              )}
+
+              {isTabEnabled("contest") && (
+                <button
+                  type="button"
+                  onClick={() => handleTabSwitch("contest")}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex-shrink-0 ${activeTab === "contest"
+                      ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white font-semibold shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
+                      : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
+                    }`}
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                  <span>Contests</span>
+                  {contests.length > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-[#e2e8f0] dark:bg-[#232f45] text-[#475569] dark:text-[#94a3b8]">
+                      {contests.length}
+                    </span>
+                  )}
+                </button>
+              )}
             </nav>
 
             {/* Admin Hub Direct Gateway & Operations Dropdown */}
@@ -802,7 +830,7 @@ export default function Home() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         {/* 1. DSA PROBLEMS TAB & 2. BASIC PROGRAMMING TAB */}
-        {(activeTab === "dsa" || activeTab === "basic") && (
+        {((activeTab === "dsa" && isTabEnabled("dsa")) || (activeTab === "basic" && isTabEnabled("basic"))) && (
           <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
             {/* High-Impact Hero Banner & Live Progress Card */}
             <div className="mb-8">
@@ -1200,14 +1228,14 @@ export default function Home() {
         )}
 
         {/* 3. COMPILER TAB */}
-        {activeTab === "compiler" && (
+        {activeTab === "compiler" && isTabEnabled("compiler") && (
           <div className="flex-1 min-h-0 w-full overflow-hidden">
             <VanillaCompiler />
           </div>
         )}
 
         {/* 4. CONTESTS TAB */}
-        {activeTab === "contest" && (
+        {activeTab === "contest" && isTabEnabled("contest") && (
           <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full space-y-8">
             {/* High-Impact Hero Banner */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#e2e8f0] dark:border-[#1e293b]">
