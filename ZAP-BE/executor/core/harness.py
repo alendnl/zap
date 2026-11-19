@@ -212,6 +212,27 @@ if __name__ == "__main__":
                 sys.exit(1)
             return
 
+        # Handle multi-testcase problem: maxRecoveryScore
+        if getattr(target_fn, "__name__", "") == "maxRecoveryScore":
+            tokens = raw_stdin.split()
+            if tokens:
+                try:
+                    it = iter(tokens)
+                    t_count = int(next(it))
+                    for _ in range(t_count):
+                        n_val = int(next(it))
+                        readings = [int(next(it)) for _ in range(n_val)]
+                        if len(params) == 2:
+                            res = target_fn(n_val, readings)
+                        else:
+                            res = target_fn(readings)
+                        _zap_format_output(res)
+                    return
+                except Exception:
+                    import traceback
+                    traceback.print_exc(file=sys.stderr)
+                    sys.exit(1)
+
         # Case 2: Parse arguments from raw_stdin
         parsed_args = []
 
@@ -282,6 +303,75 @@ if __name__ == "__main__":
                     for _ in range(q_val):
                         ops.append([int(next(it)), int(next(it)), int(next(it))])
                     parsed_args = [n_val, q_val, scores, edges, ops]
+                except Exception:
+                    pass
+
+        # 2f. kthSmallestRange (n, q, nums, queries)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "kthSmallestRange" or len(params) == 4):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 2:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    q_val = int(next(it))
+                    nums = [int(next(it)) for _ in range(n_val)]
+                    queries = []
+                    for _ in range(q_val):
+                        queries.append([int(next(it)), int(next(it)), int(next(it))])
+                    parsed_args = [n_val, q_val, nums, queries]
+                except Exception:
+                    pass
+
+        # 2g. detectSignatures (s, n, signatures)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "detectSignatures" or (len(params) == 3 and any(p.name in ("signatures", "patterns") for p in params))):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 2:
+                try:
+                    s_val = tokens[0]
+                    n_val = int(tokens[1])
+                    sigs = tokens[2:2 + n_val]
+                    parsed_args = [s_val, n_val, sigs]
+                except Exception:
+                    pass
+
+        # 2h. countRepairablePalindromes, longestTwinTransmission (s, k or s, g)
+        if not parsed_args and (getattr(target_fn, "__name__", "") in ("countRepairablePalindromes", "longestTwinTransmission") or (len(params) == 2 and any(p.name in ("k", "g") for p in params))):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 2:
+                try:
+                    parsed_args = [tokens[0], int(tokens[1])]
+                except Exception:
+                    pass
+
+        # 2i. totalAuditXP (n, ranks, bounties)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "totalAuditXP" or (len(params) == 3 and any(p.name in ("ranks", "bounties") for p in params))):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 1:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    ranks = [int(next(it)) for _ in range(n_val)]
+                    bounties = [int(next(it)) for _ in range(n_val)]
+                    parsed_args = [n_val, ranks, bounties]
+                except Exception:
+                    pass
+
+        # 2j. twinBeaconIncident (n, a, b, p, q, queries)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "twinBeaconIncident" or (len(params) == 6 and any(p.name in ("queries", "p") for p in params))):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 5:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    a_val = int(next(it))
+                    b_val = int(next(it))
+                    p_vals = [int(next(it)) for _ in range(n_val)]
+                    q_val = int(next(it))
+                    col_val = int(next(it))
+                    queries = []
+                    for _ in range(q_val):
+                        queries.append([int(next(it)), int(next(it))])
+                    parsed_args = [n_val, a_val, b_val, p_vals, q_val, queries]
                 except Exception:
                     pass
 
@@ -427,8 +517,94 @@ def _prepare_node_harness(source: str) -> str:
         return;
     }
 
+    if (targetFn.name === 'maxRecoveryScore') {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length > 0) {
+            try {
+                let idx = 0;
+                const T = parseInt(tokens[idx++], 10);
+                for (let t = 0; t < T; t++) {
+                    const n = parseInt(tokens[idx++], 10);
+                    const readings = [];
+                    for (let i = 0; i < n; i++) readings.push(parseInt(tokens[idx++], 10));
+                    const res = targetFn.length === 2 ? targetFn(n, readings) : targetFn(readings);
+                    console.log(res);
+                }
+                return;
+            } catch (_) {}
+        }
+    }
+
     let args = [];
-    if (targetFn.length === 5) {
+    if (targetFn.name === 'kthSmallestRange' || targetFn.length === 4) {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 2) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const qVal = parseInt(tokens[idx++], 10);
+                const nums = [];
+                for (let i = 0; i < nVal; i++) nums.push(parseInt(tokens[idx++], 10));
+                const queries = [];
+                for (let i = 0; i < qVal; i++) {
+                    queries.push([parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10)]);
+                }
+                args = [nVal, qVal, nums, queries];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'detectSignatures') {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 2) {
+            try {
+                const sVal = tokens[0];
+                const nVal = parseInt(tokens[1], 10);
+                const sigs = tokens.slice(2, 2 + nVal);
+                args = [sVal, nVal, sigs];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && (targetFn.name === 'countRepairablePalindromes' || targetFn.name === 'longestTwinTransmission')) {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 2) {
+            args = [tokens[0], parseInt(tokens[1], 10)];
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'totalAuditXP') {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 1) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const ranks = [];
+                for (let i = 0; i < nVal; i++) ranks.push(parseInt(tokens[idx++], 10));
+                const bounties = [];
+                for (let i = 0; i < nVal; i++) bounties.push(parseInt(tokens[idx++], 10));
+                args = [nVal, ranks, bounties];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && (targetFn.name === 'twinBeaconIncident' || targetFn.length === 6)) {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 5) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const aVal = parseInt(tokens[idx++], 10);
+                const bVal = parseInt(tokens[idx++], 10);
+                const pVals = [];
+                for (let i = 0; i < nVal; i++) pVals.push(parseInt(tokens[idx++], 10));
+                const qVal = parseInt(tokens[idx++], 10);
+                const colVal = parseInt(tokens[idx++], 10);
+                const queries = [];
+                for (let i = 0; i < qVal; i++) {
+                    queries.push([parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10)]);
+                }
+                args = [nVal, aVal, bVal, pVals, qVal, queries];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.length === 5) {
         const tokens = raw.trim().split(/\\s+/);
         if (tokens.length >= 2) {
             try {
@@ -706,6 +882,101 @@ int main() {
     }}
     return 0;
 }}
+"""
+    elif re.search(r'\bkthSmallestRange\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (std::cin >> n >> q) {
+        std::vector<int> nums(n);
+        for (int i = 0; i < n; i++) std::cin >> nums[i];
+        std::vector<std::vector<int>> queries(q, std::vector<int>(3));
+        for (int i = 0; i < q; i++) std::cin >> queries[i][0] >> queries[i][1] >> queries[i][2];
+        std::vector<int> res = sol.kthSmallestRange(n, q, nums, queries);
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << res[i] << "\n";
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bdetectSignatures\s*\(', source):
+        driver += r"""
+    std::string s;
+    int n;
+    if (std::cin >> s >> n) {
+        std::vector<std::string> signatures(n);
+        for (int i = 0; i < n; i++) std::cin >> signatures[i];
+        std::vector<int> res = sol.detectSignatures(s, n, signatures);
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << res[i] << "\n";
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcountRepairablePalindromes\s*\(', source):
+        driver += r"""
+    std::string s;
+    int k;
+    if (std::cin >> s >> k) {
+        std::cout << sol.countRepairablePalindromes(s, k) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\blongestTwinTransmission\s*\(', source):
+        driver += r"""
+    std::string s;
+    int g;
+    if (std::cin >> s >> g) {
+        std::cout << sol.longestTwinTransmission(s, g) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxRecoveryScore\s*\(', source):
+        driver += r"""
+    int T;
+    if (std::cin >> T) {
+        while (T--) {
+            int n;
+            if (std::cin >> n) {
+                std::vector<long long> readings(n);
+                for (int i = 0; i < n; i++) std::cin >> readings[i];
+                std::cout << sol.maxRecoveryScore(n, readings) << "\n";
+            }
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\btotalAuditXP\s*\(', source):
+        driver += r"""
+    int n;
+    if (std::cin >> n) {
+        std::vector<int> ranks(n);
+        for (int i = 0; i < n; i++) std::cin >> ranks[i];
+        std::vector<int> bounties(n);
+        for (int i = 0; i < n; i++) std::cin >> bounties[i];
+        std::cout << sol.totalAuditXP(n, ranks, bounties) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\btwinBeaconIncident\s*\(', source):
+        driver += r"""
+    int n, a, b;
+    if (std::cin >> n >> a >> b) {
+        std::vector<int> p(n);
+        for (int i = 0; i < n; i++) std::cin >> p[i];
+        int q, col;
+        std::cin >> q >> col;
+        std::vector<std::vector<int>> queries(q, std::vector<int>(2));
+        for (int i = 0; i < q; i++) std::cin >> queries[i][0] >> queries[i][1];
+        std::cout << sol.twinBeaconIncident(n, a, b, p, q, queries) << "\n";
+    }
+    return 0;
+}
 """
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
@@ -1114,6 +1385,131 @@ int main() {
     return 0;
 }}
 """
+    elif re.search(r'\bkthSmallestRange\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (scanf("%d %d", &n, &q) == 2) {
+        int* nums = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) scanf("%d", &nums[i]);
+        int** queries = (int**)malloc(q * sizeof(int*));
+        int* queriesColSize = (int*)malloc(q * sizeof(int));
+        for (int i = 0; i < q; i++) {
+            queries[i] = (int*)malloc(3 * sizeof(int));
+            queriesColSize[i] = 3;
+            scanf("%d %d %d", &queries[i][0], &queries[i][1], &queries[i][2]);
+        }
+        int returnSize = 0;
+        int* res = kthSmallestRange(n, q, nums, n, queries, q, queriesColSize, &returnSize);
+        if (res) {
+            for (int i = 0; i < returnSize; i++) printf("%d\n", res[i]);
+            free(res);
+        }
+        for (int i = 0; i < q; i++) free(queries[i]);
+        free(queries);
+        free(queriesColSize);
+        free(nums);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bdetectSignatures\s*\(', source):
+        driver += r"""
+    char s[100005];
+    int n;
+    if (scanf("%s %d", s, &n) == 2) {
+        char** signatures = (char**)malloc(n * sizeof(char*));
+        for (int i = 0; i < n; i++) {
+            signatures[i] = (char*)malloc(10005 * sizeof(char));
+            scanf("%s", signatures[i]);
+        }
+        int returnSize = 0;
+        int* res = detectSignatures(s, n, signatures, n, &returnSize);
+        if (res) {
+            for (int i = 0; i < returnSize; i++) printf("%d\n", res[i]);
+            free(res);
+        }
+        for (int i = 0; i < n; i++) free(signatures[i]);
+        free(signatures);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcountRepairablePalindromes\s*\(', source):
+        driver += r"""
+    char s[100005];
+    int k;
+    if (scanf("%s %d", s, &k) == 2) {
+        printf("%lld\n", countRepairablePalindromes(s, k));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\blongestTwinTransmission\s*\(', source):
+        driver += r"""
+    char s[100005];
+    int g;
+    if (scanf("%s %d", s, &g) == 2) {
+        printf("%d\n", longestTwinTransmission(s, g));
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxRecoveryScore\s*\(', source):
+        driver += r"""
+    int T;
+    if (scanf("%d", &T) == 1) {
+        while (T--) {
+            int n;
+            if (scanf("%d", &n) == 1) {
+                long long* readings = (long long*)malloc(n * sizeof(long long));
+                for (int i = 0; i < n; i++) scanf("%lld", &readings[i]);
+                printf("%lld\n", maxRecoveryScore(n, readings, n));
+                free(readings);
+            }
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\btotalAuditXP\s*\(', source):
+        driver += r"""
+    int n;
+    if (scanf("%d", &n) == 1) {
+        int* ranks = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) scanf("%d", &ranks[i]);
+        int* bounties = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) scanf("%d", &bounties[i]);
+        printf("%lld\n", totalAuditXP(n, ranks, n, bounties, n));
+        free(ranks);
+        free(bounties);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\btwinBeaconIncident\s*\(', source):
+        driver += r"""
+    int n, a, b;
+    if (scanf("%d %d %d", &n, &a, &b) == 3) {
+        int* p = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) scanf("%d", &p[i]);
+        int q, col;
+        scanf("%d %d", &q, &col);
+        int** queries = (int**)malloc(q * sizeof(int*));
+        int* queriesColSize = (int*)malloc(q * sizeof(int));
+        for (int i = 0; i < q; i++) {
+            queries[i] = (int*)malloc(2 * sizeof(int));
+            queriesColSize[i] = 2;
+            scanf("%d %d", &queries[i][0], &queries[i][1]);
+        }
+        printf("%d\n", twinBeaconIncident(n, a, b, p, n, q, queries, q, queriesColSize));
+        for (int i = 0; i < q; i++) free(queries[i]);
+        free(queries);
+        free(queriesColSize);
+        free(p);
+    }
+    return 0;
+}
+"""
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     solution();
@@ -1418,6 +1814,22 @@ def _prepare_java_harness(source: str) -> str:
             return;
         }
 
+        if (target.getName().equals("maxRecoveryScore")) {
+            String[] tokens = rawStdin.trim().split("\\s+");
+            if (tokens.length > 0) {
+                int idx = 0;
+                int T = Integer.parseInt(tokens[idx++]);
+                for (int t = 0; t < T; t++) {
+                    int n = Integer.parseInt(tokens[idx++]);
+                    long[] readings = new long[n];
+                    for (int i = 0; i < n; i++) readings[i] = Long.parseLong(tokens[idx++]);
+                    Object res = paramTypes.length == 2 ? target.invoke(instance, n, readings) : target.invoke(instance, (Object)readings);
+                    _zapPrint(res);
+                }
+                return;
+            }
+        }
+
         Object[] invokedArgs = _zapParseArgs(rawStdin, paramTypes);
         Object res = target.invoke(instance, invokedArgs);
 
@@ -1494,6 +1906,91 @@ def _prepare_java_harness(source: str) -> str:
                         }
                         args[4] = ops;
                     }
+                    return args;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (types.length == 4 && types[2].equals(int[].class) && types[3].equals(int[][].class)) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 2) {
+                try {
+                    int idx = 0;
+                    int n = Integer.parseInt(tokens[idx++]);
+                    int q = Integer.parseInt(tokens[idx++]);
+                    args[0] = n;
+                    args[1] = q;
+                    int[] nums = new int[n];
+                    for (int i = 0; i < n; i++) nums[i] = Integer.parseInt(tokens[idx++]);
+                    args[2] = nums;
+                    int[][] queries = new int[q][3];
+                    for (int i = 0; i < q; i++) {
+                        queries[i][0] = Integer.parseInt(tokens[idx++]);
+                        queries[i][1] = Integer.parseInt(tokens[idx++]);
+                        queries[i][2] = Integer.parseInt(tokens[idx++]);
+                    }
+                    args[3] = queries;
+                    return args;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (types.length == 3 && types[0].equals(String.class) && types[1].equals(int.class) && types[2].equals(String[].class)) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 2) {
+                try {
+                    args[0] = tokens[0];
+                    int n = Integer.parseInt(tokens[1]);
+                    args[1] = n;
+                    String[] sigs = new String[n];
+                    for (int i = 0; i < n; i++) sigs[i] = tokens[2 + i];
+                    args[2] = sigs;
+                    return args;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (types.length == 3 && types[0].equals(int.class) && types[1].equals(int[].class) && types[2].equals(int[].class)) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 1) {
+                try {
+                    int idx = 0;
+                    int n = Integer.parseInt(tokens[idx++]);
+                    args[0] = n;
+                    int[] ranks = new int[n];
+                    for (int i = 0; i < n; i++) ranks[i] = Integer.parseInt(tokens[idx++]);
+                    args[1] = ranks;
+                    int[] bounties = new int[n];
+                    for (int i = 0; i < n; i++) bounties[i] = Integer.parseInt(tokens[idx++]);
+                    args[2] = bounties;
+                    return args;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (types.length == 6 && types[0].equals(int.class) && types[3].equals(int[].class) && types[5].equals(int[][].class)) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 5) {
+                try {
+                    int idx = 0;
+                    int n = Integer.parseInt(tokens[idx++]);
+                    int a = Integer.parseInt(tokens[idx++]);
+                    int b = Integer.parseInt(tokens[idx++]);
+                    args[0] = n;
+                    args[1] = a;
+                    args[2] = b;
+                    int[] p = new int[n];
+                    for (int i = 0; i < n; i++) p[i] = Integer.parseInt(tokens[idx++]);
+                    args[3] = p;
+                    int q = Integer.parseInt(tokens[idx++]);
+                    args[4] = q;
+                    int col = Integer.parseInt(tokens[idx++]);
+                    int[][] queries = new int[q][2];
+                    for (int i = 0; i < q; i++) {
+                        queries[i][0] = Integer.parseInt(tokens[idx++]);
+                        queries[i][1] = Integer.parseInt(tokens[idx++]);
+                    }
+                    args[5] = queries;
                     return args;
                 } catch (Exception ignored) {}
             }

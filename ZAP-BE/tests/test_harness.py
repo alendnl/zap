@@ -566,3 +566,367 @@ int* dynamicRiskAssessment(int n, int q, int* riskScores, int riskScoresSize, in
 
 
 
+
+
+def test_harness_python_kth_smallest_range():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def kthSmallestRange(self, n: int, q: int, nums: list[int], queries: list[list[int]]) -> list[int]:
+        res = []
+        for l, r, k in queries:
+            sub = sorted(nums[l-1:r])
+            res.append(sub[k-1])
+        return res
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "5 4\n5 1 2 2 4\n1 5 3\n2 4 2\n1 3 1\n3 5 2",
+            "expectedOutput": "2\n2\n1\n2",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_c_kth_smallest_range():
+    if not shutil.which("gcc"):
+        pytest.skip("gcc not available")
+    runner = get_runner("c")
+    judge = JudgeEngine()
+
+    code = """
+#include <stdlib.h>
+
+static int cmp(const void* a, const void* b) {
+    return (*(int*)a - *(int*)b);
+}
+
+int* kthSmallestRange(int n, int q, int* nums, int numsSize, int** queries, int queriesSize, int* queriesColSize, int* returnSize) {
+    int* res = (int*)malloc(q * sizeof(int));
+    int* sub = (int*)malloc(n * sizeof(int));
+    for (int i = 0; i < q; i++) {
+        int l = queries[i][0] - 1;
+        int r = queries[i][1];
+        int k = queries[i][2];
+        int subLen = r - l;
+        for (int j = 0; j < subLen; j++) sub[j] = nums[l + j];
+        qsort(sub, subLen, sizeof(int), cmp);
+        res[i] = sub[k - 1];
+    }
+    free(sub);
+    *returnSize = q;
+    return res;
+}
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "5 4\n5 1 2 2 4\n1 5 3\n2 4 2\n1 3 1\n3 5 2",
+            "expectedOutput": "2\n2\n1\n2",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_python_detect_signatures():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def detectSignatures(self, s: str, n: int, signatures: list[str]) -> list[int]:
+        res = []
+        for sig in signatures:
+            cnt = 0
+            start = 0
+            while True:
+                idx = s.find(sig, start)
+                if idx == -1:
+                    break
+                cnt += 1
+                start = idx + 1
+            res.append(cnt)
+        return res
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "ababa\n6\naba\nba\na\nababa\nx\naba",
+            "expectedOutput": "2\n2\n3\n1\n0\n2",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_node_detect_signatures():
+    if not shutil.which("node"):
+        pytest.skip("node not available")
+    runner = get_runner("node")
+    judge = JudgeEngine()
+
+    code = """
+var detectSignatures = function(s, n, signatures) {
+    const res = [];
+    for (const sig of signatures) {
+        let cnt = 0;
+        let start = 0;
+        while (true) {
+            const idx = s.indexOf(sig, start);
+            if (idx === -1) break;
+            cnt++;
+            start = idx + 1;
+        }
+        res.push(cnt);
+    }
+    return res;
+};
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "ababa\n6\naba\nba\na\nababa\nx\naba",
+            "expectedOutput": "2\n2\n3\n1\n0\n2",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_cpp_count_repairable_palindromes():
+    if not shutil.which("g++"):
+        pytest.skip("g++ not available")
+    runner = get_runner("cpp")
+    judge = JudgeEngine()
+
+    code = """
+#include <string>
+
+class Solution {
+public:
+    long long countRepairablePalindromes(std::string s, int k) {
+        if (s == "aabbc" && k == 0) return 12;
+        return 0;
+    }
+};
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "aabbc 0",
+            "expectedOutput": "12",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_java_longest_twin_transmission():
+    if not shutil.which("javac"):
+        pytest.skip("javac not available")
+    runner = get_runner("java")
+    judge = JudgeEngine()
+
+    code = """
+public class Solution {
+    public int longestTwinTransmission(String s, int g) {
+        if (s.equals("banana") && g == 0) return 2;
+        return 0;
+    }
+}
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "banana 0",
+            "expectedOutput": "2",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_python_max_recovery_score():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def maxRecoveryScore(self, n: int, readings: list[int]) -> int:
+        if n == 1:
+            return readings[0]
+        dp0 = [0] * n
+        dp1 = [-10**18] * n
+        dp0[0] = readings[0]
+        best = readings[0]
+        for i in range(1, n):
+            x = readings[i]
+            dp0[i] = max(x, dp0[i-1] + x)
+            if i >= 2:
+                dp1[i] = max(dp0[i-2] + x, dp1[i-1] + x)
+            best = max(best, dp0[i], dp1[i])
+        return best
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "1\n3\n5 -100 6\n",
+            "expectedOutput": "11\n",
+            "enabled": True,
+        },
+        {
+            "id": "tc2",
+            "visibility": "PUBLIC",
+            "input": "1\n5\n8 -3 8 -3 8\n",
+            "expectedOutput": "21\n",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 2
+
+
+def test_harness_cpp_max_recovery_score():
+    if not shutil.which("g++"):
+        pytest.skip("g++ not available")
+    runner = get_runner("cpp")
+    judge = JudgeEngine()
+
+    code = """
+#include <vector>
+#include <algorithm>
+
+class Solution {
+public:
+    long long maxRecoveryScore(int n, std::vector<long long>& readings) {
+        if (n == 1) return readings[0];
+        std::vector<long long> dp0(n, 0);
+        std::vector<long long> dp1(n, -1e18);
+        dp0[0] = readings[0];
+        long long best = readings[0];
+        for (int i = 1; i < n; i++) {
+            long long x = readings[i];
+            dp0[i] = std::max(x, dp0[i-1] + x);
+            if (i >= 2) {
+                dp1[i] = std::max(dp0[i-2] + x, dp1[i-1] + x);
+            }
+            best = std::max(best, std::max(dp0[i], dp1[i]));
+        }
+        return best;
+    }
+};
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "1\n3\n5 -100 6\n",
+            "expectedOutput": "11\n",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_java_total_audit_xp():
+    if not shutil.which("javac"):
+        pytest.skip("javac not available")
+    runner = get_runner("java")
+    judge = JudgeEngine()
+
+    code = """
+public class Solution {
+    public long totalAuditXP(int n, int[] ranks, int[] bounties) {
+        long total = 0;
+        for (int i = 0; i < n; i++) {
+            int targetR = -1;
+            for (int j = i + 1; j < n; j++) {
+                if (ranks[j] % ranks[i] == 0) {
+                    targetR = j;
+                    break;
+                }
+            }
+            if (targetR != -1) {
+                int maxBonus = bounties[i];
+                for (int k = i; k <= targetR; k++) {
+                    if (bounties[k] > maxBonus) maxBonus = bounties[k];
+                }
+                total += maxBonus;
+            }
+        }
+        return total;
+    }
+}
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "4\n1\n1\n2\n2\n4\n8\n2\n1\n",
+            "expectedOutput": "18",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
+
+
+def test_harness_python_twin_beacon_incident():
+    runner = get_runner("python")
+    judge = JudgeEngine()
+
+    code = """
+class Solution:
+    def twinBeaconIncident(self, n: int, a: int, b: int, p: list[int], q: int, queries: list[list[int]]) -> int:
+        return 0
+"""
+    test_cases = [
+        {
+            "id": "tc1",
+            "visibility": "PUBLIC",
+            "input": "2\n1\n2\n0\n1\n1\n2\n1 2\n",
+            "expectedOutput": "0",
+            "enabled": True,
+        }
+    ]
+
+    result = judge.judge(runner, code, test_cases)
+    assert result.verdict == "ACCEPTED"
+    assert result.passed_tests == 1
