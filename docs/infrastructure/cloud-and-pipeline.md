@@ -20,8 +20,8 @@ flowchart LR
     end
 
     subgraph CR["GCP Cloud Run (us-central1)"]
-        API["zap-api<br/>(Public, concurrency 40, CPU 1, 512Mi)"]
-        EXEC["zap-executor<br/>(Private, concurrency 4, CPU 2, 2Gi)"]
+        API["zap-api<br/>(Public, concurrency 40, CPU 2, 2Gi)"]
+        EXEC["zap-executor<br/>(Private, concurrency 8, CPU 4, 4Gi)"]
     end
 
     subgraph TASKS["GCP Cloud Tasks"]
@@ -63,14 +63,14 @@ flowchart LR
 - **`zap-api`**:
   - URL: `https://zap-api-394729648143.us-central1.run.app`
   - Access: Public (`--allow-unauthenticated`).
-  - Sizing: CPU 1, Memory 512Mi, Concurrency 40, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `1 → 10`.
+  - Sizing: CPU 2, Memory 2Gi, Concurrency 40, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `2 → 15`.
 - **`zap-executor`**:
   - URL: `https://zap-executor-394729648143.us-central1.run.app`
   - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
-  - Sizing: CPU 2, Memory 2Gi, Concurrency 4 (handles up to 4 concurrent submissions per container instance), Target Concurrency 40% (`--scaling-concurrency-target=0.40`), CPU Boost enabled, Scale `1 → 10`, Request timeout 120s.
+  - Sizing: CPU 4, Memory 4Gi, Concurrency 8 (handles up to 8 concurrent submissions per container instance), Target Concurrency 40% (`--scaling-concurrency-target=0.40`), CPU Boost enabled, Scale `3 → 25` (capped at 14 until regional 56 vCPU quota is increased in GCP console), Request timeout 120s.
 
 ### 2.4 Cloud Tasks Queues
-- **Production Queue**: `zap-submissions` (Max 4.0 dispatches/sec, max 20 concurrent dispatches, min backoff 3s, max backoff 60s)
+- **Production Queue**: `zap-submissions` (Max 10.0 dispatches/sec, max 40 concurrent dispatches, max 3 attempts, min backoff 3s, max backoff 60s)
 - **QA Queue**: `zap-submissions-lower` (Max 4.0 dispatches/sec, max 10 concurrent dispatches, min backoff 3s, max backoff 60s)
 
 ### 2.5 Secret Management

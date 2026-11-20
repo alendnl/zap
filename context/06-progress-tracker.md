@@ -144,6 +144,16 @@
   4. Render both the submission time and formatted time taken in the workspace submission history and submission details modal.
 - **Consequences**: Accurate historical and analytical insight into candidate problem completion times and submission moments across practice problems and contests without breaking backward compatibility.
 
+### ADR-014: High-Concurrency Capacity Scaling & Sizing Upgrade for Live Contests
+- **Status**: Accepted
+- **Context**: During live college contests with 150+ candidates submitting simultaneously, `zap-api` experienced memory pressure (101.2% saturation at 512 MiB limit), `zap-executor` reached its fleet capacity ceiling (10 instances * 4 concurrency = 40 max runs), and Cloud Tasks queue `zap-submissions` throttled dispatches at 4.0/s with max 20 tasks, producing queue wait times up to 413s (6.9 mins).
+- **Decision**:
+  1. **`zap-api`**: Upgrade memory from 512 MiB to 2 GiB and CPU from 1 to 2 vCPUs. Scale instances from 2 to 15 (min 2 warm instances).
+  2. **`zap-executor`**: Upgrade CPU from 2 to 4 vCPUs, memory from 2 GiB to 4 GiB, and concurrency from 4 to 8 test executions per container. Scale minimum warm instances to 3 and target maximum instances up to 25 (capped at 14 by GCP until regional 56 vCPU quota is increased).
+  3. **`zap-submissions` (Cloud Tasks)**: Increase `max-dispatches-per-second` from 4.0/s to 10.0/s, `max-concurrent-dispatches` from 20 to 40, and set `max-attempts` to 3.
+- **Consequences**: Concurrent execution capacity expanded from 40 to 112+ parallel runs, queue wait time bottlenecks eliminated, memory exhaustion eliminated on the API gateway, and warm instances prevent cold-start delays at contest onset.
+
+
 
 
 

@@ -23,13 +23,13 @@ This reference provides the technical specifications, IAM topologies, Cloud Run 
 - **Access**: Public (`--allow-unauthenticated`).
 - **URL**: `https://zap-api-394729648143.us-central1.run.app`
 - **Sizing & Scaling**:
-  - CPU: `1`
-  - Memory: `512Mi`
+  - CPU: `2`
+  - Memory: `2Gi`
   - Concurrency: `40`
   - Scaling Concurrency Target: `0.80` (80%)
   - CPU Boost: Enabled
-  - Min Instances: `1`
-  - Max Instances: `10`
+  - Min Instances: `2`
+  - Max Instances: `15`
 - **Runtime Identity**: `zap-api-runtime@zap-platform-prod.iam.gserviceaccount.com`
 - **Permissions**: `roles/cloudtasks.enqueuer` on `zap-submissions`.
 
@@ -38,14 +38,14 @@ This reference provides the technical specifications, IAM topologies, Cloud Run 
 - **Access**: Strictly private (`--no-allow-unauthenticated`). Invocable only via authenticated OIDC tokens from Cloud Tasks.
 - **URL**: `https://zap-executor-394729648143.us-central1.run.app`
 - **Sizing & Scaling**:
-  - CPU: `2`
-  - Memory: `2Gi`
-  - Concurrency: `4` (limits CPU-bound test runs to 4 per container)
+  - CPU: `4`
+  - Memory: `4Gi`
+  - Concurrency: `8` (limits test runs to 8 per container)
   - Scaling Concurrency Target: `0.40` (40%)
   - CPU Boost: Enabled
   - Request Timeout: `120s`
-  - Min Instances: `1`
-  - Max Instances: `10`
+  - Min Instances: `3`
+  - Max Instances: `25` (capped at 14 until regional 56 vCPU quota is increased in GCP console)
 - **Runtime Identity**: `zap-executor-runtime@zap-platform-prod.iam.gserviceaccount.com`
 - **Security Context**: Runs as non-root Linux user `runner` (uid 2000).
 
@@ -55,7 +55,7 @@ This reference provides the technical specifications, IAM topologies, Cloud Run 
 
 | Queue Name | Max Dispatches/s | Max Concurrent | Retry Backoff | Target Service |
 |---|---|---|---|---|
-| `zap-submissions` | 4.0 / sec | 20 | 3s – 60s (max 5 attempts) | `zap-executor /internal/tasks/execute` |
+| `zap-submissions` | 10.0 / sec | 40 | 3s – 60s (max 3 attempts) | `zap-executor /internal/tasks/execute` |
 
 ### Queue State Management
 ```bash
