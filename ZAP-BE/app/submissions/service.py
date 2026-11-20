@@ -99,15 +99,33 @@ class SubmissionService:
                     {"$match": {"$or": [{"_id": submission_id}, {"id": submission_id}]}},
                     {"$set": {
                         "testResults": {
-                            "$filter": {
-                                "input": {"$ifNull": ["$testResults", []]},
-                                "as": "tr",
-                                "cond": {
-                                    "$ne": [
-                                        {"$ifNull": ["$$tr.visibility", "PUBLIC"]},
-                                        "HIDDEN"
-                                    ]
-                                }
+                            "$cond": {
+                                "if": {"$isArray": "$testResults"},
+                                "then": {
+                                    "$map": {
+                                        "input": "$testResults",
+                                        "as": "tr",
+                                        "in": {
+                                            "$cond": {
+                                                "if": {
+                                                    "$eq": [
+                                                        {"$ifNull": ["$$tr.visibility", "PUBLIC"]},
+                                                        "HIDDEN"
+                                                    ]
+                                                },
+                                                "then": {
+                                                    "id": {"$ifNull": ["$$tr.id", ""]},
+                                                    "visibility": "HIDDEN",
+                                                    "passed": {"$ifNull": ["$$tr.passed", False]},
+                                                    "status": {"$ifNull": ["$$tr.status", ""]},
+                                                    "executionTimeMs": {"$ifNull": ["$$tr.executionTimeMs", 0]}
+                                                },
+                                                "else": "$$tr"
+                                            }
+                                        }
+                                    }
+                                },
+                                "else": "$$REMOVE"
                             }
                         }
                     }}
@@ -123,12 +141,22 @@ class SubmissionService:
         if doc:
             clean = dict(doc)
             clean.pop("_id", None)
-            if not include_hidden:
-                clean["testResults"] = [
-                    tr for tr in clean.get("testResults", [])
-                    if (isinstance(tr, dict) and tr.get("visibility") != "HIDDEN")
-                    or (not isinstance(tr, dict) and getattr(tr, "visibility", None) != "HIDDEN")
-                ]
+            if not include_hidden and "testResults" in clean and clean["testResults"]:
+                sanitized_results = []
+                for tr in clean["testResults"]:
+                    is_dict = isinstance(tr, dict)
+                    vis = tr.get("visibility") if is_dict else getattr(tr, "visibility", None)
+                    if vis == "HIDDEN":
+                        sanitized_results.append({
+                            "id": tr.get("id", "") if is_dict else getattr(tr, "id", ""),
+                            "visibility": "HIDDEN",
+                            "passed": tr.get("passed", False) if is_dict else getattr(tr, "passed", False),
+                            "status": tr.get("status", "") if is_dict else getattr(tr, "status", ""),
+                            "executionTimeMs": tr.get("executionTimeMs", 0) if is_dict else getattr(tr, "executionTimeMs", 0),
+                        })
+                    else:
+                        sanitized_results.append(tr)
+                clean["testResults"] = sanitized_results
             return Submission(**clean)
         return None
 

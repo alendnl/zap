@@ -275,7 +275,8 @@ def test_hidden_test_cases_filtering_and_submission():
     assert sub_run["tests"]["passed"] == 1
     assert len(sub_run["testResults"]) == 1
 
-    # 2. SUBMIT mode: should evaluate both public and hidden test cases, but get_submission returns only public in testResults
+    # 2. SUBMIT mode: evaluates both public and hidden test cases, returning results for all test cases
+    # with hidden test case data (input/output) masked at the MongoDB level.
     submit_res = client.post("/api/v1/submissions", json={
         "questionId": q_id,
         "language": "python",
@@ -293,10 +294,20 @@ def test_hidden_test_cases_filtering_and_submission():
     assert sub_submit["tests"]["total"] == 2
     assert sub_submit["tests"]["passed"] == 2
     assert sub_submit["verdict"] == SubmissionVerdict.ACCEPTED.value
-    # But only the PUBLIC test case result is returned in testResults!
-    assert len(sub_submit["testResults"]) == 1
+    # All test results (both PUBLIC and HIDDEN) are returned!
+    assert len(sub_submit["testResults"]) == 2
     assert sub_submit["testResults"][0]["visibility"] == "PUBLIC"
     assert sub_submit["testResults"][0]["input"] == "2 3"
+    assert sub_submit["testResults"][0]["expectedOutput"] == "5"
+    assert sub_submit["testResults"][0]["passed"] is True
+    # Hidden test case result is present with pass/fail status, but input/output are masked!
+    assert sub_submit["testResults"][1]["visibility"] == "HIDDEN"
+    assert sub_submit["testResults"][1]["passed"] is True
+    assert sub_submit["testResults"][1]["status"] == "PASSED"
+    assert sub_submit["testResults"][1]["input"] is None
+    assert sub_submit["testResults"][1]["expectedOutput"] is None
+    assert sub_submit["testResults"][1]["actualOutput"] is None
+    assert sub_submit["testResults"][1]["error"] is None
 
     # 3. SUBMIT mode where hidden test case fails
     # Hardcoded answer that passes 2 3 -> 5, but fails 10 20 -> outputs 5 instead of 30
@@ -317,6 +328,13 @@ def test_hidden_test_cases_filtering_and_submission():
     assert sub_partial["tests"]["passed"] == 1
     assert sub_partial["tests"]["failed"] == 1
     assert sub_partial["verdict"] == SubmissionVerdict.WRONG_ANSWER.value
-    # testResults only contains the visible test case!
-    assert len(sub_partial["testResults"]) == 1
+    # testResults contains all test cases, with hidden case failure recorded without exposing data
+    assert len(sub_partial["testResults"]) == 2
     assert sub_partial["testResults"][0]["passed"] is True
+    assert sub_partial["testResults"][0]["visibility"] == "PUBLIC"
+    assert sub_partial["testResults"][1]["passed"] is False
+    assert sub_partial["testResults"][1]["visibility"] == "HIDDEN"
+    assert sub_partial["testResults"][1]["status"] == "WRONG_ANSWER"
+    assert sub_partial["testResults"][1]["input"] is None
+    assert sub_partial["testResults"][1]["expectedOutput"] is None
+    assert sub_partial["testResults"][1]["actualOutput"] is None

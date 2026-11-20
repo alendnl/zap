@@ -68,7 +68,7 @@ class JudgeEngine:
                 input=stdin_input if visibility == "PUBLIC" else None,
                 expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
                 actual_output=None,
-                error=f"Execution exception: {exc}"
+                error=f"Execution exception: {exc}" if visibility == "PUBLIC" else None
             )
 
         # Check timeouts
@@ -82,7 +82,7 @@ class JudgeEngine:
                 input=stdin_input if visibility == "PUBLIC" else None,
                 expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
                 actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                error="Execution timed out."
+                error="Execution timed out." if visibility == "PUBLIC" else None
             )
 
         # Check output limit
@@ -96,7 +96,7 @@ class JudgeEngine:
                 input=stdin_input if visibility == "PUBLIC" else None,
                 expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
                 actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                error="Output size limit exceeded."
+                error="Output size limit exceeded." if visibility == "PUBLIC" else None
             )
 
         # Check runtime error
@@ -110,7 +110,7 @@ class JudgeEngine:
                 input=stdin_input if visibility == "PUBLIC" else None,
                 expected_output=self.normalize_output(expected_output) if visibility == "PUBLIC" else None,
                 actual_output=self.normalize_output(run_res.stdout) if visibility == "PUBLIC" else None,
-                error=run_res.stderr or f"Non-zero exit code: {run_res.exit_code}"
+                error=(run_res.stderr or f"Non-zero exit code: {run_res.exit_code}") if visibility == "PUBLIC" else None
             )
 
         # Output comparison

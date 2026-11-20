@@ -17,6 +17,7 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuestionPane, QuestionData } from "./QuestionPane";
@@ -394,7 +395,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       const full = await submissionsApi.get(subId);
       setViewingSubmission(full);
       setDialogTab("cases");
-      setDialogCaseIdx(0);
+      if (full.testResults && full.testResults.length > 0) {
+        const firstFail = full.testResults.findIndex((tc) => !tc.passed);
+        setDialogCaseIdx(firstFail >= 0 ? firstFail : 0);
+      } else {
+        setDialogCaseIdx(0);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load submission details.";
       setErrorNotice(msg);
@@ -499,9 +505,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             setCurrentSubmission((submission) =>
               submission
                 ? {
-                    ...submission,
-                    errorMessage: `Status unavailable for submission ${subId}: ${message}`,
-                  }
+                  ...submission,
+                  errorMessage: `Status unavailable for submission ${subId}: ${message}`,
+                }
                 : submission
             );
             setErrorNotice(`Failed to fetch status for submission ${subId}: ${message}`);
@@ -512,8 +518,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           if (isTerminalStatus(sub.status)) {
             isDone = true;
             if (sub.testResults && sub.testResults.length > 0) {
-              const visibleResults = sub.testResults.filter((tc) => tc.visibility !== "HIDDEN");
-              const firstFail = visibleResults.findIndex((tc) => !tc.passed);
+              const firstFail = sub.testResults.findIndex((tc) => !tc.passed);
               setSelectedCaseIdx(firstFail >= 0 ? firstFail : 0);
             }
 
@@ -693,53 +698,70 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
               {/* Individual Test Cases Viewer */}
               {(() => {
-                const visibleResults = (currentSubmission.testResults || []).filter(
-                  (tc) => tc.visibility !== "HIDDEN"
-                );
-                if (visibleResults.length === 0) return null;
-                const safeIdx = Math.max(0, Math.min(selectedCaseIdx, visibleResults.length - 1));
-                const activeCase = visibleResults[safeIdx];
+                const allResults = currentSubmission.testResults || [];
+                if (allResults.length === 0) return null;
+                const safeIdx = Math.max(0, Math.min(selectedCaseIdx, allResults.length - 1));
+                const activeCase = allResults[safeIdx];
 
-                const allVisiblePassed = visibleResults.every((tc) => tc.passed);
-                const hasHiddenFailures =
-                  Boolean(currentSubmission.tests && currentSubmission.tests.failed > 0 && allVisiblePassed);
+                const hiddenCases = allResults.filter((tc) => tc.visibility === "HIDDEN");
+                const hiddenPassed = hiddenCases.filter((tc) => tc.passed).length;
+                const hiddenFailed = hiddenCases.length - hiddenPassed;
 
                 return (
-                  <div className="flex flex-col gap-2 mt-1">
-                    {/* Notice if all visible tests passed but hidden test cases failed */}
-                    {hasHiddenFailures && (
-                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
-                        <span>All sample test cases passed, but one or more evaluation test cases failed.</span>
+                  <div className="flex flex-col gap-2.5 mt-1">
+                    {/* Feedback sentence for evaluation / hidden test cases */}
+                    {hiddenCases.length > 0 && (
+                      <div
+                        className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 transition-all ${hiddenFailed === 0
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+                            : "bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300"
+                          }`}
+                      >
+                        {hiddenFailed === 0 ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        )}
+                        <span className="font-medium">
+                          {hiddenFailed === 0
+                            ? `All ${hiddenCases.length} hidden test cases have passed successfully.`
+                            : `${hiddenPassed} of ${hiddenCases.length} hidden test cases passed, and ${hiddenFailed} ${hiddenFailed === 1 ? "hidden test case" : "hidden test cases"
+                            } failed.`}
+                        </span>
                       </div>
                     )}
 
                     {/* Test Case Tabs */}
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-                      {visibleResults.map((tc, idx) => {
+                      {allResults.map((tc, idx) => {
                         const isSelected = idx === safeIdx;
+                        const isHidden = tc.visibility === "HIDDEN";
                         return (
                           <button
                             key={tc.id || idx}
                             type="button"
                             onClick={() => setSelectedCaseIdx(idx)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                              isSelected
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${isSelected
                                 ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                                 : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
-                            }`}
+                              }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                tc.passed ? "bg-emerald-500" : "bg-rose-500"
-                              }`}
+                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tc.passed ? "bg-emerald-500" : "bg-rose-500"
+                                }`}
                             />
                             <span>Case {idx + 1}</span>
+                            {isHidden && (
+                              <span className="text-[10px] px-1 py-0.2 rounded bg-[#f1f5f9] dark:bg-[#1e293b] text-[#64748b] dark:text-[#94a3b8] flex items-center gap-0.5">
+                                <Lock className="w-2.5 h-2.5" />
+                                Hidden
+                              </span>
+                            )}
                             <span
-                              className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                                tc.passed
+                              className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${tc.passed
                                   ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
                                   : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
-                              }`}
+                                }`}
                             >
                               {tc.passed ? "Passed" : "Failed"}
                             </span>
@@ -750,69 +772,122 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
                     {/* Active Test Case Detail */}
                     {activeCase && (
-                      <div className="flex flex-col gap-2.5 pt-1">
-                        {/* Input */}
-                        <div>
-                          <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
-                            Input:
+                      activeCase.visibility === "HIDDEN" ? (
+                        <div className="flex flex-col gap-3 pt-2">
+                          <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b]">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center ${activeCase.passed
+                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                  }`}
+                              >
+                                {activeCase.passed ? (
+                                  <Check className="w-4 h-4" />
+                                ) : (
+                                  <X className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-xs font-semibold text-[#0f172a] dark:text-white flex items-center gap-2">
+                                  <span>{activeCase.passed ? "Test Case Passed" : "Test Case Failed"}</span>
+                                  <span
+                                    className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${activeCase.passed
+                                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                                        : "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20"
+                                      }`}
+                                  >
+                                    {activeCase.status || (activeCase.passed ? "PASSED" : "FAILED")}
+                                  </span>
+                                </div>
+                                {activeCase.executionTimeMs != null && activeCase.executionTimeMs > 0 && (
+                                  <div className="text-[11px] text-[#64748b] dark:text-[#94a3b8] font-mono mt-0.5">
+                                    Execution Time: {activeCase.executionTimeMs} ms
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] bg-white dark:bg-[#1a2233] px-2.5 py-1 rounded-lg border border-[#e2e8f0] dark:border-[#232f45]">
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Hidden Test Case</span>
+                            </div>
                           </div>
-                          <pre className="bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap">
-                            {activeCase.input != null ? activeCase.input : "(No input)"}
-                          </pre>
-                        </div>
 
-                        {/* Expected vs Actual Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                            <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <p className="font-medium text-blue-900 dark:text-blue-100">
+                                Test Case Data Hidden
+                              </p>
+                              <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                                Input and expected output values for evaluation test cases are hidden to uphold assessment integrity. The evaluation verdict and execution status are shown above.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2.5 pt-1">
+                          {/* Input */}
                           <div>
                             <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
-                              Expected output:
+                              Input:
                             </div>
                             <pre className="bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap">
-                              {activeCase.expectedOutput != null
-                                ? activeCase.expectedOutput
-                                : "(No expected output)"}
+                              {activeCase.input != null ? activeCase.input : "(No input)"}
                             </pre>
                           </div>
 
-                          <div>
-                            <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1 flex items-center justify-between">
-                              <span>Your output:</span>
-                              <span
-                                className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                                  activeCase.passed
-                                    ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
-                                    : "text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20"
-                                }`}
+                          {/* Expected vs Actual Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
+                                Expected output:
+                              </div>
+                              <pre className="bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap">
+                                {activeCase.expectedOutput != null
+                                  ? activeCase.expectedOutput
+                                  : "(No expected output)"}
+                              </pre>
+                            </div>
+
+                            <div>
+                              <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1 flex items-center justify-between">
+                                <span>Your output:</span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${activeCase.passed
+                                      ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
+                                      : "text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20"
+                                    }`}
+                                >
+                                  {activeCase.passed ? "Match" : "Mismatch"}
+                                </span>
+                              </div>
+                              <pre
+                                className={`p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap border ${activeCase.passed
+                                    ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                                    : "bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300"
+                                  }`}
                               >
-                                {activeCase.passed ? "Match" : "Mismatch"}
-                              </span>
+                                {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
+                                  ? activeCase.actualOutput
+                                  : "(No stdout printed)"}
+                              </pre>
                             </div>
-                            <pre
-                              className={`p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap border ${
-                                activeCase.passed
-                                  ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                                  : "bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300"
-                              }`}
-                            >
-                              {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
-                                ? activeCase.actualOutput
-                                : "(No stdout printed)"}
-                            </pre>
                           </div>
-                        </div>
 
-                        {/* Diagnostics / Stderr */}
-                        {activeCase.error && (
-                          <div>
-                            <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mb-1">
-                              Diagnostics / stderr:
+                          {/* Diagnostics / Stderr */}
+                          {activeCase.error && (
+                            <div>
+                              <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mb-1">
+                                Diagnostics / stderr:
+                              </div>
+                              <pre className="bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/25 text-rose-600 dark:text-rose-400 p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap">
+                                {activeCase.error}
+                              </pre>
                             </div>
-                            <pre className="bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/25 text-rose-600 dark:text-rose-400 p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap">
-                              {activeCase.error}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
                 );
@@ -871,11 +946,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                     const vStyle = VERDICT_STYLES[vKey] || VERDICT_STYLES["IDLE"];
                     const dateStr = sub.createdAt
                       ? new Date(sub.createdAt).toLocaleString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                       : "-";
 
                     return (
@@ -965,11 +1040,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             key={p}
                             type="button"
                             onClick={() => setSubmissionsPage(p)}
-                            className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                              p === validPage
+                            className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${p === validPage
                                 ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                                 : "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-[#f8fafc] border-[#e2e8f0] dark:border-[#232f45] hover:bg-[#f1f5f9] dark:hover:bg-[#232f45]"
-                            }`}
+                              }`}
                           >
                             {p}
                           </button>
@@ -1038,13 +1112,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           </span>
 
           <span
-            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-              question.difficulty === "HARD"
+            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${question.difficulty === "HARD"
                 ? "text-[#b91c1c] dark:text-[#fb7185] bg-[#fef2f2] dark:bg-[#f43f5e]/15 border-[#fecaca] dark:border-[#f43f5e]/25"
                 : question.difficulty === "MEDIUM"
-                ? "text-[#b45309] dark:text-[#fbbf24] bg-[#fffbeb] dark:bg-[#f59e0b]/15 border-[#fde68a] dark:border-[#f59e0b]/25"
-                : "text-[#047857] dark:text-[#34d399] bg-[#ecfdf5] dark:bg-[#10b981]/15 border-[#a7f3d0] dark:border-[#10b981]/25"
-            }`}
+                  ? "text-[#b45309] dark:text-[#fbbf24] bg-[#fffbeb] dark:bg-[#f59e0b]/15 border-[#fde68a] dark:border-[#f59e0b]/25"
+                  : "text-[#047857] dark:text-[#34d399] bg-[#ecfdf5] dark:bg-[#10b981]/15 border-[#a7f3d0] dark:border-[#10b981]/25"
+              }`}
           >
             {difficultyLabel}
           </span>
@@ -1114,22 +1187,20 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         <button
           type="button"
           onClick={() => setMobileTab("problem")}
-          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all ${
-            mobileTab === "problem"
+          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all ${mobileTab === "problem"
               ? "bg-[#f1f5f9] dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
               : "text-[#64748b] dark:text-[#94a3b8]"
-          }`}
+            }`}
         >
           Problem
         </button>
         <button
           type="button"
           onClick={() => setMobileTab("code")}
-          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all ${
-            mobileTab === "code"
+          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all ${mobileTab === "code"
               ? "bg-[#f1f5f9] dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
               : "text-[#64748b] dark:text-[#94a3b8]"
-          }`}
+            }`}
         >
           Code
         </button>
@@ -1139,20 +1210,18 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             setMobileTab("results");
             setIsDrawerOpen(true);
           }}
-          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-            mobileTab === "results"
+          className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${mobileTab === "results"
               ? "bg-[#f1f5f9] dark:bg-[#1a2233] text-[#0f172a] dark:text-white shadow-xs border border-[#e2e8f0] dark:border-[#232f45]"
               : "text-[#64748b] dark:text-[#94a3b8]"
-          }`}
+            }`}
         >
           <span>Results</span>
           {currentSubmission?.verdict && (
             <span
-              className={`w-2 h-2 rounded-full ${
-                currentSubmission.verdict === "ACCEPTED"
+              className={`w-2 h-2 rounded-full ${currentSubmission.verdict === "ACCEPTED"
                   ? "bg-emerald-500"
                   : "bg-rose-500"
-              }`}
+                }`}
             />
           )}
         </button>
@@ -1198,11 +1267,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                     setBottomTab("console");
                     setIsDrawerOpen(true);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    bottomTab === "console" && isDrawerOpen
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${bottomTab === "console" && isDrawerOpen
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Terminal className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Test results & console</span>
@@ -1220,11 +1288,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                     setIsDrawerOpen(true);
                     void loadSubmissions();
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    bottomTab === "submissions" && isDrawerOpen
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${bottomTab === "submissions" && isDrawerOpen
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   <History className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Submissions</span>
@@ -1296,11 +1363,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={() => setBottomTab("console")}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    bottomTab === "console"
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${bottomTab === "console"
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Terminal className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Console</span>
@@ -1311,11 +1377,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                     setBottomTab("submissions");
                     void loadSubmissions();
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    bottomTab === "submissions"
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${bottomTab === "submissions"
                       ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                       : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   <History className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Submissions</span>
@@ -1346,11 +1411,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   Submission details ({viewingSubmission.language})
                 </span>
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                    VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.text
-                  } ${VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.bg} ${
-                    VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.border
-                  }`}
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.text
+                    } ${VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.bg} ${VERDICT_STYLES[viewingSubmission.verdict || "IDLE"]?.border
+                    }`}
                 >
                   {formatVerdict(viewingSubmission.verdict || viewingSubmission.status)}
                 </span>
@@ -1403,11 +1466,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setDialogTab("cases")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dialogTab === "cases"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${dialogTab === "cases"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f1f5f9] dark:hover:bg-[#1a2233]"
-                }`}
+                  }`}
               >
                 <Terminal className="w-3.5 h-3.5" />
                 <span>Test results & data</span>
@@ -1421,11 +1483,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setDialogTab("code")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dialogTab === "code"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${dialogTab === "code"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f1f5f9] dark:hover:bg-[#1a2233]"
-                }`}
+                  }`}
               >
                 <Code2 className="w-3.5 h-3.5" />
                 <span>Submitted code</span>
@@ -1462,48 +1523,76 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
                   {/* Test Cases Results with Data */}
                   {(() => {
-                    const visibleDialogResults = (viewingSubmission.testResults || []).filter(
-                      (tc) => tc.visibility !== "HIDDEN"
-                    );
-                    if (visibleDialogResults.length === 0) {
+                    const allDialogResults = viewingSubmission.testResults || [];
+                    if (allDialogResults.length === 0) {
                       return (
                         <div className="py-8 text-center text-xs text-[#64748b] dark:text-[#94a3b8]">
                           No individual test case results recorded for this submission.
                         </div>
                       );
                     }
-                    const safeIdx = Math.max(0, Math.min(dialogCaseIdx, visibleDialogResults.length - 1));
-                    const activeCase = visibleDialogResults[safeIdx];
+                    const dialogHiddenCases = allDialogResults.filter((tc) => tc.visibility === "HIDDEN");
+                    const dialogHiddenPassed = dialogHiddenCases.filter((tc) => tc.passed).length;
+                    const dialogHiddenFailed = dialogHiddenCases.length - dialogHiddenPassed;
+
+                    const safeIdx = Math.max(0, Math.min(dialogCaseIdx, allDialogResults.length - 1));
+                    const activeCase = allDialogResults[safeIdx];
 
                     return (
                       <div className="flex flex-col gap-2.5">
+                        {/* Feedback sentence for hidden test cases */}
+                        {dialogHiddenCases.length > 0 && (
+                          <div
+                            className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 transition-all ${dialogHiddenFailed === 0
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+                                : "bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300"
+                              }`}
+                          >
+                            {dialogHiddenFailed === 0 ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                            )}
+                            <span className="font-medium">
+                              {dialogHiddenFailed === 0
+                                ? `All ${dialogHiddenCases.length} hidden test cases have passed successfully.`
+                                : `${dialogHiddenPassed} of ${dialogHiddenCases.length} hidden test cases passed, and ${dialogHiddenFailed} ${dialogHiddenFailed === 1 ? "hidden test case" : "hidden test cases"
+                                } failed.`}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Case selector chips */}
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-[#e2e8f0] dark:border-[#1e293b]">
-                          {visibleDialogResults.map((tc, idx) => {
+                          {allDialogResults.map((tc, idx) => {
                             const isSelected = idx === safeIdx;
+                            const isHidden = tc.visibility === "HIDDEN";
                             return (
                               <button
                                 key={tc.id || idx}
                                 type="button"
                                 onClick={() => setDialogCaseIdx(idx)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                                  isSelected
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${isSelected
                                     ? "bg-white dark:bg-[#1a2233] text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-[#232f45] shadow-xs"
                                     : "text-[#64748b] dark:text-[#94a3b8] hover:text-[#0f172a] dark:hover:text-white border border-transparent"
-                                }`}
+                                  }`}
                               >
                                 <span
-                                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                    tc.passed ? "bg-emerald-500" : "bg-rose-500"
-                                  }`}
+                                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tc.passed ? "bg-emerald-500" : "bg-rose-500"
+                                    }`}
                                 />
                                 <span>Case {idx + 1}</span>
+                                {isHidden && (
+                                  <span className="text-[10px] px-1 py-0.2 rounded bg-[#f1f5f9] dark:bg-[#1e293b] text-[#64748b] dark:text-[#94a3b8] flex items-center gap-0.5">
+                                    <Lock className="w-2.5 h-2.5" />
+                                    Hidden
+                                  </span>
+                                )}
                                 <span
-                                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                                    tc.passed
+                                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${tc.passed
                                       ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
                                       : "text-rose-700 dark:text-rose-300 bg-rose-500/10"
-                                  }`}
+                                    }`}
                                 >
                                   {tc.passed ? "Passed" : "Failed"}
                                 </span>
@@ -1514,69 +1603,122 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
                         {/* Selected Case Detail */}
                         {activeCase && (
-                          <div className="flex flex-col gap-2.5 pt-1">
-                            {/* Input */}
-                            <div>
-                              <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
-                                Input:
+                          activeCase.visibility === "HIDDEN" ? (
+                            <div className="flex flex-col gap-3 pt-2">
+                              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8fafc] dark:bg-[#121824] border border-[#e2e8f0] dark:border-[#1e293b]">
+                                <div className="flex items-center gap-2.5">
+                                  <div
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center ${activeCase.passed
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                      }`}
+                                  >
+                                    {activeCase.passed ? (
+                                      <Check className="w-4 h-4" />
+                                    ) : (
+                                      <X className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-semibold text-[#0f172a] dark:text-white flex items-center gap-2">
+                                      <span>{activeCase.passed ? "Test Case Passed" : "Test Case Failed"}</span>
+                                      <span
+                                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${activeCase.passed
+                                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                                            : "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20"
+                                          }`}
+                                      >
+                                        {activeCase.status || (activeCase.passed ? "PASSED" : "FAILED")}
+                                      </span>
+                                    </div>
+                                    {activeCase.executionTimeMs != null && activeCase.executionTimeMs > 0 && (
+                                      <div className="text-[11px] text-[#64748b] dark:text-[#94a3b8] font-mono mt-0.5">
+                                        Execution Time: {activeCase.executionTimeMs} ms
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#64748b] dark:text-[#94a3b8] bg-white dark:bg-[#1a2233] px-2.5 py-1 rounded-lg border border-[#e2e8f0] dark:border-[#232f45]">
+                                  <Lock className="w-3.5 h-3.5" />
+                                  <span>Hidden Test Case</span>
+                                </div>
                               </div>
-                              <pre className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {activeCase.input != null ? activeCase.input : "(No input)"}
-                              </pre>
-                            </div>
 
-                            {/* Expected vs Actual Output */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                                <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                  <p className="font-medium text-blue-900 dark:text-blue-100">
+                                    Test Case Data Hidden
+                                  </p>
+                                  <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                                    Input and expected output values for evaluation test cases are hidden to uphold assessment integrity. The evaluation verdict and execution status are shown above.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2.5 pt-1">
+                              {/* Input */}
                               <div>
                                 <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
-                                  Expected output:
+                                  Input:
                                 </div>
                                 <pre className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                  {activeCase.expectedOutput != null
-                                    ? activeCase.expectedOutput
-                                    : "(No expected output)"}
+                                  {activeCase.input != null ? activeCase.input : "(No input)"}
                                 </pre>
                               </div>
 
-                              <div>
-                                <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1 flex items-center justify-between">
-                                  <span>Your output:</span>
-                                  <span
-                                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${
-                                      activeCase.passed
-                                        ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
-                                        : "text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20"
-                                    }`}
+                              {/* Expected vs Actual Output */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1">
+                                    Expected output:
+                                  </div>
+                                  <pre className="bg-[#f8fafc] dark:bg-[#0b0f17] border border-[#e2e8f0] dark:border-[#1e293b] p-2.5 rounded-lg text-xs font-mono text-[#0f172a] dark:text-[#f8fafc] whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                    {activeCase.expectedOutput != null
+                                      ? activeCase.expectedOutput
+                                      : "(No expected output)"}
+                                  </pre>
+                                </div>
+
+                                <div>
+                                  <div className="text-[11px] font-semibold text-[#64748b] dark:text-[#94a3b8] mb-1 flex items-center justify-between">
+                                    <span>Your output:</span>
+                                    <span
+                                      className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold ${activeCase.passed
+                                          ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
+                                          : "text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20"
+                                        }`}
+                                    >
+                                      {activeCase.passed ? "Match" : "Mismatch"}
+                                    </span>
+                                  </div>
+                                  <pre
+                                    className={`p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border ${activeCase.passed
+                                        ? "border-emerald-500/20 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5 dark:bg-emerald-500/10"
+                                        : "border-rose-500/20 text-rose-700 dark:text-rose-300 bg-rose-500/5 dark:bg-rose-500/10"
+                                      }`}
                                   >
-                                    {activeCase.passed ? "Match" : "Mismatch"}
-                                  </span>
+                                    {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
+                                      ? activeCase.actualOutput
+                                      : "(No stdout printed)"}
+                                  </pre>
                                 </div>
-                                <pre
-                                  className={`p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border ${
-                                    activeCase.passed
-                                      ? "border-emerald-500/20 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5 dark:bg-emerald-500/10"
-                                      : "border-rose-500/20 text-rose-700 dark:text-rose-300 bg-rose-500/5 dark:bg-rose-500/10"
-                                  }`}
-                                >
-                                  {activeCase.actualOutput != null && activeCase.actualOutput.length > 0
-                                    ? activeCase.actualOutput
-                                    : "(No stdout printed)"}
-                                </pre>
                               </div>
-                            </div>
 
-                            {/* Error / Diagnostics */}
-                            {activeCase.error && (
-                              <div>
-                                <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mb-1">
-                                  Diagnostics / stderr:
+                              {/* Error / Diagnostics */}
+                              {activeCase.error && (
+                                <div>
+                                  <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mb-1">
+                                    Diagnostics / stderr:
+                                  </div>
+                                  <pre className="bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/25 text-rose-600 dark:text-rose-400 p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                    {activeCase.error}
+                                  </pre>
                                 </div>
-                                <pre className="bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/25 text-rose-600 dark:text-rose-400 p-2.5 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                  {activeCase.error}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
+                              )}
+                            </div>
+                          )
                         )}
                       </div>
                     );

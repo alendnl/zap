@@ -32,6 +32,7 @@
 - [x] **Contest Submissions Analytics Dashboard**: Executive telemetry dashboard at `/admin/contests/analytics` featuring cohort metrics (completion rate, score distribution histogram, MCQ accuracy, coding acceptance), proctoring infraction analytics, candidate submissions leaderboard, and individual candidate inspection modal with chronological proctoring violation timeline and full source code viewer.
 - [x] **Unified Cloud & Repository Operations Skill (`project-operations`)**: Dedicated operational agent skill and zero-setup CLI tool (`zap-ops`) unifying MongoDB Atlas queries/schema inspection/aggregations/writes/backups, GCP Cloud Run/Tasks/Logs/Scaling management, and Git/GitHub CI/CD monitoring with cross-system intelligence and production safety guardrails. (Superseded `cloud-ops`).
 - [x] **In-Browser Admin Load Testing Studio (`/admin/load-test`)**: Replaced unmaintainable local CLI load testing scripts with a full-featured, zero-setup in-browser load testing studio. Features dual target subsystems (ZAP API & ZAP Executor), configurable concurrency, linear vs instant spike ramp-up schedules, multi-language compiler stress (C++, Java, Python, C, JavaScript) across Light/Medium/Heavy workloads, live telemetry streaming, response time percentiles (p50, p75, p90, p95, p99), historical run recording in `zap_platform_lower`, and strict environment isolation with an automated lower DB synthetic data cleanup modal.
+- [x] **Universal Full Test Case Breakdown & DB-Level Sanitization**: In SUBMIT mode, all test cases (both public and hidden) are evaluated and returned in `testResults`. Hidden test case data (`input`, `expectedOutput`, `actualOutput`, `error`) is sanitized at the MongoDB query level via `$map`/`$cond` projection to avoid heavy I/O network transfers. In the frontend (`StudentWorkspace`), both practice and contest areas display all test case tabs (with hidden lock badges), clear sentence feedback on hidden test pass/fail counts, and privacy lock notices that protect confidential evaluation data while delivering full transparency.
 
 ---
 
@@ -124,6 +125,14 @@
   3. **Backend Synced State Coalescence**: In `submit_contest`, coalesce the incoming request payload with the existing document in MongoDB (`existing_doc`). If any MCQ answers or coding problem states were previously synced to the backend but omitted or empty in the submission payload, preserve the backend's synced state. Fetch latest compiler evaluation runs via `sub_service.list_submissions` if submission references are missing.
   4. **Automatic Server-Side Finalization**: Implement `_auto_submit_session` and `_auto_finalize_expired_sessions`. Expired `IN_PROGRESS` sessions are automatically evaluated against synced database state and transitioned to `SUBMITTED` with `isAutoSubmitted=True` when candidates re-enter (`start_contest_session`), during periodic delta sync (`sync_contest_session`), and during administrator queries (`get_contest_submissions` / `get_contest_analytics`).
 - **Consequences**: Zero candidate work lost on timeout, tamper-proof control locking, accurate cohort completion analytics, and fair scoring calculated strictly from pre-synced backend data.
+
+### ADR-012: DB-Level Sanitization and Complete Test Breakdown for Hidden Evaluation Cases
+- **Status**: Accepted
+- **Context**: In SUBMIT mode, candidates previously only saw 2 sample test cases because hidden test cases were filtered out entirely to protect evaluation confidentiality. Large test case payloads (e.g. 1 MB+) could also saturate network and memory if fetched and stripped at the application layer.
+- **Decision**:
+  1. In `get_submission()`, MongoDB executes an aggregation pipeline with `$map` and `$cond` to project only `id`, `visibility: "HIDDEN"`, `passed`, `status`, and `executionTimeMs` for hidden test cases directly in the database engine, omitting heavy inputs, expected outputs, actual outputs, and execution errors.
+  2. The frontend workspace across all code editors (practice and contest arena) renders all test case results with passed/failed badges, provides human-readable sentence feedback on hidden test pass/fail counts (e.g. `X of Y hidden test cases passed (Z failed)`), and displays privacy notices on hidden test cases to protect test case integrity.
+- **Consequences**: Candidates get complete visibility into all evaluation test cases without exposing confidential test data or imposing heavy database-to-API network overhead.
 
 
 

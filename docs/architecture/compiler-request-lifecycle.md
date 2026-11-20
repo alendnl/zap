@@ -173,7 +173,7 @@ sequenceDiagram
      - Normalizes line endings/whitespace and compares `stdout` with `expectedOutput`.
      - Applies the **verdict severity hierarchy**:
        $$\text{ACCEPTED} < \text{WRONG\_ANSWER} < \text{OUTPUT\_LIMIT\_EXCEEDED} < \text{TIME\_LIMIT\_EXCEEDED} < \text{RUNTIME\_ERROR} < \text{COMPILE\_ERROR}$$
-  5. **Confidentiality Masking**: For test cases with `visibility == "HIDDEN"`, `input`, `expectedOutput`, and `actualOutput` are masked to `None`/`null`.
+  5. **Confidentiality Masking & DB-Level Sanitization**: For test cases with `visibility == "HIDDEN"`, `input`, `expectedOutput`, `actualOutput`, and `error` are masked to `None`/`null`. Furthermore, at the MongoDB database level (`SubmissionService.get_submission()`), an aggregation pipeline using `$map` and `$cond` projects only `id`, `visibility: "HIDDEN"`, `passed`, `status`, and `executionTimeMs` for hidden test cases, ensuring large test case payloads (e.g. 1 MB+) are never transmitted from MongoDB or delivered to client browsers.
   6. **Ephemeral Cleanup**: In a `finally` block, `sandbox.cleanup()` recursively executes `shutil.rmtree` on the workspace directory.
 
 ### Phase 6: Result Persistence & Terminal Delivery
@@ -193,6 +193,9 @@ sequenceDiagram
      - Editor unlocks (`isRunning = false`).
      - If mode was `SUBMIT`, prepends the submission to the local history table.
      - Test results drawer opens, focusing on the first failing test case (if any).
+     - Renders complete test cases breakdown (both visible sample test cases and hidden evaluation cases).
+     - Displays explicit sentence feedback summarizing hidden test cases passed/failed (e.g. `X of Y hidden test cases passed (Z failed)`).
+     - For hidden test cases, displays pass/fail result and execution status with a privacy notice, strictly omitting test case inputs, expected outputs, and execution stdout.
 
 ---
 
@@ -206,7 +209,7 @@ sequenceDiagram
 | **Sequential Polling Latch** | Protects API from client hammering | Client awaits HTTP response before calculating sleep duration ($\ge 5000\text{ms}$). |
 | **Active Poll ID Guard** | Prevents race conditions | Switching questions or re-clicking Run invalidates previous poll tokens immediately. |
 | **Sandbox Ephemeral Cleanup** | Prevents disk exhaustion on Cloud Run | Workspace directory is deleted inside a `finally` block regardless of pass, fail, or crash. |
-| **Test Case Masking** | Prevents cheating & test exposure | Hidden test case inputs, actual outputs, and expected outputs are scrubbed at the executor boundary. |
+| **Test Case Masking & DB Filtering** | Prevents cheating, test exposure & large I/O | Hidden test case inputs, actual outputs, and expected outputs are scrubbed at the executor boundary and sanitized at the MongoDB query level via `$map`. |
 
 ---
 
