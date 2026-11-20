@@ -47,6 +47,42 @@ def test_create_submission():
     assert sub_data["status"] == "QUEUED"
     assert sub_data["questionId"] == "valid-anagram"
     assert sub_data["language"] == "python"
+    assert "submittedAt" in sub_data
+    assert sub_data["submittedAt"] == sub_data["createdAt"]
+
+def test_create_submission_stores_timing_and_time_spent():
+    custom_time = "2026-11-20T12:00:00Z"
+    payload = {
+        "questionId": "two-sum",
+        "language": "python",
+        "mode": "RUN",
+        "sourceCode": "print('hello')",
+        "userId": "student-timing-test",
+        "submittedAt": custom_time,
+        "timeSpentSeconds": 142
+    }
+
+    res = client.post("/api/v1/submissions", json=payload)
+    assert res.status_code == 202
+    data = res.json()
+    submission_id = data["submissionId"]
+
+    # Verify single fetch includes timing
+    get_res = client.get(f"/api/v1/submissions/{submission_id}")
+    assert get_res.status_code == 200
+    sub_data = get_res.json()
+    assert sub_data["submittedAt"] == custom_time
+    assert sub_data["timeSpentSeconds"] == 142
+
+    # Verify list submissions includes timing
+    list_res = client.get(f"/api/v1/submissions?userId=student-timing-test")
+    assert list_res.status_code == 200
+    list_data = list_res.json()
+    assert len(list_data) >= 1
+    found = next((s for s in list_data if s["id"] == submission_id), None)
+    assert found is not None
+    assert found["submittedAt"] == custom_time
+    assert found["timeSpentSeconds"] == 142
 
 def test_create_submission_uses_memory_queue_when_no_gcp():
     """Without GCP_PROJECT_ID, submissions enqueue into the memory queue."""

@@ -59,6 +59,7 @@ export const compilerApi = {
         mode: "RUN",
         sourceCode: req.sourceCode,
         userId: "guest-playground",
+        submittedAt: new Date().toISOString(),
       });
 
       // Poll submission status until complete (5s cadence)

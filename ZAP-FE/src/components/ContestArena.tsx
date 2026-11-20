@@ -720,10 +720,13 @@ export function ContestArena({
   );
 
   const handleCodingExecute = useCallback(
-    (mode: SubmissionMode, language: string, code: string) => {
+    (mode: SubmissionMode, language: string, code: string, submittedAt?: string, problemTimeSpent?: number) => {
       if (isTimeUp || isSubmitting) return;
       const currentQ = codingQuestions[currentCodingIdx];
       if (!currentQ) return;
+
+      const subTime = submittedAt || new Date().toISOString();
+      const currentContestTime = latestStateRef.current.timeSpent;
 
       // Delta sync for this question and this language only when running or submitting code
       void contestApi
@@ -731,7 +734,7 @@ export function ContestArena({
           studentId,
           studentEmail,
           studentName,
-          timeSpentSeconds: latestStateRef.current.timeSpent,
+          timeSpentSeconds: currentContestTime,
           isDelta: true,
           codingDelta: {
             questionId: currentQ.id,
@@ -739,6 +742,8 @@ export function ContestArena({
             code,
             lastLanguage: language,
             status: "ATTEMPTED",
+            submittedAt: subTime,
+            timeSpentSeconds: problemTimeSpent ?? currentContestTime,
           },
         })
         .then(handleSyncResponse)

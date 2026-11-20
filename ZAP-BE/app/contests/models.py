@@ -129,6 +129,8 @@ class CodingProblemState(BaseModel):
     passedTestCases: int = 0
     totalTestCases: int = 0
     passPercentage: float = 0.0
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
 
 class ContestStartResponse(BaseModel):
@@ -167,6 +169,8 @@ class CodingDelta(BaseModel):
     passedTestCases: Optional[int] = None
     totalTestCases: Optional[int] = None
     passPercentage: Optional[float] = None
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
 
 class ProctoringDelta(BaseModel):
@@ -232,6 +236,8 @@ class CodingReviewItem(BaseModel):
     passedTestCases: int = 0
     totalTestCases: int = 0
     percentage: float = 0.0
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
 
 class ContestSubmitResponse(BaseModel):

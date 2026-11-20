@@ -30,9 +30,9 @@ sequenceDiagram
     Note over User, API: Phase 1: Submission Request & Initial Latch
     User->>FE: Click "Submit solution" / "Run code"
     FE->>FE: Lock UI (isRunning = true), bump activePollIdRef
-    FE->>API: POST /api/v1/submissions (code, lang, questionId, mode)
+    FE->>API: POST /api/v1/submissions (code, lang, questionId, mode, submittedAt, timeSpentSeconds)
     API->>API: Check Rate Limiter (sliding window per user)
-    API->>DB: Insert Submission (status: "QUEUED", mode, sourceCode)
+    API->>DB: Insert Submission (status: "QUEUED", mode, sourceCode, submittedAt, timeSpentSeconds)
     API->>GCT: Enqueue HTTP Task (with OIDC Bearer Token)
     API-->>FE: HTTP 202 Accepted { submissionId, status: "QUEUED" }
     end
@@ -109,7 +109,7 @@ sequenceDiagram
   1. User triggers either **"Run code"** (`mode: "RUN"`, public test cases only) or **"Submit solution"** (`mode: "SUBMIT"`, full public + hidden suite).
   2. The frontend increments `activePollIdRef.current`. Any previously running poll loop detects this ID change and self-terminates, preventing race conditions or ghost updates.
   3. UI enters running state (`isRunning = true`), disabling the editor and run buttons.
-  4. Client dispatches `POST /api/v1/submissions` carrying `{ questionId, language, mode, sourceCode, userId }`.
+  4. Client dispatches `POST /api/v1/submissions` carrying `{ questionId, language, mode, sourceCode, userId, submittedAt, timeSpentSeconds }`.
 
 ### Phase 2: API Gateway Ingestion & Asynchronous Decoupling
 - **Source Files**: [`router.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/router.py#L24-L39), [`service.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/service.py#L30-L89), [`queue.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/queue.py#L37-L79)
@@ -118,6 +118,8 @@ sequenceDiagram
   2. **Database Insertion**: `SubmissionService.create_submission()` writes a document to MongoDB's `submissions` collection with:
      - `status: "QUEUED"`
      - `createdAt: <ISO Timestamp>`
+     - `submittedAt: <ISO Timestamp>` (client-provided timestamp or server UTC default)
+     - `timeSpentSeconds: <int>` (time spent by user on the coding problem prior to submission)
      - `mode`, `language`, `sourceCode`, `questionId`, `userId`
   3. **Cloud Tasks Enqueue**: `CloudTasksQueue.enqueue()` submits an HTTP task to Google Cloud Tasks (`zap-submissions` in prod, `zap-submissions-lower` in QA):
      - **Target URL**: `https://<zap-executor-host>/internal/tasks/execute`

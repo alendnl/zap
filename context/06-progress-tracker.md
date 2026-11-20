@@ -134,6 +134,17 @@
   2. The frontend workspace across all code editors (practice and contest arena) renders all test case results with passed/failed badges, provides human-readable sentence feedback on hidden test pass/fail counts (e.g. `X of Y hidden test cases passed (Z failed)`), and displays privacy notices on hidden test cases to protect test case integrity.
 - **Consequences**: Candidates get complete visibility into all evaluation test cases without exposing confidential test data or imposing heavy database-to-API network overhead.
 
+### ADR-013: Submission Timing and Time Spent Tracking Across Coding Runs and Submissions
+- **Status**: Accepted
+- **Context**: Submissions previously only persisted a server-side `createdAt` timestamp when queued. There was no explicit tracking of exact client dispatch time (`submittedAt`) or duration spent on writing code/solving a problem (`timeSpentSeconds`) prior to running or submitting code.
+- **Decision**:
+  1. Add `submittedAt` (ISO string timestamp) and `timeSpentSeconds` (integer duration in seconds) to `SubmissionCreateRequest`, `Submission`, and `SubmissionSummary` in `ZAP-BE`. Default `submittedAt` to `createdAt` / current UTC time if not provided by client.
+  2. Maintain `problemOpenedAtRef` in `StudentWorkspace.tsx` to accurately calculate elapsed seconds from opening a problem to executing code.
+  3. Propagate `submittedAt` and `timeSpentSeconds` through Cloud Tasks enqueuing, MongoDB persistence, `list_submissions` projections, `UserActivity` recent submission briefs, and contest `CodingDelta` / `CodingProblemState`.
+  4. Render both the submission time and formatted time taken in the workspace submission history and submission details modal.
+- **Consequences**: Accurate historical and analytical insight into candidate problem completion times and submission moments across practice problems and contests without breaking backward compatibility.
+
+
 
 
 

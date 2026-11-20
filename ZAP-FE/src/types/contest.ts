@@ -141,6 +141,8 @@ export interface CodingProblemState {
   passedTestCases?: number;
   totalTestCases?: number;
   passPercentage?: number;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
 }
 
 export interface ContestStartResponse {
@@ -179,6 +181,8 @@ export interface CodingDelta {
   passedTestCases?: number;
   totalTestCases?: number;
   passPercentage?: number;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
 }
 
 export interface ProctoringDelta {
@@ -247,6 +251,8 @@ export interface CodingReviewItem {
   passedTestCases?: number;
   totalTestCases?: number;
   percentage?: number;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
 }
 
 export interface ContestSubmitResponse {

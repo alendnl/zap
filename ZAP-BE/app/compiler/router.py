@@ -15,6 +15,7 @@ class CompilerRunRequest(BaseModel):
     stdin: Optional[str] = ""
     timeoutMs: Optional[int] = 5000
     memoryMb: Optional[int] = 256
+    submittedAt: Optional[str] = None
 
 
 class CompilerRunResponse(BaseModel):

@@ -27,6 +27,8 @@ export interface SubmissionCreateRequest {
   sourceCode: string;
   userId?: string;
   contestId?: string;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
 }
 
 export interface SubmissionCreateResponse {
@@ -65,6 +67,8 @@ export interface SubmissionSummary {
   executionTimeMs?: number;
   tests: SubmissionTestsSummary;
   createdAt: string;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
 }
 
 export interface Submission {
@@ -85,6 +89,8 @@ export interface Submission {
   compileOutput?: string;
   errorMessage?: string;
   createdAt: string;
+  submittedAt?: string;
+  timeSpentSeconds?: number;
   startedAt?: string;
   completedAt?: string;
 }

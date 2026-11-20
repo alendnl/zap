@@ -41,7 +41,7 @@ interface StudentWorkspaceProps {
   initialCodes?: Record<string, string>;
   initialLanguage?: string;
   onCodeChange?: (language: string, code: string) => void;
-  onExecuteCode?: (mode: SubmissionMode, language: string, code: string) => void;
+  onExecuteCode?: (mode: SubmissionMode, language: string, code: string, submittedAt?: string, timeSpentSeconds?: number) => void;
   onSubmissionComplete?: (sub: Submission) => void;
   preventCopyPaste?: boolean;
 }
@@ -229,6 +229,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
   const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
 
+  // Track problem view start time to calculate time spent on submission
+  const problemOpenedAtRef = useRef<number>(Date.now());
+  useEffect(() => {
+    problemOpenedAtRef.current = Date.now();
+  }, [question.id]);
+
   // Guardrail: Track run + submission timestamps within the last 60 seconds (max 4 per minute combined)
   const executionTimestampsRef = useRef<number[]>([]);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -256,8 +262,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
   const sortedSubmissions = useMemo(() => {
     return [...submissionsHistory].sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const timeA = (a.submittedAt || a.createdAt) ? new Date(a.submittedAt || a.createdAt).getTime() : 0;
+      const timeB = (b.submittedAt || b.createdAt) ? new Date(b.submittedAt || b.createdAt).getTime() : 0;
       return timeB - timeA;
     });
   }, [submissionsHistory]);
@@ -468,7 +474,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       setCurrentSubmission({ status: "QUEUED", mode });
 
       const currentPollId = ++activePollIdRef.current;
-      onExecuteCode?.(mode, language, currentCode);
+      const submitTime = Date.now();
+      const timeSpentSeconds = Math.max(0, Math.round((submitTime - problemOpenedAtRef.current) / 1000));
+      const submittedAt = new Date(submitTime).toISOString();
+
+      onExecuteCode?.(mode, language, currentCode, submittedAt, timeSpentSeconds);
       try {
         const userIdent = student ? (student.id || (student as any)._id || student.email || student.studentId) : undefined;
         const createRes = await submissionsApi.create({
@@ -478,6 +488,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           sourceCode: currentCode,
           userId: userIdent,
           contestId: contestId,
+          submittedAt,
+          timeSpentSeconds,
         });
 
         // Record successful dispatch into sliding window guardrail
@@ -944,8 +956,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   {currentSubmissions.map((sub) => {
                     const vKey = sub.verdict || sub.status;
                     const vStyle = VERDICT_STYLES[vKey] || VERDICT_STYLES["IDLE"];
-                    const dateStr = sub.createdAt
-                      ? new Date(sub.createdAt).toLocaleString(undefined, {
+                    const displayTime = sub.submittedAt || sub.createdAt;
+                    const dateStr = displayTime
+                      ? new Date(displayTime).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",
@@ -977,7 +990,14 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                             : "-"}
                         </td>
                         <td className="px-3.5 py-2.5 text-[#64748b] dark:text-[#94a3b8] text-[11px]">
-                          {dateStr}
+                          <div>{dateStr}</div>
+                          {sub.timeSpentSeconds != null && (
+                            <div className="text-[10px] text-[#94a3b8] dark:text-[#64748b]">
+                              {Math.floor(sub.timeSpentSeconds / 60) > 0
+                                ? `${Math.floor(sub.timeSpentSeconds / 60)}m ${sub.timeSpentSeconds % 60}s`
+                                : `${sub.timeSpentSeconds}s`}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3.5 py-2.5 text-right space-x-1.5">
                           <button
@@ -1428,7 +1448,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             </div>
 
             {/* Metrics Bar */}
-            <div className="grid grid-cols-3 gap-3 px-5 py-3 bg-[#f8fafc] dark:bg-[#0b0f17] border-b border-[#e2e8f0] dark:border-[#1e293b] text-xs">
+            <div className={`grid ${viewingSubmission.timeSpentSeconds != null ? "grid-cols-4" : "grid-cols-3"} gap-3 px-5 py-3 bg-[#f8fafc] dark:bg-[#0b0f17] border-b border-[#e2e8f0] dark:border-[#1e293b] text-xs`}>
               <div>
                 <span className="text-[#64748b] dark:text-[#94a3b8] block text-[10px] uppercase tracking-wider font-semibold">
                   Runtime
@@ -1449,13 +1469,25 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                     : "-"}
                 </span>
               </div>
+              {viewingSubmission.timeSpentSeconds != null && (
+                <div>
+                  <span className="text-[#64748b] dark:text-[#94a3b8] block text-[10px] uppercase tracking-wider font-semibold">
+                    Time taken
+                  </span>
+                  <span className="font-mono text-[#0f172a] dark:text-[#f8fafc] text-[11px] font-semibold">
+                    {Math.floor(viewingSubmission.timeSpentSeconds / 60) > 0
+                      ? `${Math.floor(viewingSubmission.timeSpentSeconds / 60)}m ${viewingSubmission.timeSpentSeconds % 60}s`
+                      : `${viewingSubmission.timeSpentSeconds}s`}
+                  </span>
+                </div>
+              )}
               <div>
                 <span className="text-[#64748b] dark:text-[#94a3b8] block text-[10px] uppercase tracking-wider font-semibold">
                   Submitted at
                 </span>
                 <span className="text-[#0f172a] dark:text-[#f8fafc] text-[11px] font-semibold">
-                  {viewingSubmission.createdAt
-                    ? new Date(viewingSubmission.createdAt).toLocaleString()
+                  {viewingSubmission.submittedAt || viewingSubmission.createdAt
+                    ? new Date(viewingSubmission.submittedAt || viewingSubmission.createdAt).toLocaleString()
                     : "-"}
                 </span>
               </div>

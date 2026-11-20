@@ -27,6 +27,8 @@ class SubmissionActivityBrief(BaseModel):
     status: str
     verdict: Optional[str] = None
     createdAt: str
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

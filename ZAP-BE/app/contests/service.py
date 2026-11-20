@@ -740,6 +740,10 @@ class ContestService:
                 target["totalTestCases"] = cd.totalTestCases
             if cd.passPercentage is not None:
                 target["passPercentage"] = cd.passPercentage
+            if cd.submittedAt is not None:
+                target["submittedAt"] = cd.submittedAt
+            if cd.timeSpentSeconds is not None:
+                target["timeSpentSeconds"] = cd.timeSpentSeconds
 
         # 4. Proctoring Delta
         if sync_data.proctoringDelta:
@@ -873,6 +877,10 @@ class ContestService:
                 set_fields[f"codingState.{qid}.totalTestCases"] = cd.totalTestCases
             if cd.passPercentage is not None:
                 set_fields[f"codingState.{qid}.passPercentage"] = cd.passPercentage
+            if cd.submittedAt is not None:
+                set_fields[f"codingState.{qid}.submittedAt"] = cd.submittedAt
+            if cd.timeSpentSeconds is not None:
+                set_fields[f"codingState.{qid}.timeSpentSeconds"] = cd.timeSpentSeconds
 
         # 4. Proctoring Delta
         if sync_data.proctoringDelta:
@@ -1394,6 +1402,9 @@ class ContestService:
                     status_label = verdict or "FAILED"
 
             total_coding_percentage += score_pct
+            coding_item_submitted_at = _safe_get(c_state, "submittedAt") or (getattr(sub_doc, "submittedAt", None) if 'sub_doc' in locals() and sub_doc else None) or (getattr(sub_doc, "createdAt", None) if 'sub_doc' in locals() and sub_doc else None)
+            coding_item_time_spent = _safe_get(c_state, "timeSpentSeconds") or (getattr(sub_doc, "timeSpentSeconds", None) if 'sub_doc' in locals() and sub_doc else None)
+
             coding_breakdown.append(
                 CodingReviewItem(
                     questionId=qid,
@@ -1405,6 +1416,8 @@ class ContestService:
                     passedTestCases=passed_tests,
                     totalTestCases=total_tests,
                     percentage=score_pct,
+                    submittedAt=coding_item_submitted_at,
+                    timeSpentSeconds=coding_item_time_spent,
                 )
             )
 

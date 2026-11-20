@@ -54,6 +54,8 @@ class SubmissionCreateRequest(BaseModel):
     sourceCode: str
     userId: Optional[str] = None
     contestId: Optional[str] = None
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
 
 class SubmissionCreateResponse(BaseModel):
@@ -82,6 +84,8 @@ class Submission(BaseModel):
     errorCode: Optional[str] = None
     errorMessage: Optional[str] = None
     createdAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
     startedAt: Optional[str] = None
     completedAt: Optional[str] = None
 
@@ -101,6 +105,8 @@ class SubmissionSummary(BaseModel):
     executionTimeMs: Optional[int] = None
     tests: SubmissionTestsSummary = Field(default_factory=SubmissionTestsSummary)
     createdAt: str
+    submittedAt: Optional[str] = None
+    timeSpentSeconds: Optional[int] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

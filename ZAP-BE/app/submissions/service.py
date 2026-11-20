@@ -46,6 +46,9 @@ class SubmissionService:
                 user_id = user_doc.get("id") or user_doc.get("_id")
                 user_email = user_doc.get("email")
 
+        now_iso = datetime.now(timezone.utc).isoformat()
+        submitted_at = req.submittedAt or now_iso
+
         submission = Submission(
             userId=user_id,
             userEmail=user_email,
@@ -54,7 +57,10 @@ class SubmissionService:
             language=req.language,
             mode=req.mode,
             sourceCode=req.sourceCode,
-            status=SubmissionStatus.QUEUED
+            status=SubmissionStatus.QUEUED,
+            createdAt=now_iso,
+            submittedAt=submitted_at,
+            timeSpentSeconds=req.timeSpentSeconds,
         )
 
         doc = submission.model_dump()
@@ -74,6 +80,8 @@ class SubmissionService:
                 "language": submission.language,
                 "mode": submission.mode.value,
                 "createdAt": submission.createdAt,
+                "submittedAt": submission.submittedAt,
+                "timeSpentSeconds": submission.timeSpentSeconds,
                 "environment": self.environment
             })
         except Exception as exc:
@@ -248,10 +256,14 @@ class SubmissionService:
                 "executionTimeMs": 1,
                 "tests": 1,
                 "createdAt": 1,
+                "submittedAt": 1,
+                "timeSpentSeconds": 1,
             }
             cursor = coll.find(query, projection).sort("createdAt", -1).skip(max(0, skip)).limit(max(1, limit))
             results = []
             for doc in cursor:
+                if not doc.get("submittedAt"):
+                    doc["submittedAt"] = doc.get("createdAt")
                 results.append(SubmissionSummary(**doc))
             return results
 
@@ -288,6 +300,8 @@ class SubmissionService:
                 "executionTimeMs": doc.get("executionTimeMs"),
                 "tests": doc.get("tests") or SubmissionTestsSummary(),
                 "createdAt": doc.get("createdAt", ""),
+                "submittedAt": doc.get("submittedAt") or doc.get("createdAt", ""),
+                "timeSpentSeconds": doc.get("timeSpentSeconds"),
             }
             matching.append(SubmissionSummary(**summary_dict))
 

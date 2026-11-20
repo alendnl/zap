@@ -187,6 +187,8 @@ class ActivityService:
             status=submission.status.value if hasattr(submission.status, "value") else str(submission.status),
             verdict=verdict_str,
             createdAt=submission.createdAt or now,
+            submittedAt=getattr(submission, "submittedAt", None) or submission.createdAt or now,
+            timeSpentSeconds=getattr(submission, "timeSpentSeconds", None),
         )
         current.recentSubmissions.insert(0, brief)
         current.recentSubmissions = current.recentSubmissions[:20]
