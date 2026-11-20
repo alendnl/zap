@@ -36,12 +36,13 @@ import type {
   ContestSubmitResponse,
   ContestStartResponse,
   ProctoringTelemetry,
+  ProctoringViolation,
   CodingProblemState,
 } from "@/types/contest";
 import { contestApi } from "@/services/contestApi";
 import { StudentWorkspace } from "./StudentWorkspace";
 import type { QuestionData } from "./QuestionPane";
-import type { Submission } from "@/services/submissionsApi";
+import type { Submission, SubmissionMode } from "@/services/submissionsApi";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface ContestArenaProps {
@@ -178,67 +179,32 @@ export function ContestArena({
     };
   }, [mcqAnswers, reviewedQuestionIds, codingState, proctoring, timeSpent]);
 
-  // Periodic 30s Sync to Backend (MongoDB)
-  const syncToBackend = useCallback(
-    async (overrideState?: {
+  // Track whether initial full state sync has completed
+  const initialSyncDoneRef = useRef(false);
+
+  // Local Cache helper (localStorage) to persist working draft without any network overhead
+  const saveLocalCache = useCallback(
+    (patch: {
       mcqAnswers?: Record<string, string>;
-      reviewedQuestionIds?: Set<string>;
+      reviewedQuestionIds?: string[];
       codingState?: Record<string, CodingProblemState>;
       proctoring?: ProctoringTelemetry;
-      timeSpent?: number;
+      timeSpentSeconds?: number;
     }) => {
-      if (submissionResult || !hasEnteredFullscreen) return;
-      const current = {
-        mcqAnswers: overrideState?.mcqAnswers ?? latestStateRef.current.mcqAnswers,
-        reviewedQuestionIds: overrideState?.reviewedQuestionIds ?? latestStateRef.current.reviewedQuestionIds,
-        codingState: overrideState?.codingState ?? latestStateRef.current.codingState,
-        proctoring: overrideState?.proctoring ?? latestStateRef.current.proctoring,
-        timeSpent: overrideState?.timeSpent ?? latestStateRef.current.timeSpent,
-      };
-      try {
-        await contestApi.sync(contest.id || contest.slug, {
-          studentId,
-          studentEmail,
-          studentName,
-          mcqAnswers: current.mcqAnswers,
-          reviewedQuestionIds: Array.from(current.reviewedQuestionIds),
-          codingState: current.codingState,
-          proctoring: current.proctoring,
-          timeSpentSeconds: current.timeSpent,
-        });
-      } catch (err) {
-        console.warn("Real-time contest sync error:", err);
-      }
-    },
-    [contest.id, contest.slug, studentId, studentEmail, studentName, submissionResult, hasEnteredFullscreen]
-  );
+      const answersToSave = patch.mcqAnswers ?? latestStateRef.current.mcqAnswers;
+      const reviewedToSave = patch.reviewedQuestionIds ?? Array.from(latestStateRef.current.reviewedQuestionIds);
+      const codingToSave = patch.codingState ?? latestStateRef.current.codingState;
+      const proctoringToSave = patch.proctoring ?? latestStateRef.current.proctoring;
+      const timeToSave = patch.timeSpentSeconds ?? latestStateRef.current.timeSpent;
 
-  // Local Cache helper (localStorage) with optional immediate backend sync (for MCQ selection & violations)
-  const triggerLiveSync = useCallback(
-    (
-      newMcqAnswers?: Record<string, string>,
-      newReviewed?: Set<string>,
-      newCodingState?: Record<string, CodingProblemState>,
-      newProctoring?: ProctoringTelemetry,
-      currentTimeSpent?: number,
-      immediateSync: boolean = false
-    ) => {
-      const answersToSave = newMcqAnswers ?? latestStateRef.current.mcqAnswers;
-      const reviewedToSave = Array.from(newReviewed ?? latestStateRef.current.reviewedQuestionIds);
-      const codingToSave = newCodingState ?? latestStateRef.current.codingState;
-      const proctoringToSave = newProctoring ?? latestStateRef.current.proctoring;
-      const timeToSave = currentTimeSpent ?? latestStateRef.current.timeSpent;
-
-      // Update ref immediately so interval sync has latest data right away
       latestStateRef.current = {
         mcqAnswers: answersToSave,
-        reviewedQuestionIds: newReviewed ?? latestStateRef.current.reviewedQuestionIds,
+        reviewedQuestionIds: new Set(reviewedToSave),
         codingState: codingToSave,
         proctoring: proctoringToSave,
         timeSpent: timeToSave,
       };
 
-      // 1. Immediately cache in localStorage for disaster recovery
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem(
@@ -253,29 +219,39 @@ export function ContestArena({
           );
         } catch {}
       }
-
-      // 2. Immediate backend sync for MCQ selections, review toggles, and proctoring violations
-      if (immediateSync) {
-        void syncToBackend({
-          mcqAnswers: answersToSave,
-          reviewedQuestionIds: newReviewed ?? latestStateRef.current.reviewedQuestionIds,
-          codingState: codingToSave,
-          proctoring: proctoringToSave,
-          timeSpent: timeToSave,
-        });
-      }
     },
-    [storageKey, syncToBackend]
+    [storageKey]
   );
 
-  // 30-Second Interval Sync to MongoDB (applicable only for coding questions & periodic background sync)
+  // Initial Full Sync (runs exactly once when candidate begins assessment in fullscreen)
   useEffect(() => {
-    if (submissionResult || !hasEnteredFullscreen) return;
-    const interval = setInterval(() => {
-      void syncToBackend();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [submissionResult, hasEnteredFullscreen, syncToBackend]);
+    if (submissionResult || !hasEnteredFullscreen || initialSyncDoneRef.current) return;
+    initialSyncDoneRef.current = true;
+
+    void contestApi
+      .sync(contest.id || contest.slug, {
+        studentId,
+        studentEmail,
+        studentName,
+        isDelta: false,
+        mcqAnswers: latestStateRef.current.mcqAnswers,
+        reviewedQuestionIds: Array.from(latestStateRef.current.reviewedQuestionIds),
+        codingState: latestStateRef.current.codingState,
+        proctoring: latestStateRef.current.proctoring,
+        timeSpentSeconds: latestStateRef.current.timeSpent,
+      })
+      .catch((err) => {
+        console.warn("Initial full contest sync error:", err);
+      });
+  }, [
+    submissionResult,
+    hasEnteredFullscreen,
+    contest.id,
+    contest.slug,
+    studentId,
+    studentEmail,
+    studentName,
+  ]);
 
   // Timer countdown hook
   useEffect(() => {
@@ -304,20 +280,31 @@ export function ContestArena({
       setIsFullscreen(full);
       if (!full) {
         // Candidate exited fullscreen! Lock content & increment violation
+        const violation: ProctoringViolation = {
+          type: "FULLSCREEN_EXIT",
+          timestamp: new Date().toISOString(),
+          details: "Candidate exited fullscreen mode",
+        };
         setProctoring((prev) => {
           const next = {
             ...prev,
             fullscreenExitCount: prev.fullscreenExitCount + 1,
-            violationsLog: [
-              ...prev.violationsLog,
-              {
-                type: "FULLSCREEN_EXIT",
-                timestamp: new Date().toISOString(),
-                details: "Candidate exited fullscreen mode",
-              },
-            ],
+            violationsLog: [...prev.violationsLog, violation],
           };
-          triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
+          saveLocalCache({ proctoring: next });
+          void contestApi
+            .sync(contest.id || contest.slug, {
+              studentId,
+              studentEmail,
+              studentName,
+              timeSpentSeconds: latestStateRef.current.timeSpent,
+              isDelta: true,
+              proctoringDelta: {
+                fullscreenExitCount: next.fullscreenExitCount,
+                newViolation: violation,
+              },
+            })
+            .catch((err) => console.warn("Fullscreen violation sync error:", err));
           return next;
         });
       }
@@ -325,7 +312,16 @@ export function ContestArena({
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [submissionResult, hasEnteredFullscreen, triggerLiveSync]);
+  }, [
+    submissionResult,
+    hasEnteredFullscreen,
+    contest.id,
+    contest.slug,
+    studentId,
+    studentEmail,
+    studentName,
+    saveLocalCache,
+  ]);
 
   // Request Fullscreen on Start
   const handleStartWithFullscreen = async () => {
@@ -365,20 +361,32 @@ export function ContestArena({
         type: "BLOCKED",
       });
 
+      const violation: ProctoringViolation = {
+        type: "COPY_PASTE",
+        timestamp: new Date().toISOString(),
+        details: `Attempted ${actionType}`,
+      };
+
       setProctoring((prev) => {
         const next = {
           ...prev,
           copyPasteAttempts: prev.copyPasteAttempts + 1,
-          violationsLog: [
-            ...prev.violationsLog,
-            {
-              type: "COPY_PASTE",
-              timestamp: new Date().toISOString(),
-              details: `Attempted ${actionType}`,
-            },
-          ],
+          violationsLog: [...prev.violationsLog, violation],
         };
-        triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
+        saveLocalCache({ proctoring: next });
+        void contestApi
+          .sync(contest.id || contest.slug, {
+            studentId,
+            studentEmail,
+            studentName,
+            timeSpentSeconds: latestStateRef.current.timeSpent,
+            isDelta: true,
+            proctoringDelta: {
+              copyPasteAttempts: next.copyPasteAttempts,
+              newViolation: violation,
+            },
+          })
+          .catch((err) => console.warn("Clipboard violation sync error:", err));
         return next;
       });
 
@@ -404,27 +412,48 @@ export function ContestArena({
       document.removeEventListener("paste", onPaste, true);
       document.removeEventListener("contextmenu", onContextMenu, true);
     };
-  }, [submissionResult, hasEnteredFullscreen, triggerLiveSync]);
+  }, [
+    submissionResult,
+    hasEnteredFullscreen,
+    contest.id,
+    contest.slug,
+    studentId,
+    studentEmail,
+    studentName,
+    saveLocalCache,
+  ]);
 
   // Tab-Switch Prevention & Window Blur Listener
   useEffect(() => {
     if (submissionResult || !hasEnteredFullscreen) return;
 
     const recordTabSwitch = (reason: string) => {
+      const violation: ProctoringViolation = {
+        type: "TAB_SWITCH",
+        timestamp: new Date().toISOString(),
+        details: reason,
+      };
+
       setProctoring((prev) => {
         const next = {
           ...prev,
           tabSwitchCount: prev.tabSwitchCount + 1,
-          violationsLog: [
-            ...prev.violationsLog,
-            {
-              type: "TAB_SWITCH",
-              timestamp: new Date().toISOString(),
-              details: reason,
-            },
-          ],
+          violationsLog: [...prev.violationsLog, violation],
         };
-        triggerLiveSync(undefined, undefined, undefined, next, undefined, true);
+        saveLocalCache({ proctoring: next });
+        void contestApi
+          .sync(contest.id || contest.slug, {
+            studentId,
+            studentEmail,
+            studentName,
+            timeSpentSeconds: latestStateRef.current.timeSpent,
+            isDelta: true,
+            proctoringDelta: {
+              tabSwitchCount: next.tabSwitchCount,
+              newViolation: violation,
+            },
+          })
+          .catch((err) => console.warn("Tab switch violation sync error:", err));
         return next;
       });
     };
@@ -459,7 +488,16 @@ export function ContestArena({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [submissionResult, hasEnteredFullscreen, triggerLiveSync]);
+  }, [
+    submissionResult,
+    hasEnteredFullscreen,
+    contest.id,
+    contest.slug,
+    studentId,
+    studentEmail,
+    studentName,
+    saveLocalCache,
+  ]);
 
   const formatTimer = (secs: number) => {
     const hrs = Math.floor(secs / 3600);
@@ -471,29 +509,75 @@ export function ContestArena({
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // MCQ Handlers - immediately saved and synchronized to the database upon selection
+  // MCQ Handlers - immediately saved and synchronized to the database upon selection (delta only)
   const handleSelectOption = (questionId: string, optionId: string) => {
     const nextAnswers = { ...mcqAnswers, [questionId]: optionId };
     setMcqAnswers(nextAnswers);
-    triggerLiveSync(nextAnswers, undefined, undefined, undefined, undefined, true);
+    saveLocalCache({ mcqAnswers: nextAnswers });
+    void contestApi
+      .sync(contest.id || contest.slug, {
+        studentId,
+        studentEmail,
+        studentName,
+        timeSpentSeconds: latestStateRef.current.timeSpent,
+        isDelta: true,
+        mcqDelta: {
+          questionId,
+          selectedOptionId: optionId,
+        },
+      })
+      .catch((err) => {
+        console.warn("MCQ select delta sync error:", err);
+      });
   };
 
   const handleClearOption = (questionId: string) => {
     const nextAnswers = { ...mcqAnswers };
     delete nextAnswers[questionId];
     setMcqAnswers(nextAnswers);
-    triggerLiveSync(nextAnswers, undefined, undefined, undefined, undefined, true);
+    saveLocalCache({ mcqAnswers: nextAnswers });
+    void contestApi
+      .sync(contest.id || contest.slug, {
+        studentId,
+        studentEmail,
+        studentName,
+        timeSpentSeconds: latestStateRef.current.timeSpent,
+        isDelta: true,
+        mcqDelta: {
+          questionId,
+          selectedOptionId: null,
+        },
+      })
+      .catch((err) => {
+        console.warn("MCQ clear delta sync error:", err);
+      });
   };
 
   const handleToggleReview = (questionId: string) => {
     const nextReviewed = new Set(reviewedQuestionIds);
-    if (nextReviewed.has(questionId)) {
-      nextReviewed.delete(questionId);
-    } else {
+    const willBeReviewed = !nextReviewed.has(questionId);
+    if (willBeReviewed) {
       nextReviewed.add(questionId);
+    } else {
+      nextReviewed.delete(questionId);
     }
     setReviewedQuestionIds(nextReviewed);
-    triggerLiveSync(undefined, nextReviewed, undefined, undefined, undefined, true);
+    saveLocalCache({ reviewedQuestionIds: Array.from(nextReviewed) });
+    void contestApi
+      .sync(contest.id || contest.slug, {
+        studentId,
+        studentEmail,
+        studentName,
+        timeSpentSeconds: latestStateRef.current.timeSpent,
+        isDelta: true,
+        reviewDelta: {
+          questionId,
+          isReviewed: willBeReviewed,
+        },
+      })
+      .catch((err) => {
+        console.warn("Review toggle delta sync error:", err);
+      });
   };
 
   // Coding Handlers
@@ -520,11 +604,47 @@ export function ContestArena({
             status: existing.status === "UNATTEMPTED" ? "ATTEMPTED" : existing.status,
           },
         };
-        triggerLiveSync(undefined, undefined, next);
+        saveLocalCache({ codingState: next });
         return next;
       });
     },
-    [codingQuestions, currentCodingIdx, triggerLiveSync]
+    [codingQuestions, currentCodingIdx, saveLocalCache]
+  );
+
+  const handleCodingExecute = useCallback(
+    (mode: SubmissionMode, language: string, code: string) => {
+      const currentQ = codingQuestions[currentCodingIdx];
+      if (!currentQ) return;
+
+      // Delta sync for this question and this language only when running or submitting code
+      void contestApi
+        .sync(contest.id || contest.slug, {
+          studentId,
+          studentEmail,
+          studentName,
+          timeSpentSeconds: latestStateRef.current.timeSpent,
+          isDelta: true,
+          codingDelta: {
+            questionId: currentQ.id,
+            language,
+            code,
+            lastLanguage: language,
+            status: "ATTEMPTED",
+          },
+        })
+        .catch((err) => {
+          console.warn("Coding execution delta sync error:", err);
+        });
+    },
+    [
+      codingQuestions,
+      currentCodingIdx,
+      contest.id,
+      contest.slug,
+      studentId,
+      studentEmail,
+      studentName,
+    ]
   );
 
   const handleCodingSubmissionComplete = useCallback(
@@ -556,24 +676,61 @@ export function ContestArena({
         const bestVerdict = isAccepted ? "ACCEPTED" : (existing.bestVerdict === "ACCEPTED" ? "ACCEPTED" : sub.verdict);
         const bestSubId = isBetter ? sub.id : (existing.lastSubmissionId || sub.id);
 
+        const updatedState: CodingProblemState = {
+          ...existing,
+          lastSubmissionId: bestSubId,
+          bestVerdict: bestVerdict,
+          status: isAccepted || existing.status === "ACCEPTED" ? "ACCEPTED" : "SUBMITTED",
+          passedTestCases: bestPassed,
+          totalTestCases: bestTotal,
+          passPercentage: bestPct,
+        };
+
         const next: Record<string, CodingProblemState> = {
           ...prev,
-          [currentQ.id]: {
-            ...existing,
-            lastSubmissionId: bestSubId,
-            bestVerdict: bestVerdict,
-            status: isAccepted || existing.status === "ACCEPTED" ? "ACCEPTED" : "SUBMITTED",
-            passedTestCases: bestPassed,
-            totalTestCases: bestTotal,
-            passPercentage: bestPct,
-          },
+          [currentQ.id]: updatedState,
         };
-        // Coding submission verdict immediately synced to DB
-        triggerLiveSync(undefined, undefined, next, undefined, undefined, true);
+
+        saveLocalCache({ codingState: next });
+
+        // Delta sync for this question and updated language ONLY upon submission completion
+        void contestApi
+          .sync(contest.id || contest.slug, {
+            studentId,
+            studentEmail,
+            studentName,
+            timeSpentSeconds: latestStateRef.current.timeSpent,
+            isDelta: true,
+            codingDelta: {
+              questionId: currentQ.id,
+              language: sub.language,
+              code: updatedState.code?.[sub.language] || "",
+              lastLanguage: sub.language,
+              status: updatedState.status,
+              lastSubmissionId: bestSubId,
+              bestVerdict: bestVerdict,
+              passedTestCases: bestPassed,
+              totalTestCases: bestTotal,
+              passPercentage: bestPct,
+            },
+          })
+          .catch((err) => {
+            console.warn("Coding submission completion delta sync error:", err);
+          });
+
         return next;
       });
     },
-    [codingQuestions, currentCodingIdx, triggerLiveSync]
+    [
+      codingQuestions,
+      currentCodingIdx,
+      saveLocalCache,
+      contest.id,
+      contest.slug,
+      studentId,
+      studentEmail,
+      studentName,
+    ]
   );
 
   // Submit Contest (Final Lock)
@@ -1644,6 +1801,7 @@ export function ContestArena({
                 initialCodes={codingState[currentCodingAsQuestionData.id]?.code}
                 initialLanguage={codingState[currentCodingAsQuestionData.id]?.lastLanguage || "python"}
                 onCodeChange={handleCodingCodeChange}
+                onExecuteCode={handleCodingExecute}
                 onSubmissionComplete={handleCodingSubmissionComplete}
                 preventCopyPaste={true}
                 onBackToCatalog={() => setActiveSection("mcq")}

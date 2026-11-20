@@ -531,12 +531,144 @@ class ContestService:
             timeSpentSeconds=0,
         )
 
+    def _apply_sync_to_doc_dict(
+        self,
+        doc: Dict[str, Any],
+        sync_data: ContestSessionSyncRequest,
+        now: str
+    ) -> None:
+        """Applies delta and full sync updates in-place to an in-memory contest submission document."""
+        doc["updatedAt"] = now
+        if sync_data.timeSpentSeconds is not None:
+            doc["timeSpentSeconds"] = sync_data.timeSpentSeconds
+
+        # 1. MCQ Delta
+        if sync_data.mcqDelta:
+            if "mcqAnswers" not in doc or not isinstance(doc["mcqAnswers"], dict):
+                doc["mcqAnswers"] = {}
+            if sync_data.mcqDelta.selectedOptionId:
+                doc["mcqAnswers"][sync_data.mcqDelta.questionId] = sync_data.mcqDelta.selectedOptionId
+            else:
+                doc["mcqAnswers"].pop(sync_data.mcqDelta.questionId, None)
+
+        # 2. Review Delta
+        if sync_data.reviewDelta:
+            if "reviewedQuestionIds" not in doc or not isinstance(doc["reviewedQuestionIds"], list):
+                doc["reviewedQuestionIds"] = []
+            r_list = doc["reviewedQuestionIds"]
+            qid = sync_data.reviewDelta.questionId
+            if sync_data.reviewDelta.isReviewed:
+                if qid not in r_list:
+                    r_list.append(qid)
+            else:
+                if qid in r_list:
+                    r_list.remove(qid)
+
+        # 3. Coding Delta
+        if sync_data.codingDelta:
+            if "codingState" not in doc or not isinstance(doc["codingState"], dict):
+                doc["codingState"] = {}
+            cd = sync_data.codingDelta
+            qid = cd.questionId
+            if qid not in doc["codingState"] or not isinstance(doc["codingState"][qid], dict):
+                doc["codingState"][qid] = {
+                    "code": {},
+                    "lastLanguage": cd.language,
+                    "status": cd.status or "ATTEMPTED",
+                    "passedTestCases": 0,
+                    "totalTestCases": 0,
+                    "passPercentage": 0.0,
+                }
+            target = doc["codingState"][qid]
+            if "code" not in target or not isinstance(target["code"], dict):
+                target["code"] = {}
+            target["code"][cd.language] = cd.code
+            target["lastLanguage"] = cd.lastLanguage or cd.language
+            if cd.status is not None:
+                target["status"] = cd.status
+            if cd.bestVerdict is not None:
+                target["bestVerdict"] = cd.bestVerdict
+            if cd.lastSubmissionId is not None:
+                target["lastSubmissionId"] = cd.lastSubmissionId
+            if cd.passedTestCases is not None:
+                target["passedTestCases"] = cd.passedTestCases
+            if cd.totalTestCases is not None:
+                target["totalTestCases"] = cd.totalTestCases
+            if cd.passPercentage is not None:
+                target["passPercentage"] = cd.passPercentage
+
+        # 4. Proctoring Delta
+        if sync_data.proctoringDelta:
+            if "proctoring" not in doc or not isinstance(doc["proctoring"], dict):
+                doc["proctoring"] = {
+                    "tabSwitchCount": 0,
+                    "copyPasteAttempts": 0,
+                    "fullscreenExitCount": 0,
+                    "violationsLog": [],
+                }
+            pd = sync_data.proctoringDelta
+            if pd.tabSwitchCount is not None:
+                doc["proctoring"]["tabSwitchCount"] = pd.tabSwitchCount
+            if pd.copyPasteAttempts is not None:
+                doc["proctoring"]["copyPasteAttempts"] = pd.copyPasteAttempts
+            if pd.fullscreenExitCount is not None:
+                doc["proctoring"]["fullscreenExitCount"] = pd.fullscreenExitCount
+            if pd.newViolation is not None:
+                v_dict = (
+                    pd.newViolation.model_dump()
+                    if hasattr(pd.newViolation, "model_dump")
+                    else pd.newViolation
+                )
+                doc["proctoring"].setdefault("violationsLog", []).append(v_dict)
+
+        # 5. Full/Bulk fields
+        is_delta_mode = sync_data.isDelta if sync_data.isDelta is not None else False
+        if sync_data.mcqAnswers is not None:
+            if "mcqAnswers" not in doc or not isinstance(doc["mcqAnswers"], dict):
+                doc["mcqAnswers"] = {}
+            if is_delta_mode:
+                doc["mcqAnswers"].update(sync_data.mcqAnswers)
+            else:
+                doc["mcqAnswers"] = dict(sync_data.mcqAnswers)
+
+        if sync_data.reviewedQuestionIds is not None:
+            doc["reviewedQuestionIds"] = list(sync_data.reviewedQuestionIds)
+
+        if sync_data.codingState is not None:
+            if "codingState" not in doc or not isinstance(doc["codingState"], dict):
+                doc["codingState"] = {}
+            if is_delta_mode:
+                for qid, state in sync_data.codingState.items():
+                    s_dict = state.model_dump() if hasattr(state, "model_dump") else dict(state)
+                    if qid not in doc["codingState"]:
+                        doc["codingState"][qid] = s_dict
+                    else:
+                        if "code" in s_dict and isinstance(s_dict["code"], dict):
+                            doc["codingState"][qid].setdefault("code", {}).update(s_dict["code"])
+                        for k, v in s_dict.items():
+                            if k != "code":
+                                doc["codingState"][qid][k] = v
+            else:
+                serialized = {}
+                for qid, state in sync_data.codingState.items():
+                    serialized[qid] = state.model_dump() if hasattr(state, "model_dump") else dict(state)
+                doc["codingState"] = serialized
+
+        if sync_data.proctoring is not None:
+            doc["proctoring"] = (
+                sync_data.proctoring.model_dump()
+                if hasattr(sync_data.proctoring, "model_dump")
+                else dict(sync_data.proctoring)
+            )
+
     def sync_contest_session(
         self,
         contest_id_or_slug: str,
         sync_data: ContestSessionSyncRequest
     ) -> Dict[str, Any]:
-        """Saves live in-progress contest state, answers, code, and proctoring telemetry in real-time."""
+        """Saves live in-progress contest state, answers, code, and proctoring telemetry in real-time.
+        Supports both granular deltas and full state updates without overwriting untouched data.
+        """
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
@@ -552,33 +684,124 @@ class ContestService:
             "$or": id_conditions
         }
 
-        updates: Dict[str, Any] = {"updatedAt": now}
+        set_fields: Dict[str, Any] = {"updatedAt": now}
+        unset_fields: Dict[str, Any] = {}
+        add_to_set_fields: Dict[str, Any] = {}
+        pull_fields: Dict[str, Any] = {}
+        push_fields: Dict[str, Any] = {}
+
+        if sync_data.timeSpentSeconds is not None:
+            set_fields["timeSpentSeconds"] = sync_data.timeSpentSeconds
+
+        # 1. MCQ Delta
+        if sync_data.mcqDelta:
+            qid = sync_data.mcqDelta.questionId
+            opt = sync_data.mcqDelta.selectedOptionId
+            if opt:
+                set_fields[f"mcqAnswers.{qid}"] = opt
+            else:
+                unset_fields[f"mcqAnswers.{qid}"] = ""
+
+        # 2. Review Delta
+        if sync_data.reviewDelta:
+            qid = sync_data.reviewDelta.questionId
+            if sync_data.reviewDelta.isReviewed:
+                add_to_set_fields["reviewedQuestionIds"] = qid
+            else:
+                pull_fields["reviewedQuestionIds"] = qid
+
+        # 3. Coding Delta
+        if sync_data.codingDelta:
+            cd = sync_data.codingDelta
+            qid = cd.questionId
+            lang = cd.language
+            set_fields[f"codingState.{qid}.code.{lang}"] = cd.code
+            set_fields[f"codingState.{qid}.lastLanguage"] = cd.lastLanguage or lang
+            if cd.status is not None:
+                set_fields[f"codingState.{qid}.status"] = cd.status
+            if cd.bestVerdict is not None:
+                set_fields[f"codingState.{qid}.bestVerdict"] = cd.bestVerdict
+            if cd.lastSubmissionId is not None:
+                set_fields[f"codingState.{qid}.lastSubmissionId"] = cd.lastSubmissionId
+            if cd.passedTestCases is not None:
+                set_fields[f"codingState.{qid}.passedTestCases"] = cd.passedTestCases
+            if cd.totalTestCases is not None:
+                set_fields[f"codingState.{qid}.totalTestCases"] = cd.totalTestCases
+            if cd.passPercentage is not None:
+                set_fields[f"codingState.{qid}.passPercentage"] = cd.passPercentage
+
+        # 4. Proctoring Delta
+        if sync_data.proctoringDelta:
+            pd = sync_data.proctoringDelta
+            if pd.tabSwitchCount is not None:
+                set_fields["proctoring.tabSwitchCount"] = pd.tabSwitchCount
+            if pd.copyPasteAttempts is not None:
+                set_fields["proctoring.copyPasteAttempts"] = pd.copyPasteAttempts
+            if pd.fullscreenExitCount is not None:
+                set_fields["proctoring.fullscreenExitCount"] = pd.fullscreenExitCount
+            if pd.newViolation is not None:
+                v_dict = (
+                    pd.newViolation.model_dump()
+                    if hasattr(pd.newViolation, "model_dump")
+                    else pd.newViolation
+                )
+                push_fields["proctoring.violationsLog"] = v_dict
+
+        # 5. Full/Bulk fields
+        is_delta_mode = sync_data.isDelta if sync_data.isDelta is not None else False
         if sync_data.mcqAnswers is not None:
-            updates["mcqAnswers"] = sync_data.mcqAnswers
+            if is_delta_mode:
+                for qid, ans in sync_data.mcqAnswers.items():
+                    set_fields[f"mcqAnswers.{qid}"] = ans
+            else:
+                set_fields["mcqAnswers"] = sync_data.mcqAnswers
+
         if sync_data.reviewedQuestionIds is not None:
-            updates["reviewedQuestionIds"] = sync_data.reviewedQuestionIds
+            set_fields["reviewedQuestionIds"] = sync_data.reviewedQuestionIds
+
         if sync_data.codingState is not None:
-            serialized_coding = {}
-            for qid, state in sync_data.codingState.items():
-                if hasattr(state, "model_dump"):
-                    serialized_coding[qid] = state.model_dump()
-                elif isinstance(state, dict):
-                    serialized_coding[qid] = state
-            updates["codingState"] = serialized_coding
+            if is_delta_mode:
+                for qid, state in sync_data.codingState.items():
+                    s_dict = state.model_dump() if hasattr(state, "model_dump") else state
+                    if isinstance(s_dict, dict):
+                        for lang, code in s_dict.get("code", {}).items():
+                            set_fields[f"codingState.{qid}.code.{lang}"] = code
+                        for f in ["lastLanguage", "status", "bestVerdict", "lastSubmissionId", "passedTestCases", "totalTestCases", "passPercentage"]:
+                            if f in s_dict:
+                                set_fields[f"codingState.{qid}.{f}"] = s_dict[f]
+            else:
+                serialized_coding = {}
+                for qid, state in sync_data.codingState.items():
+                    if hasattr(state, "model_dump"):
+                        serialized_coding[qid] = state.model_dump()
+                    elif isinstance(state, dict):
+                        serialized_coding[qid] = state
+                set_fields["codingState"] = serialized_coding
+
         if sync_data.proctoring is not None:
-            updates["proctoring"] = (
+            set_fields["proctoring"] = (
                 sync_data.proctoring.model_dump()
                 if hasattr(sync_data.proctoring, "model_dump")
                 else sync_data.proctoring
             )
-        if sync_data.timeSpentSeconds is not None:
-            updates["timeSpentSeconds"] = sync_data.timeSpentSeconds
+
+        mongo_update: Dict[str, Any] = {}
+        if set_fields:
+            mongo_update["$set"] = set_fields
+        if unset_fields:
+            mongo_update["$unset"] = unset_fields
+        if add_to_set_fields:
+            mongo_update["$addToSet"] = add_to_set_fields
+        if pull_fields:
+            mongo_update["$pull"] = pull_fields
+        if push_fields:
+            mongo_update["$push"] = push_fields
 
         if coll is not None:
             # Only update if still IN_PROGRESS (cannot overwrite once SUBMITTED!)
             res = coll.update_one(
                 {**query, "status": "IN_PROGRESS"},
-                {"$set": updates}
+                mongo_update
             )
             if res.matched_count == 0:
                 doc = coll.find_one(query)
@@ -594,8 +817,21 @@ class ContestService:
                     "studentName": sync_data.studentName or "",
                     "status": "IN_PROGRESS",
                     "startedAt": now,
-                    **updates
+                    "updatedAt": now,
+                    "mcqQuestions": [],
+                    "codingQuestions": [],
+                    "mcqAnswers": {},
+                    "reviewedQuestionIds": [],
+                    "codingState": {},
+                    "proctoring": {
+                        "tabSwitchCount": 0,
+                        "copyPasteAttempts": 0,
+                        "fullscreenExitCount": 0,
+                        "violationsLog": [],
+                    },
+                    "timeSpentSeconds": 0,
                 }
+                self._apply_sync_to_doc_dict(new_doc, sync_data, now)
                 coll.insert_one(new_doc)
         else:
             found = False
@@ -606,12 +842,12 @@ class ContestService:
                 ):
                     if s.get("status") == "SUBMITTED":
                         return {"ok": False, "status": "ALREADY_SUBMITTED"}
-                    s.update(updates)
+                    self._apply_sync_to_doc_dict(s, sync_data, now)
                     found = True
                     break
             if not found:
                 new_id = f"csub-{uuid.uuid4().hex[:12]}"
-                self._memory_submissions[new_id] = {
+                new_doc = {
                     "_id": new_id,
                     "id": new_id,
                     "contestId": contest.id,
@@ -620,8 +856,22 @@ class ContestService:
                     "studentName": sync_data.studentName or "",
                     "status": "IN_PROGRESS",
                     "startedAt": now,
-                    **updates
+                    "updatedAt": now,
+                    "mcqQuestions": [],
+                    "codingQuestions": [],
+                    "mcqAnswers": {},
+                    "reviewedQuestionIds": [],
+                    "codingState": {},
+                    "proctoring": {
+                        "tabSwitchCount": 0,
+                        "copyPasteAttempts": 0,
+                        "fullscreenExitCount": 0,
+                        "violationsLog": [],
+                    },
+                    "timeSpentSeconds": 0,
                 }
+                self._apply_sync_to_doc_dict(new_doc, sync_data, now)
+                self._memory_submissions[new_id] = new_doc
 
         return {"ok": True, "status": "SYNCED"}
 

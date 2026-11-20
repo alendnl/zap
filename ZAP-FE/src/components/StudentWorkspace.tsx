@@ -39,6 +39,7 @@ interface StudentWorkspaceProps {
   initialCodes?: Record<string, string>;
   initialLanguage?: string;
   onCodeChange?: (language: string, code: string) => void;
+  onExecuteCode?: (mode: SubmissionMode, language: string, code: string) => void;
   onSubmissionComplete?: (sub: Submission) => void;
   preventCopyPaste?: boolean;
 }
@@ -181,6 +182,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   initialCodes,
   initialLanguage,
   onCodeChange,
+  onExecuteCode,
   onSubmissionComplete,
   preventCopyPaste = false,
 }) => {
@@ -428,6 +430,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       setCurrentSubmission({ status: "QUEUED", mode });
 
       const currentPollId = ++activePollIdRef.current;
+      onExecuteCode?.(mode, language, currentCode);
       try {
         const userIdent = student ? (student.id || (student as any)._id || student.email || student.studentId) : undefined;
         const createRes = await submissionsApi.create({
@@ -538,7 +541,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         }
       }
     },
-    [isRunning, cleanupPolling, student, question.id, language, currentCode, loadSubmissions]
+    [isRunning, cleanupPolling, student, question.id, language, currentCode, loadSubmissions, onExecuteCode]
   );
 
   const handleRun = useCallback(() => triggerExecution("RUN"), [triggerExecution]);

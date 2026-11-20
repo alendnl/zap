@@ -557,4 +557,186 @@ def test_get_single_candidate_submission_and_pagination():
         assert "proctoring" in first
 
 
+def test_contest_delta_sync_lifecycle():
+    """Verifies that granular delta syncs update answers, review tags, coding states,
+    and proctoring without sending the full payload or erasing untouched questions/languages.
+    """
+    student_id = "student-delta-sync-test"
+    student_email = "delta_sync@college.edu"
+
+    # 1. Start contest session
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    data = start_res.json()
+    assert len(data["mcqQuestions"]) >= 2
+    assert len(data["codingQuestions"]) >= 1
+    q1_id = data["mcqQuestions"][0]["id"]
+    q2_id = data["mcqQuestions"][1]["id"]
+    code_q1_id = data["codingQuestions"][0]["id"]
+
+    # 2. First-time sync: Initial full sync payload
+    init_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "isDelta": False,
+        "mcqAnswers": {},
+        "reviewedQuestionIds": [],
+        "codingState": {},
+        "timeSpentSeconds": 10,
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=init_payload)
+    assert sync_res.status_code == 200
+
+    # 3. Delta sync: Answering MCQ Question 1 only (no coding, no proctoring, no MCQ 2)
+    mcq1_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 15,
+        "isDelta": True,
+        "mcqDelta": {
+            "questionId": q1_id,
+            "selectedOptionId": "opt-A",
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=mcq1_delta)
+    assert sync_res.status_code == 200
+    assert sync_res.json()["ok"] is True
+
+    # 4. Delta sync: Answering MCQ Question 2 only (ensure MCQ 1 is preserved!)
+    mcq2_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 25,
+        "isDelta": True,
+        "mcqDelta": {
+            "questionId": q2_id,
+            "selectedOptionId": "opt-B",
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=mcq2_delta)
+    assert sync_res.status_code == 200
+
+    # Check session resume to verify both Q1 and Q2 are retained
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert resume_res.status_code == 200
+    resume_data = resume_res.json()
+    assert resume_data["mcqAnswers"].get(q1_id) == "opt-A"
+    assert resume_data["mcqAnswers"].get(q2_id) == "opt-B"
+
+    # 5. Delta sync: Review toggle
+    review_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 30,
+        "isDelta": True,
+        "reviewDelta": {
+            "questionId": q1_id,
+            "isReviewed": True,
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=review_delta)
+    assert sync_res.status_code == 200
+
+    # 6. Delta sync: Clear MCQ Question 1 (selectedOptionId is None)
+    clear_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 35,
+        "isDelta": True,
+        "mcqDelta": {
+            "questionId": q1_id,
+            "selectedOptionId": None,
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=clear_delta)
+    assert sync_res.status_code == 200
+
+    # Verify Q1 is cleared while Q2 remains and review flag is set
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    resume_data = resume_res.json()
+    assert q1_id not in resume_data["mcqAnswers"]
+    assert resume_data["mcqAnswers"].get(q2_id) == "opt-B"
+    assert q1_id in resume_data["reviewedQuestionIds"]
+
+    # 7. Delta sync: Coding Question 1 in Python only (no other languages, no MCQs)
+    coding_python_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 50,
+        "isDelta": True,
+        "codingDelta": {
+            "questionId": code_q1_id,
+            "language": "python",
+            "code": "def solution(): return 42",
+            "lastLanguage": "python",
+            "status": "ATTEMPTED",
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=coding_python_delta)
+    assert sync_res.status_code == 200
+
+    # 8. Delta sync: Coding Question 1 in Java (ensure Python code is NOT wiped out!)
+    coding_java_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 60,
+        "isDelta": True,
+        "codingDelta": {
+            "questionId": code_q1_id,
+            "language": "java",
+            "code": "class Solution { public int solution() { return 42; } }",
+            "lastLanguage": "java",
+            "status": "ATTEMPTED",
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=coding_java_delta)
+    assert sync_res.status_code == 200
+
+    # Verify coding state has BOTH languages and correct lastLanguage
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    resume_data = resume_res.json()
+    q_state = resume_data["codingState"][code_q1_id]
+    assert q_state["code"]["python"] == "def solution(): return 42"
+    assert q_state["code"]["java"] == "class Solution { public int solution() { return 42; } }"
+    assert q_state["lastLanguage"] == "java"
+
+    # 9. Delta sync: Proctoring violation only
+    proctoring_delta = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "timeSpentSeconds": 70,
+        "isDelta": True,
+        "proctoringDelta": {
+            "tabSwitchCount": 1,
+            "newViolation": {
+                "type": "TAB_SWITCH",
+                "timestamp": "2026-11-20T10:00:00Z",
+                "details": "User switched application",
+            },
+        },
+    }
+    sync_res = client.post("/api/v1/contests/zap-grand-assessment-1/sync", json=proctoring_delta)
+    assert sync_res.status_code == 200
+
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    resume_data = resume_res.json()
+    assert resume_data["proctoring"]["tabSwitchCount"] == 1
+    assert len(resume_data["proctoring"]["violationsLog"]) == 1
+    assert resume_data["proctoring"]["violationsLog"][0]["type"] == "TAB_SWITCH"
+    # Ensure coding and MCQ state were NOT affected by proctoring delta
+    assert resume_data["mcqAnswers"].get(q2_id) == "opt-B"
+    assert resume_data["codingState"][code_q1_id]["code"]["python"] == "def solution(): return 42"
+
+
+
 

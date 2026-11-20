@@ -146,10 +146,49 @@ class ContestStartResponse(BaseModel):
     timeSpentSeconds: int = 0
 
 
+class MCQDelta(BaseModel):
+    questionId: str
+    selectedOptionId: Optional[str] = None  # None or empty string indicates unselecting / clearing
+
+
+class ReviewDelta(BaseModel):
+    questionId: str
+    isReviewed: bool
+
+
+class CodingDelta(BaseModel):
+    questionId: str
+    language: str
+    code: str
+    lastLanguage: Optional[str] = None
+    status: Optional[str] = None
+    bestVerdict: Optional[str] = None
+    lastSubmissionId: Optional[str] = None
+    passedTestCases: Optional[int] = None
+    totalTestCases: Optional[int] = None
+    passPercentage: Optional[float] = None
+
+
+class ProctoringDelta(BaseModel):
+    tabSwitchCount: Optional[int] = None
+    copyPasteAttempts: Optional[int] = None
+    fullscreenExitCount: Optional[int] = None
+    newViolation: Optional[ProctoringViolation] = None
+
+
 class ContestSessionSyncRequest(BaseModel):
     studentId: str
     studentEmail: Optional[str] = None
     studentName: Optional[str] = None
+    isDelta: Optional[bool] = None
+
+    # Granular delta fields (for minimal packet size syncs)
+    mcqDelta: Optional[MCQDelta] = None
+    reviewDelta: Optional[ReviewDelta] = None
+    codingDelta: Optional[CodingDelta] = None
+    proctoringDelta: Optional[ProctoringDelta] = None
+
+    # Full/bulk fields (for first-time initial sync & backward compatibility)
     mcqAnswers: Optional[Dict[str, str]] = None
     reviewedQuestionIds: Optional[List[str]] = None
     codingState: Optional[Dict[str, CodingProblemState]] = None

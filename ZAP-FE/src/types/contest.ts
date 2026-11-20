@@ -158,10 +158,45 @@ export interface ContestStartResponse {
   timeSpentSeconds?: number;
 }
 
+export interface MCQDelta {
+  questionId: string;
+  selectedOptionId?: string | null;
+}
+
+export interface ReviewDelta {
+  questionId: string;
+  isReviewed: boolean;
+}
+
+export interface CodingDelta {
+  questionId: string;
+  language: string;
+  code: string;
+  lastLanguage?: string;
+  status?: string;
+  bestVerdict?: string;
+  lastSubmissionId?: string;
+  passedTestCases?: number;
+  totalTestCases?: number;
+  passPercentage?: number;
+}
+
+export interface ProctoringDelta {
+  tabSwitchCount?: number;
+  copyPasteAttempts?: number;
+  fullscreenExitCount?: number;
+  newViolation?: ProctoringViolation;
+}
+
 export interface ContestSessionSyncRequest {
   studentId: string;
   studentEmail?: string;
   studentName?: string;
+  isDelta?: boolean;
+  mcqDelta?: MCQDelta;
+  reviewDelta?: ReviewDelta;
+  codingDelta?: CodingDelta;
+  proctoringDelta?: ProctoringDelta;
   mcqAnswers?: Record<string, string>;
   reviewedQuestionIds?: string[];
   codingState?: Record<string, CodingProblemState>;
