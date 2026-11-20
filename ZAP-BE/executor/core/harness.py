@@ -148,16 +148,20 @@ class TreeNode:
 if __name__ == "__main__":
     import sys, json, inspect, re
 
-    def _zap_format_output(val):
+    def _zap_format_output(val, fn=None):
         if val is None:
             return
         if isinstance(val, bool):
             print("true" if val else "false")
         elif isinstance(val, (list, tuple)):
-            try:
-                print(json.dumps(val))
-            except Exception:
-                print(" ".join(map(str, val)))
+            if fn and getattr(fn, "__name__", "") in ("liveSearchIndex", "maxThreatXor", "genomicMutationEngine", "dynamicRiskAssessment", "detectSignatures", "kthSmallestRange"):
+                for item in val:
+                    print(item)
+            else:
+                try:
+                    print(json.dumps(val))
+                except Exception:
+                    print(" ".join(map(str, val)))
         elif isinstance(val, dict):
             print(json.dumps(val))
         else:
@@ -194,7 +198,7 @@ if __name__ == "__main__":
         if len(params) == 0:
             try:
                 res = target_fn()
-                _zap_format_output(res)
+                _zap_format_output(res, target_fn)
             except Exception:
                 import traceback
                 traceback.print_exc(file=sys.stderr)
@@ -205,7 +209,7 @@ if __name__ == "__main__":
         if not raw_stdin:
             try:
                 res = target_fn()
-                _zap_format_output(res)
+                _zap_format_output(res, target_fn)
             except Exception:
                 import traceback
                 traceback.print_exc(file=sys.stderr)
@@ -226,7 +230,7 @@ if __name__ == "__main__":
                             res = target_fn(n_val, readings)
                         else:
                             res = target_fn(readings)
-                        _zap_format_output(res)
+                        _zap_format_output(res, target_fn)
                     return
                 except Exception:
                     import traceback
@@ -267,30 +271,89 @@ if __name__ == "__main__":
             except Exception:
                 pass
 
-        # 2c. Parse line-by-line (e.g. arg1 on line 1, arg2 on line 2)
-        if not parsed_args:
+        # Specific problem parsers based on method name or distinctive param signatures
+        # countHazardRoutes (r, c, k, grid)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "countHazardRoutes" or (len(params) == 4 and any(p.name in ("grid",) for p in params))):
             lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
-            if len(lines) == len(params):
-                parsed_args = []
-                for l in lines:
-                    try:
-                        parsed_args.append(json.loads(l))
-                    except Exception:
-                        parsed_args.append(l)
+            if lines:
+                try:
+                    parts = lines[0].split()
+                    r_val, c_val, k_val = int(parts[0]), int(parts[1]), int(parts[2])
+                    grid_lines = lines[1:1 + r_val]
+                    parsed_args = [r_val, c_val, k_val, grid_lines]
+                except Exception:
+                    pass
 
-        # 2d. Parse space-separated tokens
-        if not parsed_args:
+        # maxJobRevenue (n, jobs)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "maxJobRevenue" or (len(params) == 2 and any(p.name in ("jobs",) for p in params))):
             tokens = raw_stdin.split()
-            if len(tokens) == len(params):
-                parsed_args = []
-                for t in tokens:
-                    try:
-                        parsed_args.append(json.loads(t))
-                    except Exception:
-                        parsed_args.append(t)
+            if tokens:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    jobs = [[int(next(it)), int(next(it)), int(next(it))] for _ in range(n_val)]
+                    parsed_args = [n_val, jobs]
+                except Exception:
+                    pass
 
-        # 2e. Parse 5-argument tree/graph query problems (n, q, riskScores, connections, operations)
-        if not parsed_args and len(params) == 5:
+        # liveSearchIndex (n, q, words, operations)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "liveSearchIndex" or (len(params) == 4 and any(p.name in ("words",) for p in params))):
+            lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
+            if lines:
+                try:
+                    parts = lines[0].split()
+                    n_val, q_val = int(parts[0]), int(parts[1])
+                    words = lines[1:1 + n_val]
+                    ops = lines[1 + n_val:1 + n_val + q_val]
+                    parsed_args = [n_val, q_val, words, ops]
+                except Exception:
+                    pass
+
+        # maxThreatXor (n, q, fingerprints, operations)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "maxThreatXor" or (len(params) == 4 and any(p.name in ("fingerprints",) for p in params))):
+            lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
+            if lines:
+                try:
+                    parts = lines[0].split()
+                    n_val, q_val = int(parts[0]), int(parts[1])
+                    fps = [int(x) for x in lines[1].split()][:n_val]
+                    ops = []
+                    for line in lines[2:2 + q_val]:
+                        op_parts = line.split()
+                        ops.append([int(op_parts[0]), int(op_parts[1])])
+                    parsed_args = [n_val, q_val, fps, ops]
+                except Exception:
+                    pass
+
+        # minBatchingCost (n, k, workloads, f)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "minBatchingCost" or (len(params) == 4 and any(p.name in ("workloads",) for p in params))):
+            tokens = raw_stdin.split()
+            if len(tokens) >= 3:
+                try:
+                    it = iter(tokens)
+                    n_val = int(next(it))
+                    k_val = int(next(it))
+                    w_vals = [int(next(it)) for _ in range(n_val)]
+                    f_val = int(next(it))
+                    parsed_args = [n_val, k_val, w_vals, f_val]
+                except Exception:
+                    pass
+
+        # genomicMutationEngine (n, q, signatures, operations)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "genomicMutationEngine" or (len(params) == 4 and any(p.name in ("signatures",) for p in params))):
+            lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
+            if lines:
+                try:
+                    parts = lines[0].split()
+                    n_val, q_val = int(parts[0]), int(parts[1])
+                    sigs = lines[1:1 + n_val]
+                    ops = lines[1 + n_val:1 + n_val + q_val]
+                    parsed_args = [n_val, q_val, sigs, ops]
+                except Exception:
+                    pass
+
+        # dynamicRiskAssessment (n, q, riskScores, connections, operations)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "dynamicRiskAssessment" or (len(params) == 5 and any(p.name in ("riskScores", "connections") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 2:
                 try:
@@ -306,8 +369,8 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2f. kthSmallestRange (n, q, nums, queries)
-        if not parsed_args and (getattr(target_fn, "__name__", "") == "kthSmallestRange" or len(params) == 4):
+        # kthSmallestRange (n, q, nums, queries)
+        if not parsed_args and (getattr(target_fn, "__name__", "") == "kthSmallestRange" or (len(params) == 4 and any(p.name in ("nums", "queries") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 2:
                 try:
@@ -322,7 +385,7 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2g. detectSignatures (s, n, signatures)
+        # detectSignatures (s, n, signatures)
         if not parsed_args and (getattr(target_fn, "__name__", "") == "detectSignatures" or (len(params) == 3 and any(p.name in ("signatures", "patterns") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 2:
@@ -334,7 +397,7 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2h. countRepairablePalindromes, longestTwinTransmission (s, k or s, g)
+        # countRepairablePalindromes, longestTwinTransmission (s, k or s, g)
         if not parsed_args and (getattr(target_fn, "__name__", "") in ("countRepairablePalindromes", "longestTwinTransmission") or (len(params) == 2 and any(p.name in ("k", "g") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 2:
@@ -343,7 +406,7 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2i. totalAuditXP (n, ranks, bounties)
+        # totalAuditXP (n, ranks, bounties)
         if not parsed_args and (getattr(target_fn, "__name__", "") == "totalAuditXP" or (len(params) == 3 and any(p.name in ("ranks", "bounties") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 1:
@@ -356,7 +419,7 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2j. twinBeaconIncident (n, a, b, p, q, queries)
+        # twinBeaconIncident (n, a, b, p, q, queries)
         if not parsed_args and (getattr(target_fn, "__name__", "") == "twinBeaconIncident" or (len(params) == 6 and any(p.name in ("queries", "p") for p in params))):
             tokens = raw_stdin.split()
             if len(tokens) >= 5:
@@ -375,10 +438,34 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-        # 2f. Default single argument
+        # Fallback 1: Parse line-by-line (e.g. arg1 on line 1, arg2 on line 2)
+        if not parsed_args:
+            lines = [l.strip() for l in raw_stdin.splitlines() if l.strip()]
+            if len(lines) == len(params):
+                parsed_args = []
+                for l in lines:
+                    try:
+                        parsed_args.append(json.loads(l))
+                    except Exception:
+                        parsed_args.append(l)
+
+        # Fallback 2: Parse space-separated tokens
+        if not parsed_args:
+            tokens = raw_stdin.split()
+            if len(tokens) == len(params):
+                parsed_args = []
+                for t in tokens:
+                    try:
+                        parsed_args.append(json.loads(t))
+                    except Exception:
+                        parsed_args.append(t)
+
+        # Fallback 3: Default single argument
         if not parsed_args and len(params) == 1:
             try:
                 parsed_args = [json.loads(raw_stdin)]
+            except Exception:
+                parsed_args = [raw_stdin]
             except Exception:
                 parsed_args = [raw_stdin]
 
@@ -432,7 +519,7 @@ if __name__ == "__main__":
                     res = target_fn(*parsed_args)
                 except TypeError:
                     res = target_fn(raw_stdin)
-            _zap_format_output(res)
+            _zap_format_output(res, target_fn)
         except Exception:
             import traceback
             traceback.print_exc(file=sys.stderr)
@@ -536,7 +623,91 @@ def _prepare_node_harness(source: str) -> str:
     }
 
     let args = [];
-    if (targetFn.name === 'kthSmallestRange' || targetFn.length === 4) {
+    if (targetFn.name === 'countHazardRoutes') {
+        const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+            try {
+                const parts = lines[0].split(/\\s+/);
+                const rVal = parseInt(parts[0], 10);
+                const cVal = parseInt(parts[1], 10);
+                const kVal = parseInt(parts[2], 10);
+                const grid = lines.slice(1, 1 + rVal);
+                args = [rVal, cVal, kVal, grid];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'maxJobRevenue') {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 1) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const jobs = [];
+                for (let i = 0; i < nVal; i++) {
+                    jobs.push([parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10), parseInt(tokens[idx++], 10)]);
+                }
+                args = [nVal, jobs];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'liveSearchIndex') {
+        const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+            try {
+                const parts = lines[0].split(/\\s+/);
+                const nVal = parseInt(parts[0], 10);
+                const qVal = parseInt(parts[1], 10);
+                const words = lines.slice(1, 1 + nVal);
+                const ops = lines.slice(1 + nVal, 1 + nVal + qVal);
+                args = [nVal, qVal, words, ops];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'maxThreatXor') {
+        const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length >= 2) {
+            try {
+                const parts = lines[0].split(/\\s+/);
+                const nVal = parseInt(parts[0], 10);
+                const qVal = parseInt(parts[1], 10);
+                const fps = lines[1].split(/\\s+/).map(x => parseInt(x, 10)).slice(0, nVal);
+                const ops = [];
+                for (let i = 0; i < qVal; i++) {
+                    const opParts = lines[2 + i].split(/\\s+/);
+                    ops.push([parseInt(opParts[0], 10), parseInt(opParts[1], 10)]);
+                }
+                args = [nVal, qVal, fps, ops];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'minBatchingCost') {
+        const tokens = raw.trim().split(/\\s+/);
+        if (tokens.length >= 3) {
+            try {
+                let idx = 0;
+                const nVal = parseInt(tokens[idx++], 10);
+                const kVal = parseInt(tokens[idx++], 10);
+                const wVals = [];
+                for (let i = 0; i < nVal; i++) wVals.push(parseInt(tokens[idx++], 10));
+                const fVal = parseInt(tokens[idx++], 10);
+                args = [nVal, kVal, wVals, fVal];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'genomicMutationEngine') {
+        const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+            try {
+                const parts = lines[0].split(/\\s+/);
+                const nVal = parseInt(parts[0], 10);
+                const qVal = parseInt(parts[1], 10);
+                const sigs = lines.slice(1, 1 + nVal);
+                const ops = lines.slice(1 + nVal, 1 + nVal + qVal);
+                args = [nVal, qVal, sigs, ops];
+            } catch (_) {}
+        }
+    }
+    if (args.length === 0 && targetFn.name === 'kthSmallestRange') {
         const tokens = raw.trim().split(/\\s+/);
         if (tokens.length >= 2) {
             try {
@@ -604,7 +775,7 @@ def _prepare_node_harness(source: str) -> str:
             } catch (_) {}
         }
     }
-    if (args.length === 0 && targetFn.length === 5) {
+    if (args.length === 0 && (targetFn.name === 'dynamicRiskAssessment' || targetFn.length === 5)) {
         const tokens = raw.trim().split(/\\s+/);
         if (tokens.length >= 2) {
             try {
@@ -675,7 +846,9 @@ def _prepare_node_harness(source: str) -> str:
     try {
         const result = targetFn.apply(null, args);
         if (result !== undefined) {
-            if (typeof result === 'object' && result !== null) {
+            if (Array.isArray(result) && ['liveSearchIndex', 'maxThreatXor', 'genomicMutationEngine', 'dynamicRiskAssessment', 'detectSignatures', 'kthSmallestRange'].includes(targetFn.name)) {
+                for (const item of result) console.log(item);
+            } else if (typeof result === 'object' && result !== null) {
                 console.log(JSON.stringify(result));
             } else {
                 console.log(result);
@@ -974,6 +1147,101 @@ int main() {
         std::vector<std::vector<int>> queries(q, std::vector<int>(2));
         for (int i = 0; i < q; i++) std::cin >> queries[i][0] >> queries[i][1];
         std::cout << sol.twinBeaconIncident(n, a, b, p, q, queries) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bcountHazardRoutes\s*\(', source):
+        driver += r"""
+    int r, c, k;
+    if (std::cin >> r >> c >> k) {
+        std::vector<std::string> grid(r);
+        for (int i = 0; i < r; i++) std::cin >> grid[i];
+        std::cout << sol.countHazardRoutes(r, c, k, grid) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxJobRevenue\s*\(', source):
+        driver += r"""
+    int n;
+    if (std::cin >> n) {
+        std::vector<std::vector<int>> jobs(n, std::vector<int>(3));
+        for (int i = 0; i < n; i++) std::cin >> jobs[i][0] >> jobs[i][1] >> jobs[i][2];
+        std::cout << sol.maxJobRevenue(n, jobs) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bliveSearchIndex\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (std::cin >> n >> q) {
+        std::vector<std::string> words(n);
+        for (int i = 0; i < n; i++) std::cin >> words[i];
+        std::vector<std::string> operations;
+        for (int i = 0; i < q; i++) {
+            int type;
+            std::string arg;
+            if (std::cin >> type >> arg) {
+                operations.push_back(std::to_string(type) + " " + arg);
+            }
+        }
+        std::vector<int> res = sol.liveSearchIndex(n, q, words, operations);
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << res[i] << "\n";
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxThreatXor\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (std::cin >> n >> q) {
+        std::vector<long long> fingerprints(n);
+        for (int i = 0; i < n; i++) std::cin >> fingerprints[i];
+        std::vector<std::vector<long long>> operations(q, std::vector<long long>(2));
+        for (int i = 0; i < q; i++) std::cin >> operations[i][0] >> operations[i][1];
+        std::vector<long long> res = sol.maxThreatXor(n, q, fingerprints, operations);
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << res[i] << "\n";
+        }
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bminBatchingCost\s*\(', source):
+        driver += r"""
+    int n, k;
+    if (std::cin >> n >> k) {
+        std::vector<long long> workloads(n);
+        for (int i = 0; i < n; i++) std::cin >> workloads[i];
+        long long f;
+        std::cin >> f;
+        std::cout << sol.minBatchingCost(n, k, workloads, f) << "\n";
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bgenomicMutationEngine\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (std::cin >> n >> q) {
+        std::vector<std::string> signatures(n);
+        for (int i = 0; i < n; i++) std::cin >> signatures[i];
+        std::vector<std::string> operations;
+        for (int i = 0; i < q; i++) {
+            int type;
+            std::string arg;
+            if (std::cin >> type >> arg) {
+                operations.push_back(std::to_string(type) + " " + arg);
+            }
+        }
+        std::vector<int> res = sol.genomicMutationEngine(n, q, signatures, operations);
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << res[i] << "\n";
+        }
     }
     return 0;
 }
@@ -1510,6 +1778,144 @@ int main() {
     return 0;
 }
 """
+    elif re.search(r'\bcountHazardRoutes\s*\(', source):
+        driver += r"""
+    int r, c, k;
+    if (scanf("%d %d %d", &r, &c, &k) == 3) {
+        char** grid = (char**)malloc(r * sizeof(char*));
+        for (int i = 0; i < r; i++) {
+            grid[i] = (char*)malloc((c + 5) * sizeof(char));
+            scanf("%s", grid[i]);
+        }
+        printf("%d\n", countHazardRoutes(r, c, k, grid, r));
+        for (int i = 0; i < r; i++) free(grid[i]);
+        free(grid);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxJobRevenue\s*\(', source):
+        driver += r"""
+    int n;
+    if (scanf("%d", &n) == 1) {
+        int** jobs = (int**)malloc(n * sizeof(int*));
+        int* jobsColSize = (int*)malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) {
+            jobs[i] = (int*)malloc(3 * sizeof(int));
+            jobsColSize[i] = 3;
+            scanf("%d %d %d", &jobs[i][0], &jobs[i][1], &jobs[i][2]);
+        }
+        printf("%lld\n", maxJobRevenue(n, jobs, n, jobsColSize));
+        for (int i = 0; i < n; i++) free(jobs[i]);
+        free(jobs);
+        free(jobsColSize);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bliveSearchIndex\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (scanf("%d %d", &n, &q) == 2) {
+        char** words = (char**)malloc(n * sizeof(char*));
+        for (int i = 0; i < n; i++) {
+            words[i] = (char*)malloc(1024 * sizeof(char));
+            scanf("%s", words[i]);
+        }
+        char** operations = (char**)malloc(q * sizeof(char*));
+        for (int i = 0; i < q; i++) {
+            operations[i] = (char*)malloc(1024 * sizeof(char));
+            int type;
+            char buf[1024];
+            scanf("%d %s", &type, buf);
+            sprintf(operations[i], "%d %s", type, buf);
+        }
+        int returnSize = 0;
+        int* res = liveSearchIndex(n, q, words, n, operations, q, &returnSize);
+        if (res) {
+            for (int i = 0; i < returnSize; i++) printf("%d\n", res[i]);
+            free(res);
+        }
+        for (int i = 0; i < n; i++) free(words[i]);
+        free(words);
+        for (int i = 0; i < q; i++) free(operations[i]);
+        free(operations);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bmaxThreatXor\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (scanf("%d %d", &n, &q) == 2) {
+        long long* fingerprints = (long long*)malloc(n * sizeof(long long));
+        for (int i = 0; i < n; i++) scanf("%lld", &fingerprints[i]);
+        long long** operations = (long long**)malloc(q * sizeof(long long*));
+        int* operationsColSize = (int*)malloc(q * sizeof(int));
+        for (int i = 0; i < q; i++) {
+            operations[i] = (long long*)malloc(2 * sizeof(long long));
+            operationsColSize[i] = 2;
+            scanf("%lld %lld", &operations[i][0], &operations[i][1]);
+        }
+        int returnSize = 0;
+        long long* res = maxThreatXor(n, q, fingerprints, n, operations, q, operationsColSize, &returnSize);
+        if (res) {
+            for (int i = 0; i < returnSize; i++) printf("%lld\n", res[i]);
+            free(res);
+        }
+        free(fingerprints);
+        for (int i = 0; i < q; i++) free(operations[i]);
+        free(operations);
+        free(operationsColSize);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bminBatchingCost\s*\(', source):
+        driver += r"""
+    int n, k;
+    if (scanf("%d %d", &n, &k) == 2) {
+        long long* workloads = (long long*)malloc(n * sizeof(long long));
+        for (int i = 0; i < n; i++) scanf("%lld", &workloads[i]);
+        long long f;
+        scanf("%lld", &f);
+        printf("%lld\n", minBatchingCost(n, k, workloads, n, f));
+        free(workloads);
+    }
+    return 0;
+}
+"""
+    elif re.search(r'\bgenomicMutationEngine\s*\(', source):
+        driver += r"""
+    int n, q;
+    if (scanf("%d %d", &n, &q) == 2) {
+        char** signatures = (char**)malloc(n * sizeof(char*));
+        for (int i = 0; i < n; i++) {
+            signatures[i] = (char*)malloc(1024 * sizeof(char));
+            scanf("%s", signatures[i]);
+        }
+        char** operations = (char**)malloc(q * sizeof(char*));
+        for (int i = 0; i < q; i++) {
+            operations[i] = (char*)malloc(1024 * sizeof(char));
+            int type;
+            char buf[1024];
+            scanf("%d %s", &type, buf);
+            sprintf(operations[i], "%d %s", type, buf);
+        }
+        int returnSize = 0;
+        int* res = genomicMutationEngine(n, q, signatures, n, operations, q, &returnSize);
+        if (res) {
+            for (int i = 0; i < returnSize; i++) printf("%d\n", res[i]);
+            free(res);
+        }
+        for (int i = 0; i < n; i++) free(signatures[i]);
+        free(signatures);
+        for (int i = 0; i < q; i++) free(operations[i]);
+        free(operations);
+    }
+    return 0;
+}
+"""
     elif re.search(r'\bsolution\s*\(', source):
         driver += r"""
     solution();
@@ -1810,7 +2216,7 @@ def _prepare_java_harness(source: str) -> str:
         Class<?>[] paramTypes = target.getParameterTypes();
         if (paramTypes.length == 0) {
             Object res = target.invoke(instance);
-            _zapPrint(res);
+            _zapPrint(res, target.getName());
             return;
         }
 
@@ -1824,25 +2230,25 @@ def _prepare_java_harness(source: str) -> str:
                     long[] readings = new long[n];
                     for (int i = 0; i < n; i++) readings[i] = Long.parseLong(tokens[idx++]);
                     Object res = paramTypes.length == 2 ? target.invoke(instance, n, readings) : target.invoke(instance, (Object)readings);
-                    _zapPrint(res);
+                    _zapPrint(res, target.getName());
                 }
                 return;
             }
         }
 
-        Object[] invokedArgs = _zapParseArgs(rawStdin, paramTypes);
+        Object[] invokedArgs = _zapParseArgs(rawStdin, paramTypes, target.getName());
         Object res = target.invoke(instance, invokedArgs);
 
         if (target.getReturnType().equals(void.class)) {
             if (invokedArgs.length > 0 && invokedArgs[0] != null) {
-                _zapPrint(invokedArgs[0]);
+                _zapPrint(invokedArgs[0], target.getName());
             }
         } else {
-            _zapPrint(res);
+            _zapPrint(res, target.getName());
         }
     }
 
-    private static Object[] _zapParseArgs(String raw, Class<?>[] types) {
+    private static Object[] _zapParseArgs(String raw, Class<?>[] types, String methodName) {
         Object[] args = new Object[types.length];
         if (types.length == 1) {
             args[0] = _zapParseSingle(raw, types[0]);
@@ -1996,6 +2402,139 @@ def _prepare_java_harness(source: str) -> str:
             }
         }
 
+        if (methodName.equals("countHazardRoutes")) {
+            String[] lines = raw.split("\r?\n");
+            List<String> cleanLines = new ArrayList<>();
+            for (String l : lines) {
+                String trimmed = l.trim();
+                if (!trimmed.isEmpty()) cleanLines.add(trimmed);
+            }
+            if (!cleanLines.isEmpty()) {
+                String[] parts = cleanLines.get(0).split("\\s+");
+                int r = Integer.parseInt(parts[0]);
+                int c = Integer.parseInt(parts[1]);
+                int k = Integer.parseInt(parts[2]);
+                String[] grid = new String[r];
+                for (int i = 0; i < r; i++) {
+                    grid[i] = (i + 1 < cleanLines.size()) ? cleanLines.get(i + 1) : "";
+                }
+                args[0] = r;
+                args[1] = c;
+                args[2] = k;
+                args[3] = grid;
+                return args;
+            }
+        }
+
+        if (methodName.equals("maxJobRevenue")) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 1) {
+                int idx = 0;
+                int n = Integer.parseInt(tokens[idx++]);
+                int[][] jobs = new int[n][3];
+                for (int i = 0; i < n; i++) {
+                    jobs[i][0] = Integer.parseInt(tokens[idx++]);
+                    jobs[i][1] = Integer.parseInt(tokens[idx++]);
+                    jobs[i][2] = Integer.parseInt(tokens[idx++]);
+                }
+                args[0] = n;
+                args[1] = jobs;
+                return args;
+            }
+        }
+
+        if (methodName.equals("liveSearchIndex")) {
+            String[] lines = raw.split("\r?\n");
+            List<String> cleanLines = new ArrayList<>();
+            for (String l : lines) {
+                String trimmed = l.trim();
+                if (!trimmed.isEmpty()) cleanLines.add(trimmed);
+            }
+            if (!cleanLines.isEmpty()) {
+                String[] parts = cleanLines.get(0).split("\\s+");
+                int n = Integer.parseInt(parts[0]);
+                int q = Integer.parseInt(parts[1]);
+                String[] words = new String[n];
+                for (int i = 0; i < n; i++) {
+                    words[i] = cleanLines.get(1 + i);
+                }
+                String[] ops = new String[q];
+                for (int i = 0; i < q; i++) {
+                    ops[i] = cleanLines.get(1 + n + i);
+                }
+                args[0] = n;
+                args[1] = q;
+                args[2] = words;
+                args[3] = ops;
+                return args;
+            }
+        }
+
+        if (methodName.equals("maxThreatXor")) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 2) {
+                int idx = 0;
+                int n = Integer.parseInt(tokens[idx++]);
+                int q = Integer.parseInt(tokens[idx++]);
+                long[] fps = new long[n];
+                for (int i = 0; i < n; i++) fps[i] = Long.parseLong(tokens[idx++]);
+                long[][] ops = new long[q][2];
+                for (int i = 0; i < q; i++) {
+                    ops[i][0] = Long.parseLong(tokens[idx++]);
+                    ops[i][1] = Long.parseLong(tokens[idx++]);
+                }
+                args[0] = n;
+                args[1] = q;
+                args[2] = fps;
+                args[3] = ops;
+                return args;
+            }
+        }
+
+        if (methodName.equals("minBatchingCost")) {
+            String[] tokens = raw.trim().split("\\s+");
+            if (tokens.length >= 3) {
+                int idx = 0;
+                int n = Integer.parseInt(tokens[idx++]);
+                int k = Integer.parseInt(tokens[idx++]);
+                long[] workloads = new long[n];
+                for (int i = 0; i < n; i++) workloads[i] = Long.parseLong(tokens[idx++]);
+                long f = Long.parseLong(tokens[idx++]);
+                args[0] = n;
+                args[1] = k;
+                args[2] = workloads;
+                args[3] = f;
+                return args;
+            }
+        }
+
+        if (methodName.equals("genomicMutationEngine")) {
+            String[] lines = raw.split("\r?\n");
+            List<String> cleanLines = new ArrayList<>();
+            for (String l : lines) {
+                String trimmed = l.trim();
+                if (!trimmed.isEmpty()) cleanLines.add(trimmed);
+            }
+            if (!cleanLines.isEmpty()) {
+                String[] parts = cleanLines.get(0).split("\\s+");
+                int n = Integer.parseInt(parts[0]);
+                int q = Integer.parseInt(parts[1]);
+                String[] sigs = new String[n];
+                for (int i = 0; i < n; i++) {
+                    sigs[i] = cleanLines.get(1 + i);
+                }
+                String[] ops = new String[q];
+                for (int i = 0; i < q; i++) {
+                    ops[i] = cleanLines.get(1 + n + i);
+                }
+                args[0] = n;
+                args[1] = q;
+                args[2] = sigs;
+                args[3] = ops;
+                return args;
+            }
+        }
+
         String[] lines = raw.split("\r?\n");
         if (lines.length >= types.length) {
             for (int i = 0; i < types.length; i++) {
@@ -2118,8 +2657,17 @@ def _prepare_java_harness(source: str) -> str:
         return s;
     }
 
-    private static void _zapPrint(Object val) {
+    private static void _zapPrint(Object val, String methodName) {
         if (val == null) return;
+        if (methodName != null && (methodName.equals("liveSearchIndex") || methodName.equals("maxThreatXor") || methodName.equals("genomicMutationEngine") || methodName.equals("dynamicRiskAssessment") || methodName.equals("kthSmallestRange") || methodName.equals("detectSignatures"))) {
+            if (val instanceof int[]) {
+                for (int item : (int[]) val) System.out.println(item);
+                return;
+            } else if (val instanceof long[]) {
+                for (long item : (long[]) val) System.out.println(item);
+                return;
+            }
+        }
         if (val instanceof boolean[] || val instanceof Boolean) {
             System.out.println(val.toString().toLowerCase());
         } else if (val instanceof int[]) {
@@ -2137,6 +2685,11 @@ def _prepare_java_harness(source: str) -> str:
             System.out.println(sb.toString());
         } else if (val instanceof Object[]) {
             System.out.println(java.util.Arrays.deepToString((Object[]) val));
+        } else if (val instanceof java.util.Collection) {
+            java.util.Collection<?> col = (java.util.Collection<?>) val;
+            for (Object item : col) {
+                System.out.println(item);
+            }
         } else {
             System.out.println(val.toString());
         }
