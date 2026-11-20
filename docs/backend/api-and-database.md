@@ -22,8 +22,8 @@ Handles student code submissions and run requests:
   - Body: `{ questionId, language, mode: "RUN"|"SUBMIT", sourceCode, userId }`.
   - Response: `{ submissionId, status: "QUEUED" }`.
   - Rate Limiting (per user):
-    - Max 2 submissions within 10 seconds (returns HTTP 429: `"Too many submissions, please wait 5 seconds"` with `Retry-After: 5`).
-    - Max 6 submissions within 60 seconds (returns HTTP 429: `"Too many submissions, please wait 30 seconds"` with `Retry-After: 30`).
+    - Max 4 combined code executions (RUN + SUBMIT) within 60 seconds.
+    - 5th attempt within that minute is cut off at the gateway (returns HTTP 429: `"Too many attempts, please wait for one minute or try after one minute."` with `Retry-After: 60`), preventing any execution task from enqueuing.
   - Behavior: Saves submission with status `QUEUED` and enqueues execution task to Cloud Tasks.
 - `GET /api/v1/submissions/{submission_id}` — Get full submission details, code, and individual test case results.
 - `GET /api/v1/submissions?userId=&questionId=&mode=&limit=50` — Query submission history with filtering. Returns lightweight `SubmissionSummary[]` (omits large `sourceCode` and detailed `testResults` for fast responses).

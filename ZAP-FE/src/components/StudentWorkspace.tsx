@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   X,
+  AlertTriangle,
   RotateCcw,
   ChevronLeft,
   ChevronRight,
@@ -223,8 +224,13 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [currentSubmission, setCurrentSubmission] = useState<Partial<Submission> | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
   const [selectedCaseIdx, setSelectedCaseIdx] = useState(0);
+
+  // Guardrail: Track run + submission timestamps within the last 60 seconds (max 4 per minute combined)
+  const executionTimestampsRef = useRef<number[]>([]);
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Submissions drawer tabs & history state
   const [submissionsHistory, setSubmissionsHistory] = useState<SubmissionSummary[]>([]);
@@ -293,7 +299,13 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   }, []);
 
   useEffect(() => {
-    return () => cleanupPolling();
+    return () => {
+      cleanupPolling();
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+        warningTimeoutRef.current = null;
+      }
+    };
   }, [cleanupPolling]);
 
   // Fetch past submissions ONLY when explicitly called (e.g. user clicks Submissions tab or Refresh)
@@ -420,6 +432,26 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         setAuthModalOpen(true);
         return;
       }
+
+      // Guardrail check: maximum 4 combined runs + submissions per minute
+      const now = Date.now();
+      const ONE_MINUTE_MS = 60 * 1000;
+      executionTimestampsRef.current = executionTimestampsRef.current.filter(
+        (t) => now - t < ONE_MINUTE_MS
+      );
+
+      if (executionTimestampsRef.current.length >= 4) {
+        const warning = "Too many attempts, please wait for one minute or try after one minute.";
+        setRateLimitWarning(warning);
+        setErrorNotice(warning);
+        if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+        warningTimeoutRef.current = setTimeout(() => {
+          setRateLimitWarning(null);
+        }, 60000);
+        return;
+      }
+
+      setRateLimitWarning(null);
       cleanupPolling();
       setIsRunning(true);
       setErrorNotice(null);
@@ -442,13 +474,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           contestId: contestId,
         });
 
+        // Record successful dispatch into sliding window guardrail
+        executionTimestampsRef.current.push(Date.now());
+
         const subId = createRes.submissionId;
         setCurrentSubmission({ id: subId, status: createRes.status, mode });
 
-        // Sequential polling loop: wait for response, keep interval >= 1s without overlapping
+        // Sequential polling loop: wait for response, keep interval >= 5s without overlapping
         let isDone = false;
         let attempts = 0;
-        const MAX_POLLS = 60; // 60 attempts safety guard
+        const MAX_POLLS = 60; // 60 attempts safety guard (5s interval = up to 300s)
 
         while (!isDone && attempts < MAX_POLLS && activePollIdRef.current === currentPollId) {
           attempts++;
@@ -514,9 +549,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             break;
           }
 
-          // Maintain at least 1s between polling calls, but don't add redundant delay if call took >=1000ms
+          // Maintain at least 5s between polling calls, but don't add redundant delay if call took >=5000ms
           const callDuration = Date.now() - callStart;
-          const waitTime = Math.max(0, 1000 - callDuration);
+          const waitTime = Math.max(0, 5000 - callDuration);
           if (waitTime > 0) {
             await new Promise((resolve) => {
               pollTimeoutRef.current = setTimeout(resolve, waitTime);
@@ -529,7 +564,21 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown submission error.";
-        setErrorNotice(message);
+        if (
+          message.toLowerCase().includes("too many attempts") ||
+          message.toLowerCase().includes("too many submissions") ||
+          message.includes("429")
+        ) {
+          const warning = "Too many attempts, please wait for one minute or try after one minute.";
+          setRateLimitWarning(warning);
+          setErrorNotice(warning);
+          if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+          warningTimeoutRef.current = setTimeout(() => {
+            setRateLimitWarning(null);
+          }, 60000);
+        } else {
+          setErrorNotice(message);
+        }
         setCurrentSubmission((submission) => ({
           ...(submission ?? {}),
           status: "FAILED",
@@ -619,6 +668,14 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   <pre className="font-mono text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-500/15 p-2.5 rounded-lg border border-rose-500/25 whitespace-pre-wrap max-h-36 overflow-y-auto">
                     {currentSubmission.compileOutput}
                   </pre>
+                </div>
+              )}
+
+              {/* Rate Limit Guardrail Warning */}
+              {rateLimitWarning && (
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/60 rounded-lg mb-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>{rateLimitWarning}</span>
                 </div>
               )}
 
@@ -1007,11 +1064,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             </span>
           )}
 
-          {errorNotice && (
+          {rateLimitWarning ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-200 font-medium px-2.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/60 shadow-xs animate-in fade-in duration-200">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>{rateLimitWarning}</span>
+            </span>
+          ) : errorNotice ? (
             <span className="text-xs text-rose-700 dark:text-rose-300 font-mono px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
               {errorNotice}
             </span>
-          )}
+          ) : null}
 
           {student ? (
             <div className="hidden sm:flex items-center gap-2 border border-[#e2e8f0] dark:border-[#1e293b] bg-white dark:bg-[#121824] px-2.5 py-1 rounded-xl text-xs shadow-xs">
@@ -1119,6 +1181,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               onReset={handleReset}
               isRunning={isRunning}
               statusText={statusLabel}
+              warningNotice={rateLimitWarning}
+              onDismissWarning={() => setRateLimitWarning(null)}
               preventCopyPaste={preventCopyPaste}
             />
           </div>
@@ -1219,6 +1283,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               onReset={handleReset}
               isRunning={isRunning}
               statusText={statusLabel}
+              warningNotice={rateLimitWarning}
+              onDismissWarning={() => setRateLimitWarning(null)}
               preventCopyPaste={preventCopyPaste}
             />
           </div>

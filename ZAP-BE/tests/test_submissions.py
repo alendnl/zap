@@ -215,31 +215,43 @@ def test_list_submissions_filters():
     assert "createdAt" in summary_item
 
 
-def test_rate_limiting_10_seconds_rule():
-    payload = {
+def test_rate_limiting_4_per_minute_rule():
+    payload_run = {
         "questionId": "valid-anagram",
         "language": "python",
         "mode": "RUN",
         "sourceCode": "print('hello')",
         "userId": "rate-limit-user-1"
     }
+    payload_submit = {
+        "questionId": "valid-anagram",
+        "language": "python",
+        "mode": "SUBMIT",
+        "sourceCode": "print('hello')",
+        "userId": "rate-limit-user-1"
+    }
 
-    # 1st call -> allowed
-    res1 = client.post("/api/v1/submissions", json=payload)
+    # Attempts 1 to 4 (combined RUN + SUBMIT) -> allowed
+    res1 = client.post("/api/v1/submissions", json=payload_run)
     assert res1.status_code == 202
 
-    # 2nd call -> allowed
-    res2 = client.post("/api/v1/submissions", json=payload)
+    res2 = client.post("/api/v1/submissions", json=payload_submit)
     assert res2.status_code == 202
 
-    # 3rd call within 10s -> blocked with 429
-    res3 = client.post("/api/v1/submissions", json=payload)
-    assert res3.status_code == 429
-    assert "Too many submissions, please wait 5 seconds" in res3.json()["detail"]
-    assert res3.headers.get("retry-after") == "5"
+    res3 = client.post("/api/v1/submissions", json=payload_run)
+    assert res3.status_code == 202
+
+    res4 = client.post("/api/v1/submissions", json=payload_submit)
+    assert res4.status_code == 202
+
+    # 5th attempt within that minute -> cut off with 429
+    res5 = client.post("/api/v1/submissions", json=payload_run)
+    assert res5.status_code == 429
+    assert "Too many attempts, please wait for one minute or try after one minute." in res5.json()["detail"]
+    assert res5.headers.get("retry-after") == "60"
 
     # Different user is not blocked
-    other_payload = dict(payload, userId="rate-limit-user-2")
+    other_payload = dict(payload_run, userId="rate-limit-user-2")
     res_other = client.post("/api/v1/submissions", json=other_payload)
     assert res_other.status_code == 202
 
@@ -251,13 +263,12 @@ def test_rate_limiting_60_seconds_rule(monkeypatch):
     limiter = get_submission_rate_limiter()
     limiter.reset()
 
-    # Simulate 6 requests spaced across 50 seconds (e.g. at t=0, 11, 22, 33, 44, 55)
-    # so they don't violate the 2-in-10s rule, but total 6 in <60s
-    timestamps = [1000.0 + i * 11 for i in range(6)]
+    # Simulate 4 requests spaced across 30 seconds (at t=1000, 1010, 1020, 1030)
+    timestamps = [1000.0, 1010.0, 1020.0, 1030.0]
     limiter._history["user-60s"] = list(timestamps)
 
-    # Now at t=1058, 7th attempt is within 60s of the first
-    monkeypatch.setattr(time, "time", lambda: 1058.0)
+    # At t=1050, 5th attempt is within 60s of t=1000 -> blocked
+    monkeypatch.setattr(time, "time", lambda: 1050.0)
 
     payload = {
         "questionId": "valid-anagram",
@@ -268,8 +279,13 @@ def test_rate_limiting_60_seconds_rule(monkeypatch):
     }
     res = client.post("/api/v1/submissions", json=payload)
     assert res.status_code == 429
-    assert "Too many submissions, please wait 30 seconds" in res.json()["detail"]
-    assert res.headers.get("retry-after") == "30"
+    assert "Too many attempts, please wait for one minute or try after one minute." in res.json()["detail"]
+    assert res.headers.get("retry-after") == "60"
+
+    # At t=1061, the oldest timestamp (1000.0) has expired (>60s) -> allowed
+    monkeypatch.setattr(time, "time", lambda: 1061.0)
+    res_recovered = client.post("/api/v1/submissions", json=payload)
+    assert res_recovered.status_code == 202
 
 
 def test_rate_limiting_configurable_via_settings(monkeypatch):
@@ -295,7 +311,7 @@ def test_rate_limiting_configurable_via_settings(monkeypatch):
     # 2nd call -> blocked because max submissions was set to 1
     res2 = client.post("/api/v1/submissions", json=payload)
     assert res2.status_code == 429
-    assert "Too many submissions, please wait 8 seconds" in res2.json()["detail"]
+    assert "Too many attempts, please wait 8 seconds" in res2.json()["detail"]
     assert res2.headers.get("retry-after") == "8"
 
 

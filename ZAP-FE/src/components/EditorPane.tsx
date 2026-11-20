@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
-import { RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, X } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 // Dynamically load Monaco Editor with SSR disabled
@@ -25,6 +25,8 @@ interface EditorPaneProps {
   onReset?: () => void;
   isRunning: boolean;
   statusText?: string;
+  warningNotice?: string | null;
+  onDismissWarning?: () => void;
   preventCopyPaste?: boolean;
 }
 
@@ -38,6 +40,8 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
   onReset,
   isRunning,
   statusText,
+  warningNotice,
+  onDismissWarning,
   preventCopyPaste = false,
 }) => {
   const { theme } = useTheme();
@@ -120,6 +124,24 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Warning Notice Banner */}
+      {warningNotice && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 transition-all flex-shrink-0 animate-in fade-in duration-200">
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="font-medium flex-1">{warningNotice}</span>
+          {onDismissWarning && (
+            <button
+              onClick={onDismissWarning}
+              type="button"
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 p-0.5 rounded cursor-pointer transition-colors"
+              title="Dismiss warning"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Editor Body */}
       <div className="flex-1 w-full relative">

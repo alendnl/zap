@@ -61,10 +61,10 @@ export const compilerApi = {
         userId: "guest-playground",
       });
 
-      // Poll submission status until complete
+      // Poll submission status until complete (5s cadence)
       const startTime = Date.now();
-      while (Date.now() - startTime < 15000) {
-        await new Promise((r) => setTimeout(r, 600));
+      while (Date.now() - startTime < 30000) {
+        await new Promise((r) => setTimeout(r, 5000));
         const status = await submissionsApi.get(submission.submissionId);
         if (status.status === "COMPLETED" || status.status === "FAILED") {
           const tc = status.testResults?.[0];

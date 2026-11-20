@@ -44,7 +44,7 @@ sequenceDiagram
     API->>DB: Query submission by ID
     DB-->>API: Return doc (status: "QUEUED")
     API-->>FE: HTTP 200 { status: "QUEUED" }
-    FE->>FE: Latch: Wait max(0, 1000ms - callDuration)
+    FE->>FE: Latch: Wait max(0, 5000ms - callDuration)
     end
 
     rect rgb(245, 255, 245)
@@ -76,7 +76,7 @@ sequenceDiagram
     API->>DB: Query submission
     DB-->>API: Return doc (status: "RUNNING")
     API-->>FE: HTTP 200 { status: "RUNNING" }
-    FE->>FE: Latch: Sleep remainder of 1000ms interval
+    FE->>FE: Latch: Sleep remainder of 5000ms interval
 
     %% Phase 5: Result Persistence
     rect rgb(240, 255, 255)
@@ -114,7 +114,7 @@ sequenceDiagram
 ### Phase 2: API Gateway Ingestion & Asynchronous Decoupling
 - **Source Files**: [`router.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/router.py#L24-L39), [`service.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/service.py#L30-L89), [`queue.py`](file:///Users/apilav068@apac.comcast.com/zap/ZAP-BE/app/submissions/queue.py#L37-L79)
 - **Actions**:
-  1. **Rate Limiting**: `rate_limiter.check_rate_limit(user_key)` enforces sliding-window quotas.
+  1. **Rate Limiting**: `rate_limiter.check_rate_limit(user_key)` enforces sliding-window quotas (max 4 combined code runs/submissions per 60 seconds; attempt 5 is cut off with HTTP 429 `"Too many attempts, please wait for one minute or try after one minute."`).
   2. **Database Insertion**: `SubmissionService.create_submission()` writes a document to MongoDB's `submissions` collection with:
      - `status: "QUEUED"`
      - `createdAt: <ISO Timestamp>`
@@ -131,7 +131,7 @@ sequenceDiagram
 - **Actions**:
   1. The client enters a sequential `while (!isDone && attempts < 60)` loop.
   2. **Anti-Hammering Latch**: Rather than using a naive `setInterval` (which stacks concurrent requests if the backend lags), it waits for the active `GET` request to finish, measures its elapsed duration, and sleeps only the remaining milliseconds:
-     $$\text{sleepTime} = \max(0, 1000 - \text{callDuration})$$
+     $$\text{sleepTime} = \max(0, 5000 - \text{callDuration})$$
   3. The request includes `Cache-Control: no-cache, no-store` headers and a unique timestamp query parameter `?_t=...` to bypass intermediate CDN/proxy caches.
 
 ### Phase 4: Cloud Tasks Delivery & Atomic Lease Lock
@@ -203,7 +203,7 @@ sequenceDiagram
 | **Atomic Lease Lock** | Prevents duplicate execution | `find_one_and_update` on `{"status": "QUEUED"}` ensures only 1 worker claims a task. |
 | **Lease Timeout Reclaim** | Prevents stuck submissions | If an executor crashes mid-execution, a lease older than `TASKS_EXECUTION_LEASE_SECONDS` is reclaimable. |
 | **OIDC Task Verification** | Prevents unauthorized execution | Cloud Tasks Bearer tokens are cryptographically checked against Google's public certs. |
-| **Sequential Polling Latch** | Protects API from client hammering | Client awaits HTTP response before calculating sleep duration ($\ge 1000\text{ms}$). |
+| **Sequential Polling Latch** | Protects API from client hammering | Client awaits HTTP response before calculating sleep duration ($\ge 5000\text{ms}$). |
 | **Active Poll ID Guard** | Prevents race conditions | Switching questions or re-clicking Run invalidates previous poll tokens immediately. |
 | **Sandbox Ephemeral Cleanup** | Prevents disk exhaustion on Cloud Run | Workspace directory is deleted inside a `finally` block regardless of pass, fail, or crash. |
 | **Test Case Masking** | Prevents cheating & test exposure | Hidden test case inputs, actual outputs, and expected outputs are scrubbed at the executor boundary. |

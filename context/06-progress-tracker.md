@@ -104,6 +104,16 @@
   3. **10-per-Page Pagination**: Standardize 10-item pagination with clean navigation controls across Student Home catalog, Admin Users, Contest Analytics, Admin Coding Questions, Admin MCQs, Faculty Questions, and Contest Directories.
 - **Consequences**: Main analytics payloads reduced by >98% (<25 KB), zero API timeouts, responsive UI rendering, and scalable to large candidate cohorts.
 
+### ADR-010: 5-Second Polling Cadence and 4 Attempt/Minute Execution Guardrail
+- **Status**: Accepted
+- **Context**: Polling submission status at 1-second intervals caused unnecessary database and API load under concurrent usage. Additionally, users could spam execution runs without rate throttling.
+- **Decision**:
+  1. Increase the sequential polling interval in `StudentWorkspace.tsx` and `compilerApi.ts` from 1 second to 5 seconds (`Math.max(0, 5000 - callDuration)`), while maintaining the anti-hammering sequential latch.
+  2. Enforce a combined 4-attempt per minute rate limit across both code execution (`mode: "RUN"`) and solution submission (`mode: "SUBMIT"`).
+  3. Pre-emptively block the 5th attempt on the client and cut off requests at the API gateway with HTTP 429 (`"Too many attempts, please wait for one minute or try after one minute."`), ensuring untrusted code is never queued or executed on the server beyond 4 attempts per minute.
+  4. Display an amber warning banner across the editor, workspace header, and console drawer alerting the user.
+- **Consequences**: API polling load decreased by ~80%, server compute protected from spam, and clear user warnings on excess submission frequency.
+
 
 
 
