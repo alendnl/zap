@@ -123,7 +123,13 @@ export const contestApi = {
   sync: (
     idOrSlug: string,
     payload: ContestSessionSyncRequest
-  ): Promise<{ ok: boolean; status: string }> =>
+  ): Promise<{
+    ok: boolean;
+    status: string;
+    alreadySubmitted?: boolean;
+    timeExpired?: boolean;
+    submission?: ContestSubmitResponse;
+  }> =>
     apiFetch(`/api/v1/contests/${encodeURIComponent(idOrSlug)}/sync`, {
       method: "POST",
       body: JSON.stringify(payload),

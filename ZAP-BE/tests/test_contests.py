@@ -738,5 +738,201 @@ def test_contest_delta_sync_lifecycle():
     assert resume_data["codingState"][code_q1_id]["code"]["python"] == "def solution(): return 42"
 
 
+def test_auto_submit_on_timeout_preserves_and_evaluates_synced_backend_data():
+    """Verifies that when time runs out and auto-submit occurs (even with partial/empty payload),
+    the backend calculates scores based on whatever data was already synced in the database."""
+    student_id = "cand-timeout-1"
+    student_email = "timeout1@test.com"
+
+    # 1. Start contest session
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    start_data = start_res.json()
+    first_mcq = start_data["mcqQuestions"][0]
+    q_id = first_mcq["id"]
+    opt_id = first_mcq["options"][0]["id"]
+
+    first_coding = start_data["codingQuestions"][0]
+    code_qid = first_coding["id"]
+
+    # 2. Candidate answers an MCQ and writes code via delta sync
+    client.post(
+        "/api/v1/contests/zap-grand-assessment-1/sync",
+        json={
+            "studentId": student_id,
+            "studentEmail": student_email,
+            "isDelta": True,
+            "mcqDelta": {"questionId": q_id, "selectedOptionId": opt_id},
+            "codingDelta": {
+                "questionId": code_qid,
+                "language": "python",
+                "code": "print('hello')",
+                "status": "ACCEPTED",
+                "bestVerdict": "ACCEPTED",
+                "passedTestCases": 5,
+                "totalTestCases": 5,
+                "passPercentage": 100.0,
+            },
+            "timeSpentSeconds": 120,
+        },
+    )
+
+    # 3. Time expires! Auto-submit payload sends isAutoSubmitted=True and empty local answers
+    auto_submit_payload = {
+        "studentId": student_id,
+        "studentEmail": student_email,
+        "isAutoSubmitted": True,
+        "timeSpentSeconds": 5400,  # 90 minutes
+        "mcqAnswers": {},          # Client didn't send answers; backend MUST merge from DB
+        "codingState": {},
+    }
+    submit_res = client.post(
+        "/api/v1/contests/zap-grand-assessment-1/submit",
+        json=auto_submit_payload,
+    )
+    assert submit_res.status_code == 200
+    res_data = submit_res.json()
+
+    assert res_data["isAutoSubmitted"] is True
+    assert res_data["codingScore"] == 33.3  # 1 accepted problem out of 3 total = 33.3%
+    assert res_data["codingProblemsAttempted"] == 1
+    code_item = next(item for item in res_data["codingBreakdown"] if item["questionId"] == code_qid)
+    assert code_item["score"] == 100.0
+    assert code_item["status"] == "ACCEPTED"
+
+    # Check breakdown matches synced MCQ
+    mcq_item = next((item for item in res_data["mcqBreakdown"] if item["questionId"] == q_id), None)
+    assert mcq_item is not None
+    assert mcq_item["selectedOptionId"] == opt_id
+
+
+def test_start_session_auto_finalizes_expired_contest():
+    """Verifies that if a candidate reopens an expired session, the backend automatically
+    calculates and finalizes their submission in the DB, returning alreadySubmitted=True."""
+    student_id = "cand-expired-start"
+    student_email = "expired_start@test.com"
+
+    # Start contest session
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    start_data = start_res.json()
+    q_id = start_data["mcqQuestions"][0]["id"]
+    opt_id = start_data["mcqQuestions"][0]["options"][0]["id"]
+
+    # Sync an answer
+    client.post(
+        "/api/v1/contests/zap-grand-assessment-1/sync",
+        json={
+            "studentId": student_id,
+            "studentEmail": student_email,
+            "isDelta": True,
+            "mcqDelta": {"questionId": q_id, "selectedOptionId": opt_id},
+        },
+    )
+
+    # Age the session in MongoDB to 2 hours ago (duration is 90 mins)
+    from app.db.mongodb import get_database
+    db = get_database()
+    from datetime import datetime, timezone, timedelta
+    past_time = (datetime.now(timezone.utc) - timedelta(minutes=120)).isoformat()
+    db.contest_submissions.update_one(
+        {"studentId": student_id},
+        {"$set": {"startedAt": past_time}}
+    )
+
+    # Re-calling start must auto-finalize
+    resume_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert resume_res.status_code == 200
+    resume_data = resume_res.json()
+
+    assert resume_data["alreadySubmitted"] is True
+    assert resume_data["submission"] is not None
+    assert resume_data["submission"]["isAutoSubmitted"] is True
+    assert resume_data["submission"]["status"] == "SUBMITTED"
+
+
+def test_sync_auto_finalizes_expired_session():
+    """Verifies that if an expired session attempts to sync, the backend incorporates the final delta,
+    finalizes the submission, and returns status: SUBMITTED with timeExpired: True."""
+    student_id = "cand-expired-sync"
+    student_email = "expired_sync@test.com"
+
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+    start_data = start_res.json()
+    q_id = start_data["mcqQuestions"][0]["id"]
+    opt_id = start_data["mcqQuestions"][0]["options"][0]["id"]
+
+    # Age session in MongoDB to 2 hours ago
+    from app.db.mongodb import get_database
+    db = get_database()
+    from datetime import datetime, timezone, timedelta
+    past_time = (datetime.now(timezone.utc) - timedelta(minutes=150)).isoformat()
+    db.contest_submissions.update_one(
+        {"studentId": student_id},
+        {"$set": {"startedAt": past_time}}
+    )
+
+    # Calling sync on expired session
+    sync_res = client.post(
+        "/api/v1/contests/zap-grand-assessment-1/sync",
+        json={
+            "studentId": student_id,
+            "studentEmail": student_email,
+            "isDelta": True,
+            "mcqDelta": {"questionId": q_id, "selectedOptionId": opt_id},
+        },
+    )
+    assert sync_res.status_code == 200
+    sync_data = sync_res.json()
+
+    assert sync_data["status"] == "SUBMITTED"
+    assert sync_data["alreadySubmitted"] is True
+    assert sync_data["timeExpired"] is True
+    assert sync_data["submission"] is not None
+    assert sync_data["submission"]["isAutoSubmitted"] is True
+
+
+def test_admin_submissions_and_analytics_auto_finalizes_expired_candidates():
+    """Verifies that admin viewing candidate submissions or analytics automatically finalizes
+    any abandoned/timed-out in-progress sessions so numbers and ranks are 100% accurate."""
+    student_id = "cand-abandoned-expired"
+    student_email = "abandoned@test.com"
+
+    start_res = client.post(
+        f"/api/v1/contests/zap-grand-assessment-1/start?student_id={student_id}&student_email={student_email}"
+    )
+    assert start_res.status_code == 200
+
+    # Age session in MongoDB to 3 hours ago
+    from app.db.mongodb import get_database
+    db = get_database()
+    from datetime import datetime, timezone, timedelta
+    past_time = (datetime.now(timezone.utc) - timedelta(minutes=180)).isoformat()
+    db.contest_submissions.update_one(
+        {"studentId": student_id},
+        {"$set": {"startedAt": past_time}}
+    )
+
+    # Query candidate submissions list as admin
+    headers = {"X-Admin-Email": "superadmin@zap.dev"}
+    subs_res = client.get("/api/v1/contests/zap-grand-assessment-1/submissions", headers=headers)
+    assert subs_res.status_code == 200
+    subs_data = subs_res.json()
+
+    cand = next((s for s in subs_data["submissions"] if s["studentId"] == student_id), None)
+    assert cand is not None
+    assert cand["status"] == "SUBMITTED"
+    assert cand.get("isAutoSubmitted") is True
+
+
 
 

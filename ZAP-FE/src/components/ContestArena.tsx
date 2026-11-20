@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   EyeOff,
   Lock,
+  Loader2,
 } from "lucide-react";
 import type {
   Contest,
@@ -150,20 +151,24 @@ export function ContestArena({
 
   // Timer State (in seconds)
   const totalSeconds = (contest.durationMinutes || 90) * 60;
-  const initialTimeSpent = initialSession?.timeSpentSeconds || localCache?.timeSpentSeconds || 0;
+  const startedAtMs = initialSession?.startedAt ? new Date(initialSession.startedAt).getTime() : 0;
+  const initialWallElapsed = startedAtMs > 0 && !isNaN(startedAtMs) ? Math.floor((Date.now() - startedAtMs) / 1000) : 0;
+  const initialTimeSpent = Math.max(initialSession?.timeSpentSeconds || localCache?.timeSpentSeconds || 0, initialWallElapsed);
   const [timeSpent, setTimeSpent] = useState(initialTimeSpent);
   const [secondsRemaining, setSecondsRemaining] = useState(() => Math.max(0, totalSeconds - initialTimeSpent));
+  const [isTimeUp, setIsTimeUp] = useState(() => totalSeconds - initialTimeSpent <= 0);
 
   // Modals & UI filters
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<"ALL" | "CORRECT" | "INCORRECT">("ALL");
 
-  // Ref tracking latest state for 30s interval sync to avoid stale closures
+  // Ref tracking latest state for auto-submit and interval sync to avoid stale closures
   const latestStateRef = useRef({
     mcqAnswers,
     reviewedQuestionIds,
     codingState,
+    codingSubmissions,
     proctoring,
     timeSpent,
   });
@@ -174,10 +179,11 @@ export function ContestArena({
       mcqAnswers,
       reviewedQuestionIds,
       codingState,
+      codingSubmissions,
       proctoring,
       timeSpent,
     };
-  }, [mcqAnswers, reviewedQuestionIds, codingState, proctoring, timeSpent]);
+  }, [mcqAnswers, reviewedQuestionIds, codingState, codingSubmissions, proctoring, timeSpent]);
 
   // Track whether initial full state sync has completed
   const initialSyncDoneRef = useRef(false);
@@ -201,6 +207,7 @@ export function ContestArena({
         mcqAnswers: answersToSave,
         reviewedQuestionIds: new Set(reviewedToSave),
         codingState: codingToSave,
+        codingSubmissions: latestStateRef.current.codingSubmissions,
         proctoring: proctoringToSave,
         timeSpent: timeToSave,
       };
@@ -223,6 +230,83 @@ export function ContestArena({
     [storageKey]
   );
 
+  const autoSubmitTriggeredRef = useRef(false);
+
+  // Submit Contest (Manual or Auto-Submit)
+  const handleConfirmSubmit = useCallback(
+    async (isAuto: boolean = false) => {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      if (isAuto) setIsTimeUp(true);
+
+      try {
+        const currentState = latestStateRef.current;
+        const res = await contestApi.submit(contest.id || contest.slug, {
+          studentId,
+          studentEmail,
+          studentName,
+          mcqAnswers: currentState.mcqAnswers,
+          codingSubmissions: currentState.codingSubmissions,
+          codingState: currentState.codingState,
+          proctoring: currentState.proctoring,
+          timeSpentSeconds: isAuto ? totalSeconds : currentState.timeSpent,
+          isAutoSubmitted: isAuto,
+        });
+
+        // Clear local working cache since submitted
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem(storageKey);
+          } catch {}
+        }
+
+        setSubmissionResult(res);
+        setSubmitModalOpen(false);
+
+        // Exit fullscreen mode upon completion
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen().catch(() => {});
+        }
+      } catch (err: any) {
+        if (isAuto) {
+          console.warn("Auto-submit encountered error, checking backend status:", err);
+          try {
+            const sess = await contestApi.start(contest.id || contest.slug, studentId, studentEmail, studentName);
+            if (sess?.submission) {
+              setSubmissionResult(sess.submission);
+              return;
+            }
+          } catch {}
+        } else {
+          alert(err.message || "Failed to submit contest. Please check your internet connection.");
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [contest.id, contest.slug, studentId, studentEmail, studentName, storageKey, isSubmitting, totalSeconds]
+  );
+
+  const handleAutoSubmit = useCallback(() => {
+    if (autoSubmitTriggeredRef.current || submissionResult) return;
+    autoSubmitTriggeredRef.current = true;
+    void handleConfirmSubmit(true);
+  }, [handleConfirmSubmit, submissionResult]);
+
+  const handleSyncResponse = useCallback(
+    (res: any) => {
+      if (res?.alreadySubmitted || res?.timeExpired || res?.status === "SUBMITTED") {
+        setIsTimeUp(true);
+        if (res.submission) {
+          setSubmissionResult(res.submission);
+        } else {
+          void handleAutoSubmit();
+        }
+      }
+    },
+    [handleAutoSubmit]
+  );
+
   // Initial Full Sync (runs exactly once when candidate begins assessment in fullscreen)
   useEffect(() => {
     if (submissionResult || !hasEnteredFullscreen || initialSyncDoneRef.current) return;
@@ -240,6 +324,7 @@ export function ContestArena({
         proctoring: latestStateRef.current.proctoring,
         timeSpentSeconds: latestStateRef.current.timeSpent,
       })
+      .then(handleSyncResponse)
       .catch((err) => {
         console.warn("Initial full contest sync error:", err);
       });
@@ -251,25 +336,41 @@ export function ContestArena({
     studentId,
     studentEmail,
     studentName,
+    handleSyncResponse,
   ]);
 
   // Timer countdown hook
   useEffect(() => {
-    if (submissionResult || !hasEnteredFullscreen) return;
+    if (submissionResult) return;
+
+    // If time was already up on mount, auto-submit immediately
+    if (isTimeUp || secondsRemaining <= 0) {
+      handleAutoSubmit();
+      return;
+    }
+
     const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-      setTimeSpent((prev) => prev + 1);
+      let nextRemaining: number;
+      if (startedAtMs > 0 && !isNaN(startedAtMs)) {
+        const currentElapsed = Math.floor((Date.now() - startedAtMs) / 1000);
+        setTimeSpent(Math.min(totalSeconds, currentElapsed));
+        nextRemaining = Math.max(0, totalSeconds - currentElapsed);
+      } else {
+        setTimeSpent((prev) => Math.min(totalSeconds, prev + 1));
+        nextRemaining = Math.max(0, secondsRemaining - 1);
+      }
+
+      setSecondsRemaining(nextRemaining);
+
+      if (nextRemaining <= 0) {
+        clearInterval(interval);
+        setIsTimeUp(true);
+        handleAutoSubmit();
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [submissionResult, hasEnteredFullscreen]);
+  }, [submissionResult, isTimeUp, startedAtMs, totalSeconds, handleAutoSubmit]);
 
   // Fullscreen Ground Rule & Fullscreen Exit Listener
   useEffect(() => {
@@ -511,6 +612,7 @@ export function ContestArena({
 
   // MCQ Handlers - immediately saved and synchronized to the database upon selection (delta only)
   const handleSelectOption = (questionId: string, optionId: string) => {
+    if (isTimeUp || isSubmitting) return;
     const nextAnswers = { ...mcqAnswers, [questionId]: optionId };
     setMcqAnswers(nextAnswers);
     saveLocalCache({ mcqAnswers: nextAnswers });
@@ -526,12 +628,14 @@ export function ContestArena({
           selectedOptionId: optionId,
         },
       })
+      .then(handleSyncResponse)
       .catch((err) => {
         console.warn("MCQ select delta sync error:", err);
       });
   };
 
   const handleClearOption = (questionId: string) => {
+    if (isTimeUp || isSubmitting) return;
     const nextAnswers = { ...mcqAnswers };
     delete nextAnswers[questionId];
     setMcqAnswers(nextAnswers);
@@ -548,12 +652,14 @@ export function ContestArena({
           selectedOptionId: null,
         },
       })
+      .then(handleSyncResponse)
       .catch((err) => {
         console.warn("MCQ clear delta sync error:", err);
       });
   };
 
   const handleToggleReview = (questionId: string) => {
+    if (isTimeUp || isSubmitting) return;
     const nextReviewed = new Set(reviewedQuestionIds);
     const willBeReviewed = !nextReviewed.has(questionId);
     if (willBeReviewed) {
@@ -575,6 +681,7 @@ export function ContestArena({
           isReviewed: willBeReviewed,
         },
       })
+      .then(handleSyncResponse)
       .catch((err) => {
         console.warn("Review toggle delta sync error:", err);
       });
@@ -583,6 +690,7 @@ export function ContestArena({
   // Coding Handlers
   const handleCodingCodeChange = useCallback(
     (lang: string, newCode: string) => {
+      if (isTimeUp || isSubmitting) return;
       const currentQ = codingQuestions[currentCodingIdx];
       if (!currentQ) return;
 
@@ -608,11 +716,12 @@ export function ContestArena({
         return next;
       });
     },
-    [codingQuestions, currentCodingIdx, saveLocalCache]
+    [codingQuestions, currentCodingIdx, saveLocalCache, isTimeUp, isSubmitting]
   );
 
   const handleCodingExecute = useCallback(
     (mode: SubmissionMode, language: string, code: string) => {
+      if (isTimeUp || isSubmitting) return;
       const currentQ = codingQuestions[currentCodingIdx];
       if (!currentQ) return;
 
@@ -632,6 +741,7 @@ export function ContestArena({
             status: "ATTEMPTED",
           },
         })
+        .then(handleSyncResponse)
         .catch((err) => {
           console.warn("Coding execution delta sync error:", err);
         });
@@ -644,11 +754,15 @@ export function ContestArena({
       studentId,
       studentEmail,
       studentName,
+      handleSyncResponse,
+      isTimeUp,
+      isSubmitting,
     ]
   );
 
   const handleCodingSubmissionComplete = useCallback(
     (sub: Submission) => {
+      if (isTimeUp || isSubmitting) return;
       const currentQ = codingQuestions[currentCodingIdx];
       if (!currentQ || !sub.id) return;
 
@@ -714,6 +828,7 @@ export function ContestArena({
               passPercentage: bestPct,
             },
           })
+          .then(handleSyncResponse)
           .catch((err) => {
             console.warn("Coding submission completion delta sync error:", err);
           });
@@ -730,48 +845,11 @@ export function ContestArena({
       studentId,
       studentEmail,
       studentName,
+      handleSyncResponse,
+      isTimeUp,
+      isSubmitting,
     ]
   );
-
-  // Submit Contest (Final Lock)
-  const handleConfirmSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const res = await contestApi.submit(contest.id || contest.slug, {
-        studentId,
-        studentEmail,
-        studentName,
-        mcqAnswers,
-        codingSubmissions,
-        codingState,
-        proctoring,
-        timeSpentSeconds: timeSpent,
-      });
-
-      // Clear local working cache since submitted
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.removeItem(storageKey);
-        } catch {}
-      }
-
-      setSubmissionResult(res);
-      setSubmitModalOpen(false);
-
-      // Exit fullscreen mode upon completion
-      if (document.fullscreenElement && document.exitFullscreen) {
-        await document.exitFullscreen().catch(() => {});
-      }
-    } catch (err: any) {
-      alert(err.message || "Failed to submit contest. Please check your internet connection.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAutoSubmit = useCallback(() => {
-    void handleConfirmSubmit();
-  }, [contest.id, contest.slug, studentId, studentEmail, studentName, mcqAnswers, codingSubmissions, codingState, proctoring, timeSpent]);
 
   // Coding Progress Metrics
   const codingAcceptedCount = useMemo(() => {
@@ -856,10 +934,17 @@ export function ContestArena({
           <div className="bg-gradient-to-br from-white to-blue-50/50 dark:from-[#121824] dark:to-[#1a2233] border border-[#e2e8f0] dark:border-[#1e293b] rounded-2xl p-6 sm:p-8 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-[#e2e8f0] dark:border-[#1e293b]">
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Assessment Completed & Locked (Single Attempt)</span>
-                </div>
+                {submissionResult.isAutoSubmitted ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold">
+                    <Timer className="w-3.5 h-3.5" />
+                    <span>Assessment Auto-Submitted (Time Expired)</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Assessment Completed & Locked (Single Attempt)</span>
+                  </div>
+                )}
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-white tracking-tight">
                   {contest.title}
                 </h1>
@@ -1300,14 +1385,21 @@ export function ContestArena({
             >
               Cancel & Return
             </button>
-            <button
-              type="button"
-              onClick={handleStartWithFullscreen}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 cursor-pointer transition-all"
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span>I Understand & Enter Fullscreen Assessment</span>
-            </button>
+            {isTimeUp ? (
+              <div className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Contest Time Expired · Submitting...</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartWithFullscreen}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 cursor-pointer transition-all"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span>I Understand & Enter Fullscreen Assessment</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1319,6 +1411,27 @@ export function ContestArena({
   // ---------------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-[#0f172a] dark:text-[#f8fafc] flex flex-col font-sans select-none">
+      {/* Auto-Submit Time Expired Overlay */}
+      {isTimeUp && !submissionResult && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white dark:bg-[#121824] border border-red-500/30 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl relative animate-in fade-in zoom-in-95">
+            <div className="w-14 h-14 rounded-full bg-red-500/15 text-red-500 dark:text-red-400 mx-auto flex items-center justify-center">
+              <Timer className="w-7 h-7 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-[#0f172a] dark:text-white">Contest Time Expired</h3>
+              <p className="text-xs text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+                Your allocated assessment duration has elapsed. Controls are now locked. The system is automatically evaluating and submitting your contest based on all synced answers and code.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 py-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Finalizing submission & generating scorecard...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Fullscreen Exit Lock Overlay (Content Hidden until candidate re-enters fullscreen) */}
       {!isFullscreen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-[#0b0f17]/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -1447,26 +1560,29 @@ export function ContestArena({
 
           <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-mono text-xs font-semibold shadow-xs ${
-              secondsRemaining < 600
+              isTimeUp || secondsRemaining <= 0
+                ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 font-bold"
+                : secondsRemaining < 600
                 ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse"
                 : "bg-white dark:bg-[#121824] text-[#0f172a] dark:text-[#f8fafc] border-[#e2e8f0] dark:border-[#1e293b]"
             }`}
             title="Time Remaining"
           >
             <Clock className="w-3.5 h-3.5 text-[#64748b] dark:text-[#94a3b8]" />
-            <span>{formatTimer(secondsRemaining)}</span>
+            <span>{isTimeUp || secondsRemaining <= 0 ? "00:00:00 (Time Up)" : formatTimer(secondsRemaining)}</span>
           </div>
 
           <ThemeToggle />
 
           <button
             type="button"
+            disabled={isTimeUp || isSubmitting}
             onClick={() => setSubmitModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Send className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Submit Contest</span>
-            <span className="sm:hidden">Submit</span>
+            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{isSubmitting ? "Submitting..." : "Submit Contest"}</span>
+            <span className="sm:hidden">{isSubmitting ? "..." : "Submit"}</span>
           </button>
         </div>
       </header>
@@ -1554,11 +1670,12 @@ export function ContestArena({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      disabled={isTimeUp || isSubmitting}
                       onClick={() => handleToggleReview(currentMcq.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         reviewedQuestionIds.has(currentMcq.id)
                           ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                          : "bg-white dark:bg-[#121824] text-[#64748b] dark:text-[#94a3b8] border-[#e2e8f0] dark:border-[#1e293b] hover:text-purple-600"
+                          : "bg-white dark:bg-[#121824] text-[#64748b] dark:text-[#94a3b8] border-[#e2e8f0] dark:border-[#1e293b] hover:text-purple-600 cursor-pointer"
                       }`}
                     >
                       <Flag className="w-3.5 h-3.5" />
@@ -1602,8 +1719,16 @@ export function ContestArena({
                       return (
                         <div
                           key={option.id}
-                          onClick={() => handleSelectOption(currentMcq.id, option.id)}
-                          className={`p-4 rounded-xl border text-xs sm:text-sm flex items-start gap-3.5 cursor-pointer transition-all ${
+                          onClick={() => {
+                            if (!isTimeUp && !isSubmitting) {
+                              handleSelectOption(currentMcq.id, option.id);
+                            }
+                          }}
+                          className={`p-4 rounded-xl border text-xs sm:text-sm flex items-start gap-3.5 transition-all ${
+                            isTimeUp || isSubmitting
+                              ? "opacity-60 cursor-not-allowed "
+                              : "cursor-pointer "
+                          }${
                             isSelected
                               ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/20 shadow-xs"
                               : "bg-white dark:bg-[#121824] border-[#e2e8f0] dark:border-[#1e293b] hover:border-blue-400 hover:bg-[#f8fafc] dark:hover:bg-[#1a2233]"
@@ -1637,8 +1762,9 @@ export function ContestArena({
                   <div className="flex justify-end">
                     <button
                       type="button"
+                      disabled={isTimeUp || isSubmitting}
                       onClick={() => handleClearOption(currentMcq.id)}
-                      className="text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-rose-600 dark:hover:text-rose-400 underline cursor-pointer"
+                      className="text-xs text-[#64748b] dark:text-[#94a3b8] hover:text-rose-600 dark:hover:text-rose-400 underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Clear my choice
                     </button>
@@ -1891,7 +2017,7 @@ export function ContestArena({
               </button>
               <button
                 type="button"
-                onClick={handleConfirmSubmit}
+                onClick={() => void handleConfirmSubmit(false)}
                 disabled={isSubmitting}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs disabled:opacity-50 cursor-pointer"
               >

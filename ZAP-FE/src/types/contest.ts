@@ -213,6 +213,7 @@ export interface ContestSubmitRequest {
   codingState?: Record<string, CodingProblemState>;
   proctoring?: ProctoringTelemetry;
   timeSpentSeconds: number;
+  isAutoSubmitted?: boolean;
 }
 
 export interface MCQReviewItem {
@@ -253,6 +254,7 @@ export interface ContestSubmitResponse {
   contestId: string;
   studentId: string;
   studentEmail: string;
+  status?: string;
   totalScore: number;
   maxTotalScore: number;
   mcqScore: number;
@@ -271,6 +273,7 @@ export interface ContestSubmitResponse {
   codingBreakdown: CodingReviewItem[];
   proctoring?: ProctoringTelemetry;
   codingState?: Record<string, any>;
+  isAutoSubmitted?: boolean;
 }
 
 export interface ScoreBucket {

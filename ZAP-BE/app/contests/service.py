@@ -42,6 +42,15 @@ def slugify(text: str) -> str:
     return slug.strip("-")
 
 
+def _safe_get(obj: Any, key: str, default: Any = None) -> Any:
+    """Helper to safely retrieve a property from either a dict or an object."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
 class ContestService:
     def __init__(self, db):
         self.db = db
@@ -401,6 +410,122 @@ class ContestService:
 
         return deleted
 
+    def _is_session_expired(self, contest: Contest, session_doc: Dict[str, Any]) -> bool:
+        """Checks whether a candidate's session has exceeded the contest duration or contest window."""
+        if not contest or not session_doc:
+            return False
+        if session_doc.get("status") == "SUBMITTED":
+            return True
+
+        duration_mins = contest.durationMinutes or 90
+        duration_secs = duration_mins * 60
+
+        # 1. Check timeSpentSeconds
+        if session_doc.get("timeSpentSeconds", 0) >= duration_secs:
+            return True
+
+        # 2. Check wall-clock elapsed time since startedAt
+        started_at_str = session_doc.get("startedAt")
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(started_at_str.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                if (now_dt - started_at).total_seconds() >= duration_secs:
+                    return True
+            except Exception:
+                pass
+
+        # 3. Check contest.endTime
+        if contest.endTime:
+            try:
+                end_dt = datetime.fromisoformat(contest.endTime.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                if now_dt >= end_dt:
+                    return True
+            except Exception:
+                pass
+
+        return False
+
+    def _auto_submit_session(self, contest: Contest, session_doc: Dict[str, Any]) -> ContestSubmitResponse:
+        """Automatically evaluates and submits an expired contest session using whatever synced state
+        is currently saved in the database."""
+        student_id = session_doc.get("studentId") or "student-anonymous"
+        student_email = session_doc.get("studentEmail") or ""
+        student_name = session_doc.get("studentName") or ""
+        mcq_answers = session_doc.get("mcqAnswers") or {}
+        coding_state_raw = session_doc.get("codingState") or {}
+        proctoring_raw = session_doc.get("proctoring")
+
+        coding_submissions = {}
+        coding_state_dict = {}
+        for qid, st in coding_state_raw.items():
+            if isinstance(st, dict):
+                sub_id = st.get("lastSubmissionId")
+                if sub_id:
+                    coding_submissions[qid] = sub_id
+                coding_state_dict[qid] = CodingProblemState(**st)
+            elif hasattr(st, "lastSubmissionId"):
+                if st.lastSubmissionId:
+                    coding_submissions[qid] = st.lastSubmissionId
+                coding_state_dict[qid] = st
+
+        proctoring_obj = None
+        if proctoring_raw:
+            if isinstance(proctoring_raw, dict):
+                proctoring_obj = ProctoringTelemetry(**proctoring_raw)
+            else:
+                proctoring_obj = proctoring_raw
+
+        duration_secs = (contest.durationMinutes or 90) * 60
+        time_spent = session_doc.get("timeSpentSeconds") or duration_secs
+        started_at_str = session_doc.get("startedAt")
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(started_at_str.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                time_spent = max(time_spent, int((now_dt - started_at).total_seconds()))
+            except Exception:
+                pass
+        time_spent = min(time_spent, duration_secs)
+
+        submit_req = ContestSubmitRequest(
+            studentId=student_id,
+            studentEmail=student_email,
+            studentName=student_name,
+            mcqAnswers=mcq_answers,
+            codingSubmissions=coding_submissions,
+            codingState=coding_state_dict,
+            proctoring=proctoring_obj,
+            timeSpentSeconds=time_spent,
+            isAutoSubmitted=True,
+        )
+        return self.submit_contest(contest.id, submit_req)
+
+    def _auto_finalize_expired_sessions(self, contest: Contest) -> None:
+        """Finds all IN_PROGRESS sessions for this contest that have expired,
+        and automatically finalizes them so scores, leaderboards, and analytics are up to date."""
+        coll = self._get_submissions_coll()
+        if coll is not None:
+            try:
+                cursor = coll.find({"contestId": contest.id, "status": "IN_PROGRESS"})
+                for doc in list(cursor):
+                    if self._is_session_expired(contest, doc):
+                        try:
+                            self._auto_submit_session(contest, doc)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        else:
+            for s_id, s in list(self._memory_submissions.items()):
+                if s.get("contestId") == contest.id and s.get("status") == "IN_PROGRESS":
+                    if self._is_session_expired(contest, s):
+                        try:
+                            self._auto_submit_session(contest, s)
+                        except Exception:
+                            pass
+
     def start_contest_session(
         self,
         contest_id_or_slug: str,
@@ -458,6 +583,25 @@ class ContestService:
                     codingState=clean_sub.get("codingState", {}),
                     proctoring=clean_sub.get("proctoring"),
                     timeSpentSeconds=clean_sub.get("timeSpentSeconds", 0),
+                )
+
+            # Check if this session has expired (exceeded duration or window) -> Auto submit!
+            if self._is_session_expired(contest, existing_doc):
+                auto_resp = self._auto_submit_session(contest, existing_doc)
+                clean_sub = auto_resp.model_dump()
+                return ContestStartResponse(
+                    contest=contest,
+                    mcqQuestions=clean_sub.get("mcqQuestions", existing_doc.get("mcqQuestions", [])),
+                    codingQuestions=clean_sub.get("codingQuestions", existing_doc.get("codingQuestions", [])),
+                    startedAt=existing_doc.get("startedAt", now),
+                    sessionId=existing_doc.get("id") or str(existing_doc.get("_id")),
+                    alreadySubmitted=True,
+                    submission=clean_sub,
+                    mcqAnswers=clean_sub.get("mcqAnswers", {}),
+                    reviewedQuestionIds=clean_sub.get("reviewedQuestionIds", []),
+                    codingState=clean_sub.get("codingState", {}),
+                    proctoring=clean_sub.get("proctoring"),
+                    timeSpentSeconds=clean_sub.get("timeSpentSeconds", (contest.durationMinutes or 90) * 60),
                 )
 
             # Resuming IN_PROGRESS session
@@ -798,6 +942,24 @@ class ContestService:
             mongo_update["$push"] = push_fields
 
         if coll is not None:
+            existing = coll.find_one(query)
+            if existing:
+                if existing.get("status") == "SUBMITTED":
+                    clean = dict(existing)
+                    clean.pop("_id", None)
+                    return {"ok": False, "status": "ALREADY_SUBMITTED", "alreadySubmitted": True, "submission": clean}
+                if self._is_session_expired(contest, existing):
+                    self._apply_sync_to_doc_dict(existing, sync_data, now)
+                    auto_resp = self._auto_submit_session(contest, existing)
+                    clean_sub = auto_resp.model_dump()
+                    return {
+                        "ok": True,
+                        "status": "SUBMITTED",
+                        "alreadySubmitted": True,
+                        "timeExpired": True,
+                        "submission": clean_sub,
+                    }
+
             # Only update if still IN_PROGRESS (cannot overwrite once SUBMITTED!)
             res = coll.update_one(
                 {**query, "status": "IN_PROGRESS"},
@@ -806,7 +968,9 @@ class ContestService:
             if res.matched_count == 0:
                 doc = coll.find_one(query)
                 if doc and doc.get("status") == "SUBMITTED":
-                    return {"ok": False, "status": "ALREADY_SUBMITTED"}
+                    clean = dict(doc)
+                    clean.pop("_id", None)
+                    return {"ok": False, "status": "ALREADY_SUBMITTED", "alreadySubmitted": True, "submission": clean}
                 new_id = f"csub-{uuid.uuid4().hex[:12]}"
                 new_doc = {
                     "_id": new_id,
@@ -841,8 +1005,20 @@ class ContestService:
                     (sync_data.studentEmail and s.get("studentEmail", "").lower() == sync_data.studentEmail.lower().strip())
                 ):
                     if s.get("status") == "SUBMITTED":
-                        return {"ok": False, "status": "ALREADY_SUBMITTED"}
+                        clean = dict(s)
+                        clean.pop("_id", None)
+                        return {"ok": False, "status": "ALREADY_SUBMITTED", "alreadySubmitted": True, "submission": clean}
                     self._apply_sync_to_doc_dict(s, sync_data, now)
+                    if self._is_session_expired(contest, s):
+                        auto_resp = self._auto_submit_session(contest, s)
+                        clean_sub = auto_resp.model_dump()
+                        return {
+                            "ok": True,
+                            "status": "SUBMITTED",
+                            "alreadySubmitted": True,
+                            "timeExpired": True,
+                            "submission": clean_sub,
+                        }
                     found = True
                     break
             if not found:
@@ -1013,6 +1189,37 @@ class ContestService:
             clean.pop("_id", None)
             return ContestSubmitResponse(**clean)
 
+        # Detect timeout and auto-submit flag
+        is_timeout = self._is_session_expired(contest, existing_doc) if existing_doc else False
+        is_auto = getattr(submit_data, "isAutoSubmitted", False) or is_timeout
+
+        # Merge MCQ answers: whatever was synced in DB coalesced with any incoming answers
+        existing_mcq_answers = existing_doc.get("mcqAnswers", {}) if existing_doc else {}
+        merged_mcq_answers = dict(existing_mcq_answers)
+        if submit_data.mcqAnswers:
+            merged_mcq_answers.update(submit_data.mcqAnswers)
+
+        # Merge Coding State: whatever was synced in DB coalesced with any incoming coding state
+        existing_coding_state = existing_doc.get("codingState", {}) if existing_doc else {}
+        merged_coding_state = dict(existing_coding_state)
+        if submit_data.codingState:
+            for qid, cs in submit_data.codingState.items():
+                cs_dict = cs.model_dump() if hasattr(cs, "model_dump") else (dict(cs) if isinstance(cs, dict) else cs)
+                if qid in merged_coding_state and isinstance(merged_coding_state[qid], dict):
+                    merged_coding_state[qid].update(cs_dict)
+                else:
+                    merged_coding_state[qid] = cs_dict
+
+        # Merge Coding Submissions
+        existing_coding_subs = existing_doc.get("codingSubmissions", {}) if existing_doc else {}
+        merged_coding_subs = dict(existing_coding_subs)
+        if submit_data.codingSubmissions:
+            merged_coding_subs.update(submit_data.codingSubmissions)
+        for qid, cs in merged_coding_state.items():
+            sub_id = _safe_get(cs, "lastSubmissionId")
+            if sub_id and qid not in merged_coding_subs:
+                merged_coding_subs[qid] = sub_id
+
         # 1. Resolve complete set of MCQs for this contest session
         contest_mcqs = []
         if existing_doc and existing_doc.get("mcqQuestions"):
@@ -1021,8 +1228,8 @@ class ContestService:
             contest_mcqs = self._resolve_mcq_questions(contest.mcqConfig)
 
         # Fallback if still empty but answers provided
-        if not contest_mcqs and submit_data.mcqAnswers:
-            contest_mcqs = [{"id": qid} for qid in submit_data.mcqAnswers.keys()]
+        if not contest_mcqs and merged_mcq_answers:
+            contest_mcqs = [{"id": qid} for qid in merged_mcq_answers.keys()]
 
         mcq_service = MCQService(self.db)
         mcq_breakdown: List[MCQReviewItem] = []
@@ -1046,7 +1253,7 @@ class ContestService:
             correct_opt = next((opt for opt in q_db.options if opt.isCorrect), None) if q_db else None
             correct_opt_id = correct_opt.id if correct_opt else ""
 
-            selected_opt = submit_data.mcqAnswers.get(qid)
+            selected_opt = merged_mcq_answers.get(qid)
             is_attempted = bool(selected_opt)
             is_correct = bool(is_attempted and correct_opt_id and selected_opt == correct_opt_id)
 
@@ -1081,11 +1288,10 @@ class ContestService:
 
         # Fallback if empty but submissions or state provided
         if not contest_coding:
-            coding_keys = list((submit_data.codingSubmissions or {}).keys())
-            if submit_data.codingState:
-                for k in submit_data.codingState.keys():
-                    if k not in coding_keys:
-                        coding_keys.append(k)
+            coding_keys = list(merged_coding_subs.keys())
+            for k in merged_coding_state.keys():
+                if k not in coding_keys:
+                    coding_keys.append(k)
             contest_coding = [{"id": k} for k in coding_keys]
 
         coding_breakdown: List[CodingReviewItem] = []
@@ -1104,15 +1310,8 @@ class ContestService:
             title = q_db.title if q_db else cq.get("title", qid)
             diff = getattr(q_db.difficulty, "value", str(q_db.difficulty)) if q_db else cq.get("difficulty", "MEDIUM")
 
-            c_state = None
-            if submit_data.codingState and qid in submit_data.codingState:
-                c_state = submit_data.codingState[qid]
-
-            sub_id = None
-            if submit_data.codingSubmissions and qid in submit_data.codingSubmissions:
-                sub_id = submit_data.codingSubmissions[qid]
-            elif c_state and getattr(c_state, "lastSubmissionId", None):
-                sub_id = getattr(c_state, "lastSubmissionId")
+            c_state = merged_coding_state.get(qid)
+            sub_id = merged_coding_subs.get(qid) or _safe_get(c_state, "lastSubmissionId")
 
             passed_tests = 0
             total_tests = 0
@@ -1126,17 +1325,45 @@ class ContestService:
                         total_tests = getattr(sub_doc.tests, "total", 0)
                         passed_tests = getattr(sub_doc.tests, "passed", 0)
                     verdict = getattr(sub_doc.verdict, "value", str(sub_doc.verdict)) if sub_doc.verdict else None
+            else:
+                # Query submissions collection if candidate submitted during contest
+                try:
+                    user_subs = sub_service.list_submissions(
+                        user_id=submit_data.studentId,
+                        question_id=qid,
+                        contest_id=contest.id,
+                        limit=5
+                    )
+                    if not user_subs and submit_data.studentEmail:
+                        user_subs = sub_service.list_submissions(
+                            user_id=submit_data.studentEmail,
+                            question_id=qid,
+                            contest_id=contest.id,
+                            limit=5
+                        )
+                    if user_subs:
+                        best_sub = next(
+                            (s for s in user_subs if str(getattr(s, "verdict", "")).upper() == "ACCEPTED"),
+                            user_subs[0]
+                        )
+                        sub_id = getattr(best_sub, "id", None) or getattr(best_sub, "submissionId", None)
+                        if getattr(best_sub, "tests", None):
+                            total_tests = getattr(best_sub.tests, "total", 0)
+                            passed_tests = getattr(best_sub.tests, "passed", 0)
+                        verdict = str(getattr(best_sub, "verdict", "")) if getattr(best_sub, "verdict", None) else None
+                except Exception:
+                    pass
 
             # Fallback to c_state telemetry
             if c_state:
-                if total_tests == 0 and getattr(c_state, "totalTestCases", 0):
-                    total_tests = getattr(c_state, "totalTestCases", 0)
-                    passed_tests = getattr(c_state, "passedTestCases", 0)
+                if total_tests == 0 and _safe_get(c_state, "totalTestCases", 0):
+                    total_tests = int(_safe_get(c_state, "totalTestCases", 0))
+                    passed_tests = int(_safe_get(c_state, "passedTestCases", 0))
                 if not verdict:
-                    verdict = getattr(c_state, "bestVerdict", None) or getattr(c_state, "status", None)
+                    verdict = _safe_get(c_state, "bestVerdict", None) or _safe_get(c_state, "status", None)
 
             # Determine whether question was attempted
-            is_attempted = bool(sub_id) or (c_state and getattr(c_state, "status", "UNATTEMPTED") not in ["UNATTEMPTED", ""])
+            is_attempted = bool(sub_id) or (_safe_get(c_state, "status", "UNATTEMPTED") not in ["UNATTEMPTED", "", None])
 
             if not is_attempted:
                 # Unattempted: 0% / 0 marks
@@ -1158,8 +1385,8 @@ class ContestService:
                         status_label = "PARTIAL"
                     else:
                         status_label = verdict or "FAILED"
-                elif getattr(c_state, "passPercentage", None) is not None and getattr(c_state, "passPercentage", 0) > 0:
-                    score_pct = float(getattr(c_state, "passPercentage"))
+                elif _safe_get(c_state, "passPercentage", None) is not None and float(_safe_get(c_state, "passPercentage", 0)) > 0:
+                    score_pct = float(_safe_get(c_state, "passPercentage"))
                     status_label = "ACCEPTED" if score_pct == 100.0 else "PARTIAL"
                 else:
                     # Attempted with errors or 0 test cases passed
@@ -1199,11 +1426,39 @@ class ContestService:
         sub_id = (existing_doc.get("id") or str(existing_doc.get("_id"))) if existing_doc else f"csub-{uuid.uuid4().hex[:12]}"
         now = datetime.now(timezone.utc).isoformat()
 
+        # Resolve accurate timeSpentSeconds: never exceed duration limit, but reflect elapsed
+        time_spent = submit_data.timeSpentSeconds or (existing_doc.get("timeSpentSeconds", 0) if existing_doc else 0)
+        if existing_doc and existing_doc.get("startedAt"):
+            try:
+                st_dt = datetime.fromisoformat(existing_doc["startedAt"].replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                elapsed_sec = int((now_dt - st_dt).total_seconds())
+                time_spent = max(time_spent, elapsed_sec)
+            except Exception:
+                pass
+        max_duration_sec = (contest.durationMinutes or 90) * 60
+        time_spent = min(time_spent, max_duration_sec)
+
+        # Resolve proctoring telemetry
+        proctoring_val = submit_data.proctoring
+        if not proctoring_val and existing_doc and existing_doc.get("proctoring"):
+            if isinstance(existing_doc["proctoring"], dict):
+                proctoring_val = ProctoringTelemetry(**existing_doc["proctoring"])
+            else:
+                proctoring_val = existing_doc["proctoring"]
+
+        coding_state_to_save = {}
+        for k, v in merged_coding_state.items():
+            if hasattr(v, "model_dump"):
+                coding_state_to_save[k] = v.model_dump()
+            elif isinstance(v, dict):
+                coding_state_to_save[k] = v
+
         response = ContestSubmitResponse(
             submissionId=sub_id,
             contestId=contest.id,
             studentId=submit_data.studentId,
-            studentEmail=submit_data.studentEmail,
+            studentEmail=submit_data.studentEmail or (existing_doc.get("studentEmail", "") if existing_doc else ""),
             totalScore=overall_percentage,
             maxTotalScore=100.0,
             mcqScore=mcq_percentage,
@@ -1216,12 +1471,13 @@ class ContestService:
             codingProblemsAttempted=coding_attempted,
             codingTotalCount=coding_total_count,
             percentage=overall_percentage,
-            timeSpentSeconds=submit_data.timeSpentSeconds,
+            timeSpentSeconds=time_spent,
             submittedAt=now,
             mcqBreakdown=mcq_breakdown,
             codingBreakdown=coding_breakdown,
-            proctoring=submit_data.proctoring,
-            codingState={k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in (submit_data.codingState or {}).items()},
+            proctoring=proctoring_val,
+            codingState=coding_state_to_save,
+            isAutoSubmitted=is_auto,
         )
 
         # Persist submission in DB as SUBMITTED (locked)
@@ -1229,6 +1485,16 @@ class ContestService:
         doc["_id"] = sub_id
         doc["status"] = "SUBMITTED"
         doc["updatedAt"] = now
+        doc["isAutoSubmitted"] = is_auto
+        doc["mcqAnswers"] = merged_mcq_answers
+        doc["codingSubmissions"] = merged_coding_subs
+        if existing_doc:
+            if "mcqQuestions" in existing_doc and "mcqQuestions" not in doc:
+                doc["mcqQuestions"] = existing_doc["mcqQuestions"]
+            if "codingQuestions" in existing_doc and "codingQuestions" not in doc:
+                doc["codingQuestions"] = existing_doc["codingQuestions"]
+            if "startedAt" in existing_doc:
+                doc["startedAt"] = existing_doc["startedAt"]
 
         if coll is not None:
             coll.update_one(
@@ -1256,6 +1522,9 @@ class ContestService:
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        # Auto-finalize any sessions that have exceeded duration
+        self._auto_finalize_expired_sessions(contest)
 
         coll = self._get_submissions_coll()
         page_num = max(1, page or 1)
@@ -1300,6 +1569,7 @@ class ContestService:
                 "startedAt": 1,
                 "submittedAt": 1,
                 "updatedAt": 1,
+                "isAutoSubmitted": 1,
                 "totalScore": 1,
                 "maxTotalScore": 1,
                 "percentage": 1,
@@ -1329,6 +1599,7 @@ class ContestService:
                     "studentName": s.get("studentName"),
                     "studentEmail": s.get("studentEmail"),
                     "status": s.get("status"),
+                    "isAutoSubmitted": s.get("isAutoSubmitted", False),
                     "startedAt": s.get("startedAt"),
                     "submittedAt": s.get("submittedAt"),
                     "updatedAt": s.get("updatedAt"),
@@ -1463,6 +1734,9 @@ class ContestService:
         contest = self.get_contest(contest_id_or_slug)
         if not contest:
             raise ValueError(f"Contest '{contest_id_or_slug}' not found")
+
+        # Auto-finalize any sessions that have exceeded duration
+        self._auto_finalize_expired_sessions(contest)
 
         coll = self._get_submissions_coll()
         page_num = max(1, page or 1)

@@ -198,13 +198,14 @@ class ContestSessionSyncRequest(BaseModel):
 
 class ContestSubmitRequest(BaseModel):
     studentId: str
-    studentEmail: str
+    studentEmail: Optional[str] = ""
     studentName: Optional[str] = None
     mcqAnswers: Dict[str, str] = Field(default_factory=dict)  # questionId -> selectedOptionId
     codingSubmissions: Dict[str, str] = Field(default_factory=dict)  # questionId -> submissionId
     codingState: Optional[Dict[str, CodingProblemState]] = None
     proctoring: Optional[ProctoringTelemetry] = None
     timeSpentSeconds: int = 0
+    isAutoSubmitted: Optional[bool] = False
 
 
 class MCQReviewItem(BaseModel):
@@ -238,6 +239,7 @@ class ContestSubmitResponse(BaseModel):
     contestId: str
     studentId: str
     studentEmail: str
+    status: str = "SUBMITTED"
     totalScore: float = 0.0
     maxTotalScore: float = 100.0
     mcqScore: float = 0.0
@@ -256,6 +258,7 @@ class ContestSubmitResponse(BaseModel):
     codingBreakdown: List[CodingReviewItem]
     proctoring: Optional[ProctoringTelemetry] = None
     codingState: Optional[Dict[str, Any]] = None
+    isAutoSubmitted: bool = False
 
 
 class ScoreBucket(BaseModel):
