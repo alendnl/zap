@@ -153,6 +153,17 @@
   3. **`zap-submissions` (Cloud Tasks)**: Increase `max-dispatches-per-second` from 4.0/s to 10.0/s, `max-concurrent-dispatches` from 20 to 40, and set `max-attempts` to 3.
 - **Consequences**: Concurrent execution capacity expanded from 40 to 112+ parallel runs, queue wait time bottlenecks eliminated, memory exhaustion eliminated on the API gateway, and warm instances prevent cold-start delays at contest onset.
 
+### ADR-015: Dual Scaling Profiles (Normal Scale-to-Zero vs High-Concurrency Contest)
+- **Status**: Accepted
+- **Context**: Keeping pre-warmed high-capacity instances (4 CPU, 4 GiB, min 3 instances) running permanently incurs unnecessary cloud compute charges during non-contest days when traffic is low or intermittent.
+- **Decision**:
+  1. Create explicit, version-controlled configuration profiles:
+     - `infra/profiles/normal.env`: Scale-to-zero (`min=0`, `max=5`), 1 vCPU / 1 GiB for `zap-api`, 2 vCPU / 2 GiB for `zap-executor`, Cloud Tasks 5 dispatches/sec. $0 idle cost.
+     - `infra/profiles/contest.env`: Pre-warmed (`min=2`, `max=15` for API; `min=3`, `max=25` [capped at 14] for Executor), 2 vCPU / 2 GiB for API, 4 vCPU / 4 GiB for Executor, Cloud Tasks 10 dispatches/sec (max 40 concurrent).
+  2. Implement an automated CLI profile switcher script `infra/scripts/switch-scaling.sh [normal|contest]` that immediately applies settings to GCP Cloud Run and Cloud Tasks via `gcloud` with regional quota fallback handling.
+  3. Integrate profile sourcing into `.github/workflows/ci.yml` supporting comment/uncomment toggle (`SCALING_PROFILE: normal`), manual UI dispatch selection (`workflow_dispatch`), and path filtering on `infra/**`.
+- **Consequences**: Zero idle cloud cost on regular days while allowing instant 1-click or 1-command ramp-up to peak contest scale whenever an assessment is scheduled.
+
 
 
 

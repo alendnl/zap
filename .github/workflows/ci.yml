@@ -35,6 +35,15 @@ on:
           - all
           - backend
           - frontend
+      scaling_profile:
+        description: 'Scaling profile to deploy (default = read from ci.yml, normal = scale-to-zero, contest = pre-warmed)'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - normal
+          - contest
 
 permissions:
   contents: read
@@ -58,6 +67,7 @@ jobs:
               - 'pytest.ini'
               - '.github/workflows/**'
               - '.env*'
+              - 'infra/**'
             frontend:
               - 'ZAP-FE/**'
               - 'package.json'
@@ -180,6 +190,17 @@ jobs:
       DEPLOYER_SA: zap-github-deployer@zap-platform-prod.iam.gserviceaccount.com
       IMAGE_TAG: ${{ github.sha }}
       EXECUTOR_URL: https://zap-executor-394729648143.us-central1.run.app
+      # ========================================================================
+      # SCALING PROFILE CONFIGURATION
+      # ========================================================================
+      # Choose between normal (scale-to-zero) and contest (pre-warmed high capacity):
+      # Option 1: Toggle/uncomment one of the two lines below:
+      SCALING_PROFILE: normal
+      # SCALING_PROFILE: contest
+      # Option 2: When triggering manually via workflow_dispatch, select from the dropdown.
+      # Option 3: For immediate live switching without full CI deploy, run:
+      #           ./infra/scripts/switch-scaling.sh [normal|contest]
+      # ========================================================================
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
@@ -212,12 +233,20 @@ jobs:
             --project="$PROJECT_ID" \
             --member="serviceAccount:${TASK_CALLER_SA}" \
             --role=roles/iam.serviceAccountTokenCreator --quiet &
+          # Load scaling profile configuration (infra/profiles/normal.env or contest.env)
+          CHOSEN_PROFILE="${SCALING_PROFILE}"
+          if [ -n "${{ inputs.scaling_profile }}" ] && [ "${{ inputs.scaling_profile }}" != "default" ]; then
+            CHOSEN_PROFILE="${{ inputs.scaling_profile }}"
+          fi
+          source "infra/profiles/${CHOSEN_PROFILE}.env"
+          echo "Configuring Cloud Tasks with profile: [${PROFILE_NAME^^}] (rate=${TASKS_MAX_RATE}/s, max=${TASKS_MAX_CONCURRENT})"
+
           for queue in zap-submissions; do
             gcloud tasks queues update "$queue" \
               --project="$PROJECT_ID" --location="$REGION" \
-              --max-dispatches-per-second=10 \
-              --max-concurrent-dispatches=40 \
-              --max-attempts=3 --quiet || true
+              --max-dispatches-per-second="$TASKS_MAX_RATE" \
+              --max-concurrent-dispatches="$TASKS_MAX_CONCURRENT" \
+              --max-attempts="$TASKS_MAX_ATTEMPTS" --quiet || true
             gcloud tasks queues add-iam-policy-binding "$queue" \
               --project="$PROJECT_ID" --location="$REGION" \
               --member="serviceAccount:${API_RUNTIME_SA}" \
@@ -262,24 +291,43 @@ jobs:
       - name: Deploy services in parallel
         run: |
           set -euo pipefail
-          echo "Deploying executor and API Cloud Run services in parallel..."
+          # Load scaling profile configuration (infra/profiles/normal.env or contest.env)
+          CHOSEN_PROFILE="${SCALING_PROFILE}"
+          if [ -n "${{ inputs.scaling_profile }}" ] && [ "${{ inputs.scaling_profile }}" != "default" ]; then
+            CHOSEN_PROFILE="${{ inputs.scaling_profile }}"
+          fi
+          source "infra/profiles/${CHOSEN_PROFILE}.env"
+          echo "Deploying Cloud Run services with profile: [${PROFILE_NAME^^}]"
+          echo "  API: CPU=${API_CPU}, Memory=${API_MEMORY}, min=${API_MIN_INSTANCES}, max=${API_MAX_INSTANCES}, concurrency=${API_CONCURRENCY}"
+          echo "  Executor: CPU=${EXECUTOR_CPU}, Memory=${EXECUTOR_MEMORY}, min=${EXECUTOR_MIN_INSTANCES}, max=${EXECUTOR_MAX_INSTANCES}, concurrency=${EXECUTOR_CONCURRENCY}"
+
+          # --------------------------------------------------------------------
+          # MANUAL COMMENT / UNCOMMENT ALTERNATIVE:
+          # If you prefer hardcoding instead of infra/profiles/${SCALING_PROFILE}.env,
+          # you can set the flags directly on gcloud run deploy below.
+          # --------------------------------------------------------------------
 
           (
             gcloud run deploy "$EXECUTOR_SERVICE" \
               --project="$PROJECT_ID" --region="$REGION" \
               --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
               --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
-              --min=3 --max=25 --min-instances=3 --max-instances=25 --cpu=4 --memory=4Gi --concurrency=8 --scaling-concurrency-target=0.40 --cpu-boost --timeout=120 \
+              --min="$EXECUTOR_MIN_INSTANCES" --max="$EXECUTOR_MAX_INSTANCES" \
+              --min-instances="$EXECUTOR_MIN_INSTANCES" --max-instances="$EXECUTOR_MAX_INSTANCES" \
+              --cpu="$EXECUTOR_CPU" --memory="$EXECUTOR_MEMORY" --concurrency="$EXECUTOR_CONCURRENCY" \
+              --scaling-concurrency-target="$EXECUTOR_CONCURRENCY_TARGET" --cpu-boost --timeout="$EXECUTOR_TIMEOUT" \
               --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
               --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
               --quiet 2>/tmp/deploy_exec.err || {
                 cat /tmp/deploy_exec.err
-                echo "Notice: Deployment with 25 instances at 4 CPU exceeds regional quota (56 vCPUs). Deploying with maximum permitted 14 instances (14 * 4 CPU = 56 vCPUs)..."
+                echo "Notice: Deployment with ${EXECUTOR_MAX_INSTANCES} instances at ${EXECUTOR_CPU} CPU exceeds regional quota (56 vCPUs). Deploying with maximum permitted 14 instances (14 * 4 CPU = 56 vCPUs)..."
                 gcloud run deploy "$EXECUTOR_SERVICE" \
                   --project="$PROJECT_ID" --region="$REGION" \
                   --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-executor:${IMAGE_TAG}" \
                   --no-allow-unauthenticated --service-account="$EXECUTOR_RUNTIME_SA" \
-                  --min=3 --max=14 --min-instances=3 --max-instances=14 --cpu=4 --memory=4Gi --concurrency=8 --scaling-concurrency-target=0.40 --cpu-boost --timeout=120 \
+                  --min="$EXECUTOR_MIN_INSTANCES" --max=14 --min-instances="$EXECUTOR_MIN_INSTANCES" --max-instances=14 \
+                  --cpu="$EXECUTOR_CPU" --memory="$EXECUTOR_MEMORY" --concurrency="$EXECUTOR_CONCURRENCY" \
+                  --scaling-concurrency-target="$EXECUTOR_CONCURRENCY_TARGET" --cpu-boost --timeout="$EXECUTOR_TIMEOUT" \
                   --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
                   --update-env-vars="ENVIRONMENT=production,DEBUG=false,GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},EXECUTOR_TASK_URL=${EXECUTOR_URL}/internal/tasks/execute,TASKS_OIDC_AUDIENCE=${EXECUTOR_URL},TASKS_SERVICE_ACCOUNT=${TASK_CALLER_SA},DEFAULT_ENVIRONMENT=production,QA_DATABASE_NAME=zap_platform_lower,QA_QUEUE_NAME=zap-submissions,PRODUCTION_DATABASE_NAME=zap_platform_prod,PRODUCTION_QUEUE_NAME=zap-submissions" \
                   --quiet
@@ -291,7 +339,10 @@ jobs:
             --project="$PROJECT_ID" --region="$REGION" \
             --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/zap-be-api:${IMAGE_TAG}" \
             --allow-unauthenticated --service-account="$API_RUNTIME_SA" \
-            --min=2 --max=15 --min-instances=2 --max-instances=15 --cpu=2 --memory=2Gi --concurrency=40 --scaling-concurrency-target=0.80 --cpu-boost \
+            --min="$API_MIN_INSTANCES" --max="$API_MAX_INSTANCES" \
+            --min-instances="$API_MIN_INSTANCES" --max-instances="$API_MAX_INSTANCES" \
+            --cpu="$API_CPU" --memory="$API_MEMORY" --concurrency="$API_CONCURRENCY" \
+            --scaling-concurrency-target="$API_CONCURRENCY_TARGET" --cpu-boost \
             --update-secrets="MONGODB_URI=${MONGODB_SECRET}:latest" \
             --update-env-vars='^~^ENVIRONMENT=production~DEBUG=false~GCP_PROJECT_ID=zap-platform-prod~GCP_LOCATION=us-central1~EXECUTOR_TASK_URL=https://zap-executor-394729648143.us-central1.run.app/internal/tasks/execute~TASKS_OIDC_AUDIENCE=https://zap-executor-394729648143.us-central1.run.app~TASKS_SERVICE_ACCOUNT=zap-tasks-invoker@zap-platform-prod.iam.gserviceaccount.com~DEFAULT_ENVIRONMENT=production~QA_DATABASE_NAME=zap_platform_lower~QA_QUEUE_NAME=zap-submissions~PRODUCTION_DATABASE_NAME=zap_platform_prod~PRODUCTION_QUEUE_NAME=zap-submissions~CORS_ORIGINS=["http://localhost:3000","https://codezap-arena.vercel.app","https://www.codezap-arena.vercel.app","https://run.codezap.in","https://codezap.in","https://www.codezap.in"]~CORS_ORIGIN_REGEX=https://([a-z0-9-]+[.])?codezap[.]in|https://codezap-arena-[a-z0-9-]+-alendnl[.]vercel[.]app' \
             --quiet &

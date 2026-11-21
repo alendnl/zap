@@ -109,24 +109,28 @@ gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.serv
 
 ---
 
-## 6. Scaling & Resource Modification
+## 6. Scaling Profiles & Resource Modification
 
-Use `zap-ops gcp scale` or `gcloud run services update` to modify capacity:
+ZAP defines two scaling profiles:
+- **`normal`** (`infra/profiles/normal.env`): Scale-to-zero when idle, 1 vCPU / 1 GiB for API (`min=0, max=5`), 2 vCPU / 2 GiB for Executor (`min=0, max=5`).
+- **`contest`** (`infra/profiles/contest.env`): Pre-warmed high capacity, 2 vCPU / 2 GiB for API (`min=2, max=15`), 4 vCPU / 4 GiB for Executor (`min=3, max=25` [capped at 14 by regional quota]), Cloud Tasks 10 dispatches/sec (max 40 concurrent).
 
+### Switching Scaling Profiles via Script
+```bash
+# Switch to normal day-to-day mode (zero idle cost):
+./infra/scripts/switch-scaling.sh normal
+
+# Switch to high-capacity contest mode:
+./infra/scripts/switch-scaling.sh contest
+```
+
+### Manual Scaling via `zap-ops` or `gcloud`
 ```bash
 # Scale zap-executor instances during high load or contest events:
 .agents/skills/project-operations/scripts/zap-ops gcp scale --service executor --min-instances 2 --max-instances 20
 
 # Increase memory on zap-api:
 .agents/skills/project-operations/scripts/zap-ops gcp scale --service api --memory 1Gi
-
-# Native gcloud command equivalent:
-gcloud run services update zap-executor \
-  --project=zap-platform-prod \
-  --region=us-central1 \
-  --min-instances=2 \
-  --max-instances=20 \
-  --quiet
 ```
 
 ---

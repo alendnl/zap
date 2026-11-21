@@ -59,21 +59,52 @@ flowchart LR
 | **Task Caller** | `zap-tasks-invoker@...` | Attached to Cloud Tasks HTTP tasks. Granted `roles/run.invoker` to invoke `zap-executor`. |
 | **Executor Runtime** | `zap-executor-runtime@...` | Runs `zap-executor` with sandboxed non-root user `runner` (uid 2000). |
 
-### 2.3 Cloud Run Services
-- **`zap-api`**:
-  - URL: `https://zap-api-394729648143.us-central1.run.app`
-  - Access: Public (`--allow-unauthenticated`).
-  - Sizing: CPU 2, Memory 2Gi, Concurrency 40, Target Concurrency 80% (`--scaling-concurrency-target=0.80`), CPU Boost enabled, Scale `2 → 15`.
-- **`zap-executor`**:
-  - URL: `https://zap-executor-394729648143.us-central1.run.app`
-  - Access: Private (`--no-allow-unauthenticated`). Only invocable by `zap-tasks-invoker`.
-  - Sizing: CPU 4, Memory 4Gi, Concurrency 8 (handles up to 8 concurrent submissions per container instance), Target Concurrency 40% (`--scaling-concurrency-target=0.40`), CPU Boost enabled, Scale `3 → 25` (capped at 14 until regional 56 vCPU quota is increased in GCP console), Request timeout 120s.
+### 2.3 Cloud Run Services & Scaling Profiles
+
+ZAP uses a dual-profile configuration system (`infra/profiles/normal.env` and `infra/profiles/contest.env`) to easily toggle between cost-optimized day-to-day operations and high-concurrency live contests.
+
+| Dimension | Normal Profile (`normal.env`) | Contest Profile (`contest.env`) |
+|---|---|---|
+| **Use Case** | Everyday student practice, admin tasks, minimal cloud spend | Live college coding contests (150+ concurrent candidates) |
+| **Idle Cost** | **$0** (scales to 0 instances when idle) | Modest baseline for warm instances (2 API, 3 Executor) |
+| **`zap-api` CPU & RAM** | 1 vCPU, 1 GiB RAM | 2 vCPU, 2 GiB RAM |
+| **`zap-api` Scaling** | Min 0 → Max 5 instances | Min 2 → Max 15 instances |
+| **`zap-api` Concurrency** | 40 (target: 80%) | 40 (target: 80%) |
+| **`zap-executor` CPU & RAM** | 2 vCPU, 2 GiB RAM | 4 vCPU, 4 GiB RAM |
+| **`zap-executor` Scaling** | Min 0 → Max 5 instances | Min 3 → Max 25 instances (capped at 14 by GCP 56 vCPU regional quota) |
+| **`zap-executor` Concurrency** | 4 concurrent test runs | 8 concurrent test runs |
+| **`zap-submissions` Queue** | 5.0 dispatches/sec, max 10 concurrent | 10.0 dispatches/sec, max 40 concurrent |
+
+- **`zap-api` Endpoint**: `https://zap-api-394729648143.us-central1.run.app` (Public, `--allow-unauthenticated`).
+- **`zap-executor` Endpoint**: `https://zap-executor-394729648143.us-central1.run.app` (Private, `--no-allow-unauthenticated`, invocable only by `zap-tasks-invoker`).
 
 ### 2.4 Cloud Tasks Queues
-- **Production Queue**: `zap-submissions` (Max 10.0 dispatches/sec, max 40 concurrent dispatches, max 3 attempts, min backoff 3s, max backoff 60s)
+- **Production Queue**: `zap-submissions` (configured dynamically via scaling profile, max 3 attempts, min backoff 3s, max backoff 60s)
 - **QA Queue**: `zap-submissions-lower` (Max 4.0 dispatches/sec, max 10 concurrent dispatches, min backoff 3s, max backoff 60s)
 
-### 2.5 Secret Management
+### 2.5 Profile Switching Mechanism
+You can switch between Normal and Contest profiles in three ways:
+
+1. **Direct CLI Script (Instant, No CI Deploy Needed)**:
+   ```bash
+   # Switch to normal day-to-day mode (scale down to zero):
+   ./infra/scripts/switch-scaling.sh normal
+
+   # Switch to contest mode (pre-warmed, 4 CPU / 4 GiB):
+   ./infra/scripts/switch-scaling.sh contest
+   ```
+
+2. **GitHub Actions Workflow Comment / Uncomment**:
+   In `.github/workflows/ci.yml` under `deploy.env`:
+   ```yaml
+   SCALING_PROFILE: normal    # Scale-to-zero ($0 idle cost)
+   # SCALING_PROFILE: contest # Pre-warmed high capacity
+   ```
+
+3. **GitHub Actions Manual Dispatch**:
+   When triggering the **ZAP CI** workflow manually from the GitHub Actions UI (`workflow_dispatch`), select `scaling_profile` from the dropdown (`normal` or `contest`).
+
+### 2.6 Secret Management
 - Secret `zap-mongodb-uri` in GCP Secret Manager stores the MongoDB Atlas cluster connection string.
 - Bound at deployment time via `--update-secrets="MONGODB_URI=zap-mongodb-uri:latest"`.
 
