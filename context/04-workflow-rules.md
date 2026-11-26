@@ -103,3 +103,6 @@ All checks must pass with zero regressions and zero broken imports.
 - If verification fails, inspect the stack trace and adjust code.
 - **Never loop indefinitely**: after **2 to 3 failed attempts**, stop immediately. Provide the operator with diagnostic findings, root cause analysis, and options.
 
+### Git & GitHub Authentication (HTTPS Token Only)
+- Always perform remote Git operations (`push`, `pull`, `fetch`, `ls-remote`) and `gh` CLI actions over **HTTPS** (`https://github.com/alendnl/zap.git`) using `GIT_TOKEN` from `.env` via `.agents/skills/project-operations/scripts/zap-ops git <push|pull|fetch|exec>` (never SSH `git@github.com*`, OS Keychain work accounts, or plaintext tokens in `.git/config`).
+

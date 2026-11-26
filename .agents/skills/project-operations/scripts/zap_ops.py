@@ -42,6 +42,7 @@ import csv
 import json
 import time
 import shutil
+import tempfile
 import argparse
 import subprocess
 from pathlib import Path
@@ -139,6 +140,46 @@ def get_gh_env() -> Dict[str, str]:
         if git_token:
             env["GH_TOKEN"] = git_token
     return env
+
+
+def run_authenticated_git(git_args: List[str]) -> int:
+    """Run a git command over HTTPS using GIT_TOKEN from .env (never SSH or OS keychain)."""
+    git_bin = shutil.which("git") or "git"
+    git_token = (os.getenv("GIT_TOKEN") or "").strip().strip("'\"")
+    if not git_token:
+        print(c_err("GIT_TOKEN not found in .env; cannot authenticate HTTPS git operation."))
+        return 1
+
+    askpass_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", prefix="zap_askpass_", delete=False) as tf:
+            tf.write(
+                "#!/bin/sh\n"
+                "case \"$1\" in\n"
+                "  *Username*) echo \"x-access-token\" ;;\n"
+                "  *) echo \"$GIT_TOKEN\" ;;\n"
+                "esac\n"
+            )
+            askpass_path = tf.name
+        os.chmod(askpass_path, 0o700)
+
+        env = os.environ.copy()
+        env["GIT_TOKEN"] = git_token
+        env["GIT_ASKPASS"] = askpass_path
+        env["GIT_TERMINAL_PROMPT"] = "0"
+
+        cmd = [
+            git_bin,
+            "-c", "credential.helper=",
+            "-c", "url.https://github.com/.insteadOf=git@github.com-alendnl:",
+            "-c", "url.https://github.com/.insteadOf=git@github.com:",
+            *git_args,
+        ]
+        res = subprocess.run(cmd, env=env)
+        return res.returncode
+    finally:
+        if askpass_path and os.path.exists(askpass_path):
+            os.unlink(askpass_path)
 
 def serialize_mongo_doc(doc: Any) -> Any:
     """Helper to convert MongoDB ObjectIds, datetimes, and nested values for JSON serialization."""
@@ -1139,6 +1180,28 @@ def cmd_git_recent(args: argparse.Namespace):
     subprocess.run(cmd)
     print("\n")
 
+def cmd_git_push(args: argparse.Namespace):
+    """Push commits to remote over HTTPS using GIT_TOKEN from .env."""
+    git_args = ["push"] + (args.git_args or ["origin", "main"])
+    sys.exit(run_authenticated_git(git_args))
+
+def cmd_git_pull(args: argparse.Namespace):
+    """Pull from remote over HTTPS using GIT_TOKEN from .env."""
+    git_args = ["pull"] + (args.git_args or [])
+    sys.exit(run_authenticated_git(git_args))
+
+def cmd_git_fetch(args: argparse.Namespace):
+    """Fetch from remote over HTTPS using GIT_TOKEN from .env."""
+    git_args = ["fetch"] + (args.git_args or [])
+    sys.exit(run_authenticated_git(git_args))
+
+def cmd_git_exec(args: argparse.Namespace):
+    """Execute an arbitrary git command over HTTPS using GIT_TOKEN from .env."""
+    if not args.subargs:
+        print(c_err("Provide git arguments after 'git exec', e.g. 'zap-ops git exec ls-remote origin'."))
+        sys.exit(1)
+    sys.exit(run_authenticated_git(args.subargs))
+
 
 # ==============================================================================
 # MAIN CLI DISPATCHER
@@ -1374,6 +1437,22 @@ def main():
     git_rec = git_sub.add_parser("recent", help="List recent commits")
     git_rec.add_argument("--limit", "-n", type=int, default=5, help="Number of commits")
     git_rec.set_defaults(func=cmd_git_recent)
+
+    git_push = git_sub.add_parser("push", help="Push over HTTPS using GIT_TOKEN from .env")
+    git_push.add_argument("git_args", nargs=argparse.REMAINDER, help="Arguments passed to git push (default: origin main)")
+    git_push.set_defaults(func=cmd_git_push)
+
+    git_pull = git_sub.add_parser("pull", help="Pull over HTTPS using GIT_TOKEN from .env")
+    git_pull.add_argument("git_args", nargs=argparse.REMAINDER, help="Arguments passed to git pull")
+    git_pull.set_defaults(func=cmd_git_pull)
+
+    git_fetch = git_sub.add_parser("fetch", help="Fetch over HTTPS using GIT_TOKEN from .env")
+    git_fetch.add_argument("git_args", nargs=argparse.REMAINDER, help="Arguments passed to git fetch")
+    git_fetch.set_defaults(func=cmd_git_fetch)
+
+    git_exec = git_sub.add_parser("exec", help="Run arbitrary git command authenticated with GIT_TOKEN over HTTPS")
+    git_exec.add_argument("subargs", nargs=argparse.REMAINDER, help="Arguments passed to git")
+    git_exec.set_defaults(func=cmd_git_exec)
 
     args = parser.parse_args()
     if not hasattr(args, "func"):

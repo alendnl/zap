@@ -8,8 +8,10 @@ This reference documents Git workflows, GitHub CLI integration, CI/CD pipeline m
 
 - **Repository**: `alendnl/zap`
 - **Default Branch**: `main`
-- **Git Remote**: `git@github.com-alendnl:alendnl/zap.git`
-- **GitHub Token Handling**: Automatically loaded from `GIT_TOKEN` in `.env` and injected into `GH_TOKEN` / `GITHUB_TOKEN` environment variables by `zap-ops`.
+- **Git Remote (HTTPS Only)**: `https://github.com/alendnl/zap.git` — never use SSH (`git@github.com*`) or cached macOS Keychain work credentials in this repo.
+- **Git & GitHub Token Handling**: Automatically loaded from `GIT_TOKEN` in `.env` by `zap-ops`:
+  - `zap-ops github ...` injects `GIT_TOKEN` into `GH_TOKEN`.
+  - `zap-ops git <push|pull|fetch|exec>` uses a temporary `GIT_ASKPASS` helper with `-c credential.helper=` so remote Git operations authenticate exclusively over HTTPS as `alendnl` without storing tokens in `.git/config` or hitting OS keychain work accounts.
 
 ---
 
@@ -76,7 +78,7 @@ flowchart TD
 
 ---
 
-## 4. Local Git Repository Operations
+## 4. Local & Authenticated Remote Git Operations
 
 ```bash
 # Check working tree and branch:
@@ -85,7 +87,13 @@ flowchart TD
 # View recent commit history with author and date:
 .agents/skills/project-operations/scripts/zap-ops git recent -n 5
 
-# Direct Git commands:
+# Authenticated remote operations over HTTPS (using GIT_TOKEN from .env, bypassing SSH & OS keychain):
+.agents/skills/project-operations/scripts/zap-ops git push origin main
+.agents/skills/project-operations/scripts/zap-ops git pull origin main
+.agents/skills/project-operations/scripts/zap-ops git fetch --all
+.agents/skills/project-operations/scripts/zap-ops git exec ls-remote origin
+
+# Local read-only Git commands:
 git diff --stat HEAD~1 HEAD
 git log --oneline -n 10
 ```

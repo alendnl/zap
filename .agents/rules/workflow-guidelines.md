@@ -18,3 +18,6 @@
 
 4. **Capped Iterative Refinement**:
    - Limit automatic fix-and-retry loops to 2–3 attempts. If failures persist, halt and ask the user for guidance with clear context and diagnostic findings.
+
+5. **Git & GitHub Authentication (HTTPS Token Only)**:
+   - Never use SSH (`git@github.com*`) or cached OS Keychain credentials for remote Git operations in this repo. Always use HTTPS (`https://github.com/alendnl/zap.git`) authenticated with `GIT_TOKEN` from `.env` via `.agents/skills/project-operations/scripts/zap-ops git <push|pull|fetch|exec>` (or `github ...`).

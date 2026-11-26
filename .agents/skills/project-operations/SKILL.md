@@ -78,12 +78,12 @@ flowchart LR
     DETECT -- "Complex Aggregation / Bulk Transform" --> SCRIPT["Construct Python Script or Aggregation Pipeline"]
 ```
 
-1. **Native CLI Tools**: Prefer native `git`, `gh`, and `gcloud` for standard commands already supported directly.
-2. **`zap-ops` Unified CLI**: Use for multi-step workflows, diagnostic checks (`doctor`), database querying/schema inspection, queue management, log inspection, and deployment sync.
+1. **Native CLI Tools**: Use native `git` (local read-only/commit commands) and `gcloud` for standard local/cloud commands, **but never use SSH (`git@github.com*`) or unauthenticated remote `git` commands** — route all remote Git (`push`, `pull`, `fetch`) and `gh` operations through `zap-ops` so `GIT_TOKEN` from `.env` is used over HTTPS.
+2. **`zap-ops` Unified CLI**: Use for multi-step workflows, diagnostic checks (`doctor`), database querying/schema inspection, queue management, log inspection, deployment sync, and HTTPS-authenticated Git/GitHub operations.
 3. **Python Scripts**: Use `.venv/bin/python` with `pymongo` for complex aggregations, bulk migrations, or structured exports when single-line CLI commands are insufficient.
 4. **Automatic Authentication**:
    - MongoDB: Loads `MONGO_URI` from `.env` using `ReadPreference.PRIMARY_PREFERRED`.
-   - GitHub: Automatically maps `GIT_TOKEN` in `.env` to `GH_TOKEN`.
+   - Git & GitHub (HTTPS Only): Maps `GIT_TOKEN` in `.env` to `GH_TOKEN` for `gh` and authenticates remote `git` operations over `https://github.com/alendnl/zap.git` via temporary `GIT_ASKPASS` + `-c credential.helper=` (ignoring SSH and macOS Keychain work accounts).
    - GCP: Uses local `gcloud` authenticated profile targeting project `zap-platform-prod`.
 
 ---
@@ -233,10 +233,13 @@ Target either `--env prod` (`zap_platform_prod`) or `--env lower` (`zap_platform
 .agents/skills/project-operations/scripts/zap-ops github trigger --workflow ci.yml --ref main --target backend
 ```
 
-#### Inspect Git Commits & Status
+#### Git Status, History & HTTPS Token Operations
 ```bash
 .agents/skills/project-operations/scripts/zap-ops git status
 .agents/skills/project-operations/scripts/zap-ops git recent -n 5
+.agents/skills/project-operations/scripts/zap-ops git fetch --all
+.agents/skills/project-operations/scripts/zap-ops git pull origin main
+.agents/skills/project-operations/scripts/zap-ops git push origin main
 ```
 
 ---

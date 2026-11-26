@@ -40,6 +40,7 @@ The persistent, single source of truth for the codebase:
 - **Backend**: FastAPI / Python backend (`ZAP-BE`).
 - **Compiler / Executor**: Sandboxed multi-language execution engine (`ZAP-BE/executor`).
 - **Infrastructure**: Single deployment on GCP Cloud Run (`zap-api`, `zap-executor`), Google Cloud Tasks, and MongoDB Atlas with dynamic runtime environment routing (`production` / `qa`).
+- **Git & GitHub Auth (HTTPS Token Only)**: Always use HTTPS (`https://github.com/alendnl/zap.git`) authenticated via `GIT_TOKEN` in `.env` for all remote Git and GitHub CLI operations (`.agents/skills/project-operations/scripts/zap-ops git <push|pull|fetch|exec>` or `github ...`). Never use SSH (`git@github.com*`), cached OS Keychain work credentials, or plaintext tokens in `.git/config`.
 
 ---
 

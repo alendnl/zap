@@ -83,7 +83,7 @@ Guessing wrong on ambiguous requirements or irreversible changes costs far more 
 Outline a concise plan covering affected files, schema/contract impact, new or updated tests, and exact verification commands. Where another installed skill specializes in part of the task, combine them rather than improvising:
 - **`design-taste-frontend`**: Pair with `build` for major visual polish, landing pages, or aesthetic overhauls in `ZAP-FE`.
 - **`universal-website-operator`**: Use alongside `build` after `ZAP-FE` changes that alter UI/UX or client state, to verify live rendering, console/network logs, and responsive viewports (routing test sessions via `X-ZAP-ENV: qa`).
-- **`project-operations` (`zap-ops`)**: Use when debugging or validating live MongoDB Atlas state, Cloud Run logs, Cloud Tasks queues, or GitHub CI runs.
+- **`project-operations` (`zap-ops`)**: Use when debugging or validating live MongoDB Atlas state, Cloud Run logs, Cloud Tasks queues, GitHub CI runs, or running HTTPS `GIT_TOKEN`-authenticated remote `git` commands (`zap-ops git push/pull/fetch/exec` — never SSH).
 
 ### Step 5: Implement & Author Tests
 Write minimal, explicit, type-safe changes adhering to `context/03-code-standards.md`:
