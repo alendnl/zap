@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: configurable-tab-ui-and-verify
+expected_outcome: |
+  The agent implements getTabSummary() in ZAP-FE/src/config/tabs.ts with strict TypeScript types (no `any`), verifies compilation with npm run build --workspace=ZAP-FE / verify_build.sh --frontend, and explicitly notes whether live browser verification via universal-website-operator was run or still needed if UI rendering changes.

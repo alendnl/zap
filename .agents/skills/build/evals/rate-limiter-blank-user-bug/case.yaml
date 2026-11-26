@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: rate-limiter-blank-user-bug
+expected_outcome: |
+  The agent uses a proportional fast path, normalizes whitespace user_id inside SubmissionRateLimiter.check_rate_limit (falling back to "anonymous"), adds a regression test in ZAP-BE/tests/, verifies with pytest / verify_build.sh --backend, and leaves unrelated docs untouched.

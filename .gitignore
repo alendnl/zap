@@ -11,6 +11,8 @@ node_modules/
 .next/
 out/
 build/
+!.agents/skills/build/
+!.agents/skills/build/**
 dist/
 *.tsbuildinfo
 .DS_Store
