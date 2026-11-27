@@ -89,3 +89,45 @@ flowchart TD
 - **Solution**:
   - Always handle three states in data-fetching UI: Loading skeleton, Error alert with Retry button, and Populated data.
   - Verify environment base URL configuration (`src/services/environment.ts`).
+
+---
+
+## 3. Error Recovery During Debug Sessions
+
+When the debugging environment itself breaks:
+
+| Failure | Recovery |
+| :--- | :--- |
+| **Dev server crashes** | Restart: `npm run dev --workspace=ZAP-FE`. Resume from the last reproduction step — do not restart the whole triage loop. |
+| **Browser subagent times out** | Spawn a fresh browser subagent. Navigate to the same URL and re-run reproduction. Prior findings are still valid. |
+| **Build fails after attempted fix** | Read the TypeScript errors carefully. Fix only what the compiler reports — do not change the original bug fix unless it caused the error. |
+| **Hot-reload loop (HMR instability)** | Hard-reload the browser (`Ctrl+Shift+R` or `Cmd+Shift+R`). If persisting, restart the dev server. |
+| **Multiple unrelated console errors** | Distinguish baseline noise (pre-existing errors) from regressions introduced by your fix. Document baseline errors before making any changes. |
+
+---
+
+## 4. Reading Stack Traces Effectively
+
+When a React or Next.js error appears in DevTools console:
+
+```
+Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+  at QuestionList (QuestionList.tsx:42:18)
+  at renderWithHooks (react-dom.development.js:...)
+```
+
+**Reading process:**
+1. Find the **first line pointing to your source code** (not `react-dom`, `webpack`, or `node_modules`).
+2. The file + line number (`QuestionList.tsx:42`) is your starting point.
+3. Open that file and read line 42. The error says `undefined.map()` — look for a `.map()` call and check whether the data it's called on can be `undefined`.
+4. Trace upward: where does that data come from? Is it from a prop, context, or fetch? Is there a loading state that might make it `undefined` before data arrives?
+
+**Common React error signatures:**
+
+| Error | Likely Cause |
+| :--- | :--- |
+| `Cannot read properties of undefined (reading 'map')` | Array is `undefined` during initial render; missing loading guard |
+| `Text content did not match` | Hydration mismatch — server and client rendered different HTML |
+| `Objects are not valid as a React child` | Passing an object (not string/number/element) directly into JSX |
+| `Each child in a list should have a unique "key" prop` | Missing `key` prop in `.map()` — not a crash, but causes stale render bugs |
+| `Warning: Can't perform a React state update on an unmounted component` | `useEffect` cleanup missing; async operation resolves after component unmount |

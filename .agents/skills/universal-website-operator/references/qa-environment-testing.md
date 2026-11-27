@@ -140,3 +140,44 @@ Manage and verify QA test users anytime using the automated script:
 ```
 
 The script includes hard-coded safety checks that abort immediately if any connection to `zap_platform_prod` is detected.
+
+---
+
+## 5. Generic QA Pattern for Non-ZAP Projects
+
+This skill is used on the ZAP platform, but the QA isolation model applies universally. When working on any other web project:
+
+### Template: QA Activation Checklist
+
+```
+1. Identify: What is the project's non-production data layer?
+   - Separate database (staging DB, test DB, SQLite fixture)
+   - Feature flag for test mode
+   - Mock API server (`msw`, `json-server`, `wiremock`)
+   - Environment variable pointing to sandbox API
+
+2. Activate: Set the appropriate signal in the browser session
+   - localStorage key (project-specific)
+   - `.env.local` variable (server-side)
+   - Toggle in developer settings UI
+   - Request header override in proxy config
+
+3. Verify: Confirm test data is being read/written
+   - Check the network tab: does the API base URL match the staging/test endpoint?
+   - Is test data visible (e.g. seed users, example products)?
+
+4. Credentials: Use only test accounts, never real user credentials
+   - Look for seeded test accounts in `fixtures/`, `seeds/`, or project README
+   - If none exist, ask the user before creating test data
+
+5. Teardown: After testing, verify no test data leaked to production
+```
+
+### Warning Signs of Accidental Production Access
+
+> [!CAUTION]
+> Stop immediately and alert the user if you observe:
+> - API calls to a production hostname (e.g. `api.myapp.com`, not `api-staging.myapp.com`)
+> - Response data containing real user names, emails, or financial figures
+> - Write operations to a database not labeled as test/staging/QA
+> - No test mode toggle found anywhere in the codebase

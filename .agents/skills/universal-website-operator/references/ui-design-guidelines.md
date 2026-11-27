@@ -94,3 +94,40 @@ flowchart TD
 8. **Preserve All Existing Functionality**: Retain state variables, click handlers, form validation, and API hooks. Do not break working logic.
 9. **Responsive Audit**: Verify desktop (1440px), tablet (768px), and mobile (375px) viewports on all touched pages.
 10. **Multi-Page Visual Verification**: Use the Antigravity Browser Subagent to visit every redesigned route, capture screenshots, and verify visual harmony.
+
+---
+
+## 4. Multi-Agent Parallelism for Large Redesigns
+
+When redesigning a site with 4+ pages, spawn parallel browser subagents to verify multiple routes simultaneously — this cuts verification time significantly.
+
+```
+Spawn in same turn:
+  Browser Subagent A → verify / and /login
+  Browser Subagent B → verify /admin and /admin/users
+  Browser Subagent C → verify /admin/questions and /faculty/questions/new
+```
+
+**Protocol:**
+1. After implementing code changes, identify all affected routes from the ephemeral inventory.
+2. Group into batches of 2–3 routes.
+3. Spawn one browser subagent per batch in the **same `invoke_subagent` turn**.
+4. Collect all reports, merge findings, and address any failures.
+5. Re-verify only the failed routes in a follow-up pass.
+
+This pattern is appropriate for full-site redesigns. For single-page or small-scope changes, a single sequential browser session is sufficient.
+
+---
+
+## 5. Anti-Patterns to Avoid in Redesigns
+
+Beyond the "AI Slop" table in section 1, watch for these common pitfalls during implementation:
+
+| Anti-Pattern | Problem | Fix |
+| :--- | :--- | :--- |
+| **Hardcoded pixel widths** | Breaks at non-standard screen sizes | Use responsive Tailwind classes (`w-full`, `max-w-screen-lg`) |
+| **`overflow: hidden` on body** | Prevents scroll on mobile, hides keyboard-expanded content | Use `overflow-x-hidden` only on specific containers where needed |
+| **`!important` overrides** | Creates specificity wars that break in dark mode or component variants | Restructure class ordering or use `cn()` / `clsx()` merge utilities |
+| **Removing focus styles** | Breaks keyboard accessibility | Keep `focus-visible:ring-*` on all interactive elements |
+| **Font size < 16px on inputs** | Triggers iOS zoom on focus | Use `text-base` (16px) minimum on all `<input>` and `<select>` elements |
+| **Fixed `z-index` without system** | Random collisions with modals and sticky headers | Use the z-index token ladder: sticky=10, dropdown=20, header=30, drawer=40, modal=50 |

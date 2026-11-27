@@ -79,11 +79,52 @@ When inspecting pages with the Antigravity Browser Subagent, systematically audi
 
 ---
 
-## 4. Verification Sign-Off Protocol
+## 4. Accessibility (WCAG AA) Spot-Check
+
+Perform these accessibility checks during any Audit or Redesign task. Full WCAG compliance is a separate engagement, but these high-impact items catch the most common failures:
+
+### Color Contrast
+- **Text on dark backgrounds**: Minimum 4.5:1 contrast ratio for body text; 3:1 for large text (≥18px bold or ≥24px regular).
+- In practice: `text-slate-400` (#94a3b8) on `bg-slate-900` (#0f172a) = ~5.9:1 ✅. `text-slate-500` on `bg-slate-900` = ~3.5:1 ⚠️ (fails for small text).
+- Check using DevTools: Elements → Computed → check "Accessibility" panel color contrast ratio.
+
+### Keyboard Navigation
+- Tab through the page. Every interactive element (button, link, input, select) must receive a visible focus ring.
+- Verify `focus-visible:ring-2 focus-visible:ring-blue-500` or equivalent is applied.
+- Modal dialogs: focus must be trapped inside the modal while open; Escape closes it.
+
+### Screen Reader Semantic Check
+- All images have `alt` text (meaningful alt for content images; `alt=""` for decorative).
+- Form inputs are associated with `<label>` elements or `aria-label`.
+- Icon-only buttons have `aria-label` or `title`.
+- Headings are hierarchical (`h1` → `h2` → `h3`), not used for styling.
+
+### Touch Target Size
+- All interactive elements have a minimum clickable area of 44×44 CSS pixels on mobile.
+
+---
+
+## 5. Performance Indicators (Observe-Only During Audit)
+
+These are not blockers, but flag them when found:
+
+| Indicator | What to Check | Threshold |
+| :--- | :--- | :--- |
+| **Unoptimized images** | Large images (>200KB) in initial viewport | Flag for `next/image` or `loading="lazy"` |
+| **Render-blocking resources** | `<link rel="stylesheet">` or `<script>` in `<head>` without `async`/`defer` | Flag; note LCP impact |
+| **Layout shift** | Elements shifting after initial render (CLS) | Flag if visually jarring |
+| **Slow API responses** | Primary data fetch >2s on local network | Flag; note component and endpoint |
+| **Console network errors** | 404 resources (missing fonts, images, scripts) | Fix; these consume bandwidth and may break UI |
+
+Report these as observations, not failures, unless the user specifically requests a performance audit.
+
+---
+
+## 6. Verification Sign-Off Protocol
 
 Before finalizing any task and delivering results to the user:
 
 1. **Capture Screenshot**: Take a visual snapshot of the primary affected views at Desktop and Mobile resolutions.
 2. **Review Runtime Inventory**: Update the ephemeral inventory to mark inspected pages as `Verified`.
 3. **Run Build Verification**: Execute `npm run build --workspace=ZAP-FE` (or project equivalent) to ensure type check passes.
-4. **Deliver Transparent Summary**: Detail what was tested, which viewports were verified, and any remaining environment boundaries (e.g. backend auth gates).
+4. **Deliver Transparent Summary**: Detail what was tested, which viewports were verified, accessibility findings, and any remaining environment boundaries (e.g. backend auth gates).
