@@ -2,6 +2,13 @@
 
 This reference provides end-to-end operational playbooks that correlate findings across **GCP Cloud Run / Cloud Tasks**, **MongoDB Atlas**, **Git/GitHub**, and **Source Code**.
 
+## Playbook Index
+- [Playbook 1: Production Incident / Compiler Failure Debugging](#-playbook-1-production-incident--compiler-failure-debugging)
+- [Playbook 2: Complex Database Analysis & Reporting](#-playbook-2-complex-database-analysis--reporting)
+- [Playbook 3: Infrastructure Scaling & Capacity Adjustment](#-playbook-3-infrastructure-scaling--capacity-adjustment)
+- [Playbook 4: Deployment Synchronization & Verification](#-playbook-4-deployment-synchronization--verification)
+- [Playbook 5: Data Migration & Environment Seeding](#-playbook-5-data-migration--environment-seeding)
+
 ---
 
 ## 🏛️ Playbook 1: Production Incident & Compiler Failure Debugging
@@ -166,3 +173,72 @@ flowchart TD
      ```bash
      .agents/skills/project-operations/scripts/zap-ops github trigger --workflow ci.yml --ref main --target backend
      ```
+
+---
+
+## 🔄 Playbook 5: Data Migration & Environment Seeding
+
+**Scenario**: *"Seed the QA database with fresh production questions."* or *"Migrate a collection from prod to lower for integration testing."*
+
+```mermaid
+flowchart TD
+    A[Migration Request] --> B["1. Verify source schema\nzap-ops mongo schema --env prod"]
+    B --> C["2. Export from prod\nzap-ops mongo export --env prod"]
+    C --> D["3. Inspect export\ncount & spot-check JSON"]
+    D --> E["4. Upsert into lower\nzap-ops mongo import --env lower --upsert"]
+    E --> F["5. Verify counts\nzap-ops mongo count"]
+    F --> G["6. Spot-check in lower\nzap-ops mongo query --env lower"]
+```
+
+### Execution Steps:
+
+1. **Verify Source Schema** (understand what you're copying):
+   ```bash
+   .agents/skills/project-operations/scripts/zap-ops mongo schema --env prod -c <collection>
+   ```
+
+2. **Export from Production**:
+   ```bash
+   # Full collection export:
+   .agents/skills/project-operations/scripts/zap-ops mongo export --env prod -c questions \
+     -o ./exports/questions_prod.json
+
+   # Partial export (e.g., only published questions):
+   .agents/skills/project-operations/scripts/zap-ops mongo export --env prod -c questions \
+     --filter '{"status": "PUBLISHED"}' -o ./exports/published_questions.json
+   ```
+
+3. **Inspect the Export**:
+   ```bash
+   # Count exported records:
+   python3 -c "import json; d=json.load(open('./exports/questions_prod.json')); print(f'{len(d)} documents')"
+   # Spot-check first document:
+   python3 -c "import json; d=json.load(open('./exports/questions_prod.json')); print(json.dumps(d[0], indent=2))" | head -30
+   ```
+
+4. **Upsert into Lower (QA)**:
+   ```bash
+   .agents/skills/project-operations/scripts/zap-ops mongo import --env lower -c questions \
+     -i ./exports/questions_prod.json --upsert
+   ```
+   > The `--upsert` flag updates existing documents and inserts new ones — safe to run multiple times.
+
+5. **Verify Migration**:
+   ```bash
+   # Compare counts prod vs lower:
+   .agents/skills/project-operations/scripts/zap-ops mongo count
+
+   # Spot-check in lower:
+   .agents/skills/project-operations/scripts/zap-ops mongo query --env lower -c questions \
+     --fields slug,title,status --limit 5
+   ```
+
+6. **Quick Full-Sync Alternative** (uses built-in sync command):
+   ```bash
+   .agents/skills/project-operations/scripts/zap-ops mongo sync-to-lower -c questions --limit 10
+   ```
+
+### Safety Notes:
+- **Always back up `lower` before a destructive migration**: `zap-ops mongo backup --env lower -o ./backups/lower_pre_migration`
+- **Never run import with `--env prod`** unless explicitly instructed — prod data is irreversible.
+- **Hidden test cases** (`visibility: HIDDEN`) are included in exports — do not expose export files publicly or commit them to git.

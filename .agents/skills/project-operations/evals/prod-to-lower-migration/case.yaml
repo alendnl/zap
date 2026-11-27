@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: prod-to-lower-migration
+expected_outcome: |
+  The agent follows the data migration pattern: exports from prod (zap-ops mongo export --env prod -c questions), then imports/upserts into lower (zap-ops mongo import --env lower --upsert), then verifies counts match (zap-ops mongo count or query). It never runs import with --env prod.

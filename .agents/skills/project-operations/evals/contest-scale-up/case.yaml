@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: contest-scale-up
+expected_outcome: |
+  The agent first inspects the current GCP Cloud Run service configuration (zap-ops gcp services or gcp tasks), then scales up for the contest by either using the switch-scaling.sh contest profile or manual zap-ops gcp scale commands, and finally verifies the updated configuration. It references the contest scaling profile from gcp-reference.md.

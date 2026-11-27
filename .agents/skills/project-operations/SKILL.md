@@ -1,20 +1,37 @@
 ---
 name: project-operations
 description: >-
-  Unified Cloud & Repository Operations Skill for ZAP. Intelligently orchestrates MongoDB Atlas, GCP (Cloud Run, Cloud Tasks, Logging, Artifact Registry, Secrets), Git/GitHub CI/CD, deployment verification, data migrations, and cross-system root-cause troubleshooting.
+  Use this skill for any ZAP platform operations task: checking if something is broken or slow, inspecting or querying MongoDB (prod/QA databases), reading GCP logs, investigating stuck or failed submissions, checking whether a Git push deployed, debugging GitHub Actions CI failures, scaling Cloud Run for a contest, pausing or resuming the Cloud Tasks queue, exporting or migrating data between environments, or running a full platform health check. Activate on vague symptoms too — "something feels off", "is the platform healthy?", "check the logs", "queue seems stuck". Do NOT activate for writing code, adding features, editing problem statements, or debugging a student's algorithm — those belong to the build skill.
 ---
 
 # Unified Cloud & Repository Operations Skill (`project-operations`)
 
-Use this skill whenever you need to inspect, query, manage, diagnose, troubleshoot, deploy, or analyze any part of the ZAP platform and its supporting infrastructure:
-1. **MongoDB Atlas**: Databases `zap_platform_prod` (production) and `zap_platform_lower` (QA/staging).
-2. **Google Cloud Platform (GCP)**: Project `zap-platform-prod` (`us-central1`), Cloud Run (`zap-api`, `zap-executor`), Cloud Tasks (`zap-submissions`), Secret Manager (`zap-mongodb-uri`), Artifact Registry (`zap-images`), and Cloud Logging.
-3. **Git & GitHub CI/CD**: Repository `alendnl/zap`, GitHub Actions (`ci.yml`), deployment status verification, PR inspection, and commit tracking.
-4. **Cross-System Intelligence**: Correlating GCP container logs, MongoDB submission states, Git commits, and application code to diagnose issues end-to-end.
+This skill covers every operational workflow for the ZAP platform. When in doubt, **activate it and start with `zap-ops doctor`** — that single command checks MongoDB Atlas, GCP services, and GitHub CI/CD in one shot.
+
+**Reference files** — read them on demand, don't load all upfront:
+- [`mongodb-reference.md`](./references/mongodb-reference.md) — collection schemas, production indexes, aggregation cookbook
+- [`gcp-reference.md`](./references/gcp-reference.md) — Cloud Run sizing, Cloud Tasks topology, IAM matrix, scaling profiles
+- [`git-github-reference.md`](./references/git-github-reference.md) — GitHub Actions path filtering, CI/CD mechanics, `gh` CLI usage
+- [`cross-system-playbooks.md`](./references/cross-system-playbooks.md) — step-by-step incident debugging, data analysis, scaling, and deploy-sync playbooks
 
 ---
 
-## 🏛️ Infrastructure Topology & Architectural Invariants
+## 🧭 Start Here: Request Triage
+
+```mermaid
+flowchart TD
+    REQ[User Request] --> Q1{What kind of request?}
+    Q1 -- "Something broken / stuck / erroring" --> INC["🔥 Incident Debug\nStart: zap-ops doctor\nThen: Playbook 1"]
+    Q1 -- "Query or analyse data" --> DATA["📊 Data Analysis\nStart: zap-ops mongo schema\nThen: aggregate / export"]
+    Q1 -- "Deploy / CI/CD / did push land?" --> DEPLOY["🚀 Deploy Sync\nStart: zap-ops gcp deploy-status\nThen: github runs"]
+    Q1 -- "Scale for contest / high load" --> SCALE["⚡ Capacity\nStart: zap-ops gcp services\nThen: switch-scaling.sh or gcp scale"]
+    Q1 -- "Migrate / sync / seed data" --> MIGRATE["🔄 Data Migration\nStart: mongo export prod → import lower\nSee: Sync Pattern below"]
+    Q1 -- "Anything else operational" --> HEALTH["🩺 Health Check First\nzap-ops doctor"]
+```
+
+---
+
+## 🏛️ Infrastructure Topology
 
 ```mermaid
 flowchart TD
@@ -46,229 +63,173 @@ flowchart TD
     AR --> API & EXEC
 ```
 
-### 5 Strict Architectural Invariants
-1. **Loose Coupling Boundary**: Question management (`ZAP-BE/app/questions`) is strictly decoupled from the execution engine (`ZAP-BE/executor`). The executor never knows question IDs or contest rules.
-2. **Untrusted Code Isolation**: Student code executes **only** inside sandboxed worker processes in `zap-executor` with strict CPU, memory, and wall-clock limits.
-3. **Single Deployment, Multi-Tenant Runtime Routing**: Compute is unified on Cloud Run. Routing to `zap_platform_prod` vs `zap_platform_lower` is dynamic via the `X-ZAP-ENV` header (`production` vs `qa`).
-4. **Asynchronous Execution Pipeline**: Formal submissions are recorded as `QUEUED`, enqueued to Cloud Tasks, executed asynchronously by `zap-executor`, and polled by the frontend.
-5. **Test Case Masking**: Test cases marked `visibility: HIDDEN` must never have inputs, outputs, or error traces exposed to public API callers.
+### 5 Architectural Invariants (never violate)
+| # | Invariant |
+|---|---|
+| 1 | **Loose Coupling**: `ZAP-BE/app/questions` is strictly decoupled from `ZAP-BE/executor`. The executor never knows question IDs or contest rules. |
+| 2 | **Sandbox Isolation**: Student code runs **only** inside sandboxed worker processes in `zap-executor` with strict CPU/memory/wall-clock limits. |
+| 3 | **Multi-Tenant Routing**: `X-ZAP-ENV` header (`production` vs `qa`) is the sole mechanism routing a request to `zap_platform_prod` vs `zap_platform_lower`. |
+| 4 | **Async Pipeline**: Submissions are `QUEUED` → Cloud Tasks → `zap-executor` asynchronously; never call the executor directly. |
+| 5 | **Hidden Test Cases**: Test cases with `visibility: HIDDEN` must **never** expose inputs, outputs, or error traces to public API callers. |
 
 ---
 
-## 🛠️ Unified CLI Tool: `zap-ops`
+## 🛠️ CLI Tool: `zap-ops`
 
-The primary executable CLI tool is located at:
 ```bash
+# Preferred (executable wrapper):
 .agents/skills/project-operations/scripts/zap-ops <command> [options]
-# Or directly via Python:
+
+# Fallback (direct Python):
 .venv/bin/python .agents/skills/project-operations/scripts/zap_ops.py <command> [options]
 ```
 
----
+**Tool selection strategy:**
 
-## 🧭 Dynamic Tool Discovery & Execution Strategy
-
-Follow this hybrid execution strategy:
-
-```mermaid
-flowchart LR
-    REQ[User Request] --> DETECT{Task Complexity?}
-    DETECT -- "Health Check / Standard Op" --> ZAP_OPS["Use zap-ops CLI"]
-    DETECT -- "Native Cloud / Git Command" --> NATIVE["Use gcloud / gh / git Directly"]
-    DETECT -- "Complex Aggregation / Bulk Transform" --> SCRIPT["Construct Python Script or Aggregation Pipeline"]
-```
-
-1. **Native CLI Tools**: Use native `git` (local read-only/commit commands) and `gcloud` for standard local/cloud commands, **but never use SSH (`git@github.com*`) or unauthenticated remote `git` commands** — route all remote Git (`push`, `pull`, `fetch`) and `gh` operations through `zap-ops` so `GIT_TOKEN` from `.env` is used over HTTPS.
-2. **`zap-ops` Unified CLI**: Use for multi-step workflows, diagnostic checks (`doctor`), database querying/schema inspection, queue management, log inspection, deployment sync, and HTTPS-authenticated Git/GitHub operations.
-3. **Python Scripts**: Use `.venv/bin/python` with `pymongo` for complex aggregations, bulk migrations, or structured exports when single-line CLI commands are insufficient.
-4. **Automatic Authentication**:
-   - MongoDB: Loads `MONGO_URI` from `.env` using `ReadPreference.PRIMARY_PREFERRED`.
-   - Git & GitHub (HTTPS Only): Maps `GIT_TOKEN` in `.env` to `GH_TOKEN` for `gh` and authenticates remote `git` operations over `https://github.com/alendnl/zap.git` via temporary `GIT_ASKPASS` + `-c credential.helper=` (ignoring SSH and macOS Keychain work accounts).
-   - GCP: Uses local `gcloud` authenticated profile targeting project `zap-platform-prod`.
+| Scenario | Use |
+|---|---|
+| Health check, standard query, standard op | `zap-ops` CLI |
+| Native cloud inspection (IAM, billing, raw metrics) | `gcloud` / `gh` / `git` directly |
+| Complex aggregation, bulk transform, structured export | Python script with `pymongo` via `.venv/bin/python` |
+| All remote Git (`push`, `pull`, `fetch`) and all `gh` commands | **Always** via `zap-ops` (injects `GIT_TOKEN` from `.env` over HTTPS) |
 
 ---
 
-## 📋 Operational Command Reference
+## 📋 Command Reference
 
-### 1. Platform Health Check (`doctor` / `status`)
-Runs an instant, comprehensive health check across MongoDB Atlas, GCP services, and GitHub CI/CD:
+### Health Check
 ```bash
-.agents/skills/project-operations/scripts/zap-ops doctor
+zap-ops doctor                        # Full platform health: MongoDB + GCP + GitHub
 ```
 
 ---
 
-### 2. MongoDB Operations (`mongo`)
-Target either `--env prod` (`zap_platform_prod`) or `--env lower` (`zap_platform_lower`).
+### MongoDB (`mongo`)
 
-#### Test Connection & Latency
 ```bash
-.agents/skills/project-operations/scripts/zap-ops mongo ping
-```
+# Connectivity
+zap-ops mongo ping
 
-#### List Collections & Document Counts
-```bash
-.agents/skills/project-operations/scripts/zap-ops mongo list --env prod
-.agents/skills/project-operations/scripts/zap-ops mongo list --env lower
-```
+# Explore collections
+zap-ops mongo list --env prod          # list all collections + document counts
+zap-ops mongo count                    # compare counts across prod vs lower
+zap-ops mongo schema --env prod -c questions
+zap-ops mongo indexes --env prod -c submissions
+zap-ops mongo ensure-indexes --env prod
 
-#### Compare Document Counts Across Environments
-```bash
-.agents/skills/project-operations/scripts/zap-ops mongo count
-```
+# Query documents
+zap-ops mongo query --env prod -c questions \
+  --fields slug,title,difficulty --limit 5
 
-#### Query Documents
-```bash
-# Table format with field projection:
-.agents/skills/project-operations/scripts/zap-ops mongo query --env prod -c questions --fields slug,title,difficulty --limit 5
-
-# JSON format with filter and sort:
-.agents/skills/project-operations/scripts/zap-ops mongo query --env prod -c submissions \
+zap-ops mongo query --env prod -c submissions \
   --filter '{"status": "QUEUED"}' \
   --fields id,userId,questionId,status,createdAt \
-  --sort "createdAt:-1" \
-  --format json \
-  --limit 10
-```
+  --sort "createdAt:-1" --format json --limit 10
 
-#### Retrieve Single Document
-```bash
-.agents/skills/project-operations/scripts/zap-ops mongo get --env prod -c questions two-sum-basics
-.agents/skills/project-operations/scripts/zap-ops mongo get --env prod -c users student@example.com
-```
+# Get single document (by slug, id, or email)
+zap-ops mongo get --env prod -c questions two-sum-basics
+zap-ops mongo get --env prod -c users student@example.com
 
-#### Infer Document Schema
-```bash
-.agents/skills/project-operations/scripts/zap-ops mongo schema --env prod -c questions
-.agents/skills/project-operations/scripts/zap-ops mongo schema --env prod -c submissions
-```
-
-#### Inspect & Ensure Indexes
-```bash
-# Inspect defined indexes:
-.agents/skills/project-operations/scripts/zap-ops mongo indexes --env prod -c submissions
-
-# Ensure all production indexes exist:
-.agents/skills/project-operations/scripts/zap-ops mongo ensure-indexes --env prod
-```
-
-#### Execute Aggregation Pipeline
-```bash
-.agents/skills/project-operations/scripts/zap-ops mongo aggregate --env prod -c submissions \
+# Aggregation
+zap-ops mongo aggregate --env prod -c submissions \
   --pipeline '[{"$group": {"_id": "$status", "count": {"$sum": 1}}}]'
-```
 
-#### Data Import, Export & Backup
-```bash
-# Export to JSON:
-.agents/skills/project-operations/scripts/zap-ops mongo export --env prod -c questions -o ./exports/questions.json
-
-# Export to CSV with projection:
-.agents/skills/project-operations/scripts/zap-ops mongo export --env prod -c submissions \
+# Export / Import / Backup / Sync
+zap-ops mongo export --env prod -c questions -o ./exports/questions.json
+zap-ops mongo export --env prod -c submissions \
   --fields id,userId,userEmail,verdict,createdAt -o ./exports/submissions.csv --limit 500
-
-# Import / Upsert from JSON:
-.agents/skills/project-operations/scripts/zap-ops mongo import --env lower -c questions -i ./exports/questions.json --upsert
-
-# Full database backup to directory:
-.agents/skills/project-operations/scripts/zap-ops mongo backup --env lower -o ./backups/qa_snapshot
-
-# One-way sync from production to lower (QA):
-.agents/skills/project-operations/scripts/zap-ops mongo sync-to-lower -c questions --limit 10
+zap-ops mongo import --env lower -c questions -i ./exports/questions.json --upsert
+zap-ops mongo backup --env lower -o ./backups/qa_snapshot
+zap-ops mongo sync-to-lower -c questions --limit 10   # one-way prod → lower
 ```
+
+> **Data Migration Pattern** — to seed or refresh a QA collection from production:
+> 1. Export from prod: `zap-ops mongo export --env prod -c <col> -o /tmp/<col>.json`
+> 2. Upsert into lower: `zap-ops mongo import --env lower -c <col> -i /tmp/<col>.json --upsert`
+> 3. Verify: `zap-ops mongo count` and spot-check with `zap-ops mongo query --env lower`
 
 ---
 
-### 3. Google Cloud Platform Operations (`gcp`)
+### GCP (`gcp`)
 
-#### Inspect Cloud Run Services
 ```bash
-.agents/skills/project-operations/scripts/zap-ops gcp services
+# Inspect services & queues
+zap-ops gcp services                   # Cloud Run revision URLs, min/max instances, CPU/RAM
+zap-ops gcp tasks                      # Cloud Tasks queue state, concurrency, backlog
+zap-ops gcp secrets                    # List Secret Manager secrets (names only, never values)
+zap-ops gcp deploy-status              # Compare deployed image tags to local Git HEAD SHA
+
+# Logs
+zap-ops gcp logs --service api --severity ERROR --limit 20
+zap-ops gcp logs --service executor --search "<SUBMISSION_ID>" --limit 15
+
+# Queue control
+zap-ops gcp queue-state zap-submissions pause --confirm-prod
+zap-ops gcp queue-state zap-submissions resume --confirm-prod
+
+# Scaling (manual)
+zap-ops gcp scale --service executor --min-instances 2 --max-instances 20
+zap-ops gcp scale --service api --min-instances 2 --max-instances 15
+
+# Scaling profiles (contest vs normal)
+./infra/scripts/switch-scaling.sh contest   # pre-warms high-capacity contest mode
+./infra/scripts/switch-scaling.sh normal    # returns to scale-to-zero day-to-day mode
 ```
 
-#### Inspect Cloud Tasks Queues & Control States
-```bash
-# Check queue status:
-.agents/skills/project-operations/scripts/zap-ops gcp tasks
-
-# Pause or resume queue:
-.agents/skills/project-operations/scripts/zap-ops gcp queue-state zap-submissions pause --confirm-prod
-.agents/skills/project-operations/scripts/zap-ops gcp queue-state zap-submissions resume --confirm-prod
-```
-
-#### Query Container Logs
-```bash
-# Error logs for zap-api:
-.agents/skills/project-operations/scripts/zap-ops gcp logs --service api --severity ERROR --limit 20
-
-# Search logs for submission ID:
-.agents/skills/project-operations/scripts/zap-ops gcp logs --service executor --search "<SUBMISSION_ID>" --limit 15
-```
-
-#### Scale Cloud Run Capacity
-```bash
-.agents/skills/project-operations/scripts/zap-ops gcp scale --service executor --min-instances 2 --max-instances 20
-```
-
-#### Check Deployment Revision Sync
-```bash
-.agents/skills/project-operations/scripts/zap-ops gcp deploy-status
-```
+> **Contest Scaling Checklist**: Before a large contest, run `zap-ops doctor`, then `switch-scaling.sh contest`, then `zap-ops gcp services` to verify the new min/max values took effect. See `gcp-reference.md §6` for exact resource targets.
 
 ---
 
-### 4. Git & GitHub Operations (`git` & `github`)
+### Git & GitHub (`git` / `github`)
 
-#### List & Inspect CI/CD Runs
 ```bash
-# List recent CI runs:
-.agents/skills/project-operations/scripts/zap-ops github runs --limit 5
+# CI/CD inspection
+zap-ops github runs --limit 5
+zap-ops github view <RUN_ID> --failed-logs
+zap-ops github trigger --workflow ci.yml --ref main --target backend   # or --target all / frontend
 
-# View run details and failure logs:
-.agents/skills/project-operations/scripts/zap-ops github view <RUN_ID> --failed-logs
+# Arbitrary gh commands (auto-authenticated with GIT_TOKEN)
+zap-ops github exec pr list
+zap-ops github exec release list
+
+# Local Git
+zap-ops git status
+zap-ops git recent -n 5
+
+# Authenticated remote Git (uses GIT_TOKEN from .env, bypasses SSH & OS keychain)
+zap-ops git push origin main
+zap-ops git pull origin main
+zap-ops git fetch --all
+zap-ops git exec ls-remote origin
 ```
 
-#### Trigger Workflow Dispatch
-```bash
-.agents/skills/project-operations/scripts/zap-ops github trigger --workflow ci.yml --ref main --target backend
-```
-
-#### Git Status, History & HTTPS Token Operations
-```bash
-.agents/skills/project-operations/scripts/zap-ops git status
-.agents/skills/project-operations/scripts/zap-ops git recent -n 5
-.agents/skills/project-operations/scripts/zap-ops git fetch --all
-.agents/skills/project-operations/scripts/zap-ops git pull origin main
-.agents/skills/project-operations/scripts/zap-ops git push origin main
-```
+> **CI path filtering**: pushes touching only `docs/**`, `.agents/**`, `*.md` skip test + deploy automatically. Only `ZAP-BE/**` triggers backend tests; only `ZAP-FE/**` triggers frontend tests. See `git-github-reference.md §2`.
 
 ---
 
 ## 🔗 Cross-System Correlated Workflows
 
-When investigating issues or fulfilling complex requests, correlate information across systems rather than checking them in isolation:
+Always correlate across systems rather than checking them in isolation. When you have a symptom, follow the matching playbook:
 
-| Scenario | Cross-System Workflow | Reference Playbook |
+| Scenario | Quick Start | Full Playbook |
 |---|---|---|
-| **Incident Debugging** | Correlate `zap-ops gcp logs` ➔ MongoDB submission record ➔ Git commit diff ➔ Source code root cause ➔ Fix & test | [Playbook 1](./references/cross-system-playbooks.md#playbook-1-production-incident--compiler-failure-debugging) |
-| **Data Analysis** | Schema discovery ➔ Mongo aggregation pipeline ➔ JSON/CSV export ➔ Formatted summary | [Playbook 2](./references/cross-system-playbooks.md#playbook-2-complex-database-analysis--reporting) |
-| **Capacity Sizing** | Cloud Run status ➔ Scaling configuration update ➔ Health check validation | [Playbook 3](./references/cross-system-playbooks.md#playbook-3-infrastructure-scaling--capacity-adjustment) |
-| **Deploy Sync** | Git HEAD commit SHA ➔ Cloud Run image tags ➔ GitHub CI run status | [Playbook 4](./references/cross-system-playbooks.md#playbook-4-deployment-synchronization--verification) |
+| Submission stuck / Internal Server Error | `zap-ops doctor` → `mongo get submissions <ID>` → `gcp logs` | [Playbook 1](./references/cross-system-playbooks.md#playbook-1-production-incident--compiler-failure-debugging) |
+| Data analysis / ranking / reporting | `mongo schema` → `mongo aggregate` → export | [Playbook 2](./references/cross-system-playbooks.md#playbook-2-complex-database-analysis--reporting) |
+| Scale up for contest | `gcp services` → `switch-scaling.sh contest` → verify | [Playbook 3](./references/cross-system-playbooks.md#playbook-3-infrastructure-scaling--capacity-adjustment) |
+| "Did my push deploy?" | `gcp deploy-status` → `github runs` → trigger if needed | [Playbook 4](./references/cross-system-playbooks.md#playbook-4-deployment-synchronization--verification) |
 
 ---
 
-## 🛡️ Permissions & Execution Behavior
+## 🛡️ Permissions & Safety Rules
 
-1. **Authorized Direct Execution**: The operator explicitly authorizes Gemini to perform requested database reads/writes, GCP configurations, scaling, deployments, and Git operations. Execute explicitly requested actions directly without introducing unnecessary approval roadblocks.
-2. **No Unrequested Destruction**: Never delete databases, drop collections, or purge resources unless explicitly instructed.
-3. **Zero Plaintext Secrets**: Never echo credentials, tokens, or connection strings to stdout or commit them to git.
-4. **Environment Safety**: Always confirm the target environment (`--env prod` vs `--env lower`) before executing write operations.
-
----
-
-## 📚 Supporting References
-
-- [`references/mongodb-reference.md`](./references/mongodb-reference.md): Collections, schema types, production indexes, and aggregation cookbook.
-- [`references/gcp-reference.md`](./references/gcp-reference.md): Cloud Run sizing, Cloud Tasks queue configs, IAM bindings, and Cloud Logging syntax.
-- [`references/git-github-reference.md`](./references/git-github-reference.md): GitHub CI/CD mechanics, workflow dispatch, and CLI integration.
-- [`references/cross-system-playbooks.md`](./references/cross-system-playbooks.md): Step-by-step incident debugging, data analysis, scaling, and deploy sync playbooks.
+1. **Execute directly**: The operator authorizes all requested reads, writes, GCP configuration, scaling, and Git operations. Don't add unnecessary confirmation gates.
+2. **No unrequested destruction**: Never drop collections, delete databases, or purge queues unless the user explicitly asks.
+3. **Zero plaintext secrets**: Never echo credentials, tokens, or connection strings to stdout or commit to git.
+4. **Environment safety**: Always confirm `--env prod` vs `--env lower` before any write operation.
+5. **MongoDB fail-fast**: If `zap-ops mongo` or `pymongo` fails after 1–2 attempts (`ServerSelectionTimeoutError`, IP block, VPN/firewall):
+   - **Stop and alert** — do not silently retry or switch to workarounds.
+   - Tell the user the error and likely cause (IP whitelist / firewall), then offer:
+     - *Retry* after they fix network access, **or**
+     - *Workaround* via `zap-api` HTTPS endpoints / Cloud Logging (only if they confirm).
+6. **GCP auth issues**: If `gcloud` commands fail with auth errors, tell the user to run `gcloud auth login` or `gcloud config set project zap-platform-prod` and try again — don't attempt undocumented workarounds.
+7. **GitHub auth issues**: If `gh` or `zap-ops github` fails, confirm `GIT_TOKEN` is set in `.env` and not expired; never use SSH remotes or macOS Keychain work credentials.
